@@ -1,0 +1,49 @@
+{
+  "name": "learning-map",
+  "version": "0.1.0",
+  "private": true,
+  "description": "This is a website to help student and other people to follow the right learning path curated just for them according to their needs.",
+  "keywords": [
+    "learning",
+    "map",
+    "provider",
+    "roadmap"
+  ],
+  "homepage": "https://github.com/Shivam6050/learning-map-provider#readme",
+  "bugs": {
+    "url": "https://github.com/Shivam6050/learning-map-provider/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Shivam6050/learning-map-provider.git"
+  },
+  "license": "ISC",
+  "author": "Shivm Sagar",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.12.4",
+    "@supabase/supabase-js": "^2.112.0",
+    "next": "16.2.10",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.10",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
