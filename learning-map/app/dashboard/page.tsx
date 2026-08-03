@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { logout } from "@/app/auth/actions";
+import { redirect } from "next/navigation";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -7,6 +8,10 @@ export default async function DashboardPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login?redirectedFrom=/dashboard");
+  }
 
   // Reading our own profile row proves the RLS policy
   // "profiles_select_own_or_admin" is working, not just that
