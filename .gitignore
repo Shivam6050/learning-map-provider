@@ -1,9 +1,0 @@
-learning-map-0/
-learning-map-phases/node_modules
-learning-map-phases/.next
-learning-map-phases/.env
-learning-map-phases/.env.local
-learning-map-phases/.env*.local
-learning-map-phases/*.tsbuildinfo
-*.log
-.DS_Store
