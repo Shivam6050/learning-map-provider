@@ -30,7 +30,7 @@ export async function generatePath(formData: FormData) {
   const budgetTotal = Number(formData.get("budgetTotal") || 0);
   const currency = String(formData.get("currency") ?? "USD");
 
-  const resourcePool = getAdjustedResourcePool(currency);
+  const resourcePool = getAdjustedResourcePool(currency, budgetTotal);
   let options: any[] = [];
 
   try {

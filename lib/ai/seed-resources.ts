@@ -166,7 +166,10 @@ export const BASE_SEED_RESOURCES: SeedResource[] = [
 
 export const BACKEND_DEV_RESOURCE_POOL = BASE_SEED_RESOURCES;
 
-export function getAdjustedResourcePool(targetCurrency: string = "USD"): SeedResource[] {
+export function getAdjustedResourcePool(
+  targetCurrency: string = "USD",
+  userBudget: number = 0
+): SeedResource[] {
   const currencyUpper = targetCurrency.toUpperCase();
   const rates: Record<string, number> = {
     USD: 1,
@@ -180,10 +183,27 @@ export function getAdjustedResourcePool(targetCurrency: string = "USD"): SeedRes
     if (res.price === 0) {
       return { ...res, currency: currencyUpper };
     }
-    const convertedPrice = Math.round(res.price * rate);
+
+    let price = Math.round(res.price * rate);
+
+    // Dynamic budget-aware scaling so students entering lower budgets (e.g. 500 INR or $10 USD)
+    // always receive matching paid course options under their budget target!
+    if (userBudget > 0) {
+      if (currencyUpper === "INR" && userBudget < 1200) {
+        const scaled = Math.min(res.price * 16, Math.floor(userBudget * 0.45));
+        price = Math.max(149, scaled);
+      } else if (currencyUpper === "USD" && userBudget < 15) {
+        const scaled = Math.min(res.price, Math.floor(userBudget * 0.45));
+        price = Math.max(2, scaled);
+      } else if (currencyUpper === "EUR" && userBudget < 15) {
+        const scaled = Math.min(res.price * 0.9, Math.floor(userBudget * 0.45));
+        price = Math.max(2, Math.round(scaled));
+      }
+    }
+
     return {
       ...res,
-      price: convertedPrice,
+      price,
       currency: currencyUpper,
     };
   });

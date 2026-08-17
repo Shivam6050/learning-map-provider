@@ -100,16 +100,25 @@ function buildPathOption(
 
     // If paid budget is available, allocate matching paid courses as primary resources
     if (paidBudget && remainingBudget > 0) {
-      const matchingPaid = targetPaidList.find((p) => {
+      let matchingPaid = targetPaidList.find((p) => {
         if (usedPaidUrls.has(p.url)) return false;
         if (p.price > remainingBudget) return false;
 
         return p.topic_hints.some(
           (hint) =>
             stageTitle.includes(hint.toLowerCase()) ||
-            stageTopics.some((t) => t.includes(hint.toLowerCase()))
+            stageTopics.some(
+              (t) => t.includes(hint.toLowerCase()) || hint.toLowerCase().includes(t)
+            )
         );
       });
+
+      // Fallback: if no strict topic match, pick the next available paid course fitting the remaining budget
+      if (!matchingPaid) {
+        matchingPaid = targetPaidList.find(
+          (p) => !usedPaidUrls.has(p.url) && p.price <= remainingBudget
+        );
+      }
 
       if (matchingPaid) {
         usedPaidUrls.add(matchingPaid.url);
@@ -129,7 +138,9 @@ function buildPathOption(
       f.topic_hints.some(
         (hint) =>
           stageTitle.includes(hint.toLowerCase()) ||
-          stageTopics.some((t) => t.includes(hint.toLowerCase()))
+          stageTopics.some(
+            (t) => t.includes(hint.toLowerCase()) || hint.toLowerCase().includes(t)
+          )
       )
     );
 
