@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { logout } from "@/app/auth/actions";
 import { redirect } from "next/navigation";
@@ -21,6 +22,11 @@ export default async function DashboardPage() {
     .select("display_name, role, created_at")
     .eq("id", user?.id)
     .single();
+
+  const { data: paths } = await supabase
+    .from("learning_paths")
+    .select("id, skill_level, status, created_at, fields(name)")
+    .order("created_at", { ascending: false });
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-16">
@@ -50,12 +56,40 @@ export default async function DashboardPage() {
         </dl>
       </div>
 
-      <p className="mt-4 text-sm text-slate-500">
-        This page only renders for a logged-in user, and the profile data
-        above only loaded because the <code>profiles_select_own_or_admin</code>{" "}
-        RLS policy allowed it. That&apos;s the Phase 0 exit check: auth,
-        RLS, and deploy all working together.
-      </p>
+      <div className="mt-6 flex items-center justify-between">
+        <h2 className="text-sm font-medium text-slate-500">Your learning paths</h2>
+        <Link
+          href="/onboarding"
+          className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700"
+        >
+          Generate a new path
+        </Link>
+      </div>
+
+      {paths?.length ? (
+        <ul className="mt-3 space-y-2">
+          {paths.map((path: any) => {
+            const field = Array.isArray(path.fields) ? path.fields[0] : path.fields;
+            return (
+              <li key={path.id}>
+                <Link
+                  href={`/paths/${path.id}`}
+                  className="block rounded-lg border border-slate-200 bg-white p-4 text-sm hover:border-indigo-300"
+                >
+                  <span className="font-medium text-slate-900">{field?.name}</span>
+                  <span className="ml-2 text-slate-500">
+                    {path.skill_level} · {path.status}
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className="mt-3 text-sm text-slate-400">
+          No paths yet — generate your first one above.
+        </p>
+      )}
 
       <form action={logout} className="mt-8">
         <button

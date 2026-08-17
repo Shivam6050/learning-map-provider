@@ -68,3 +68,52 @@ Phase 1 in the roadmap: hardcode one field (Backend Development), build
 the onboarding form (skill level, weekly hours, budget), and wire up the
 Stage 1 (skeleton) + Stage 4 (assembly) prompts from
 `ai-pipeline-prompts.md` against a small hand-seeded set of resources.
+
+## Phase 1 additions
+
+Wires up Stage 1 (skeleton) and a combined Stage 3+4 (selection +
+assembly) against a **hand-seeded resource pool** for one hardcoded
+field, per the roadmap's "walking skeleton" approach.
+
+### What's new
+- `lib/ai/client.ts` — Anthropic client + a `callForJson` helper that
+  strips stray markdown fences and parses defensively
+- `lib/ai/skeleton.ts` — Stage 1 prompt, no web search
+- `lib/ai/seed-resources.ts` — the Phase 1 placeholder resource pool for
+  Backend Development. **Read the caveat comment at the top of that
+  file** — these are stable, well-known sources chosen to unblock
+  testing, not a vetted allowlist. Review before pointing real users at it.
+- `lib/ai/assemble.ts` — the combined selection + assembly prompt.
+  Collapses Stage 3 and Stage 4 because Phase 1 has no real Stage 2
+  discovery output to hand it — see the comment at the top of that file
+  for why this changes once Phase 2 lands.
+- `lib/db/ensure-seed-data.ts` — upserts the hardcoded field and seed
+  resources via the **service-role** client, since `fields` and
+  `resources` have no client write policy in the schema
+- `app/onboarding/` — the onboarding form + server action running the
+  full pipeline: skeleton → assembly → **URL validation against the
+  candidate pool** (the actual anti-hallucination guardrail, not just
+  the prompt wording) → writes to the database
+- `app/paths/[id]/page.tsx` — read-only display of the generated path
+
+### Additional setup for Phase 1
+Add your Groq API key to `.env.local`:
+```
+GROQ_API_KEY=your-groq-api-key
+```
+Get one at console.groq.com if you don't have one yet.
+
+### Try it
+Log in → Dashboard → "Generate a new path" → fill in the form → wait
+~10-20s → you should land on `/paths/{id}` with real stages and matched
+resources from the seed pool.
+
+### Known Phase 1 limitations (by design, not bugs)
+- Only "Backend Development" exists as a field — hardcoded, per the roadmap
+- Resources come from the static seed pool, not real search/API discovery
+  (that's Phase 2)
+- No progress-tracking UI yet, even though `stage_progress` rows get
+  created to hold the `practice_check` text (Phase 4 builds the UI for this)
+- No admin approval flow for resources — everything in the seed pool is
+  marked `trust_status: 'allowlisted'` directly (Phase 5)
+
