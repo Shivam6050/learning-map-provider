@@ -95,24 +95,34 @@ export default async function OnboardingSelectPage({
                   </p>
                   <ul className="space-y-3">
                     {option.stages.map((stage) => {
-                      const primaryResource = stage.stage_resources.find((r) => r.is_primary)?.resources || stage.stage_resources[0]?.resources;
                       return (
                         <li key={stage.id} className="text-xs">
                           <p className="font-semibold text-slate-800">
                             {stage.order_index + 1}. {stage.title}
                           </p>
-                          {primaryResource ? (
-                            <div className="mt-0.5 flex items-center justify-between text-slate-500">
-                              <span className="truncate max-w-[180px] font-medium text-indigo-600">
-                                {primaryResource.title}
-                              </span>
-                              <span className="text-[10px] whitespace-nowrap text-slate-400">
-                                {primaryResource.price > 0 ? `${primaryResource.price} ${primaryResource.currency}` : "Free"}
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="text-[10px] text-slate-400">Free documentation & tutorials</span>
-                          )}
+                          <div className="mt-1 space-y-1">
+                            {stage.stage_resources.map((sr, rIdx) => (
+                              <div
+                                key={rIdx}
+                                className="flex items-center justify-between text-[11px] text-slate-600"
+                              >
+                                <span className="truncate max-w-[170px] font-medium text-indigo-600">
+                                  {sr.resources.title}
+                                </span>
+                                <span
+                                  className={`text-[10px] font-semibold ${
+                                    sr.resources.price > 0
+                                      ? "text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded"
+                                      : "text-slate-400"
+                                  }`}
+                                >
+                                  {sr.resources.price > 0
+                                    ? `${sr.resources.price} ${pathSet.currency}`
+                                    : "Free"}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
                         </li>
                       );
                     })}
