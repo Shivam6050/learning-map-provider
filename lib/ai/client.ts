@@ -1,6 +1,6 @@
 import Groq from "groq-sdk";
 
-export const MODEL_CANDIDATES = [
+export const GROQ_MODEL_CANDIDATES = [
   "llama-3.3-70b-versatile",
   "llama-3.1-70b-versatile",
   "llama3-70b-8192",
@@ -8,7 +8,14 @@ export const MODEL_CANDIDATES = [
   "mixtral-8x7b-32768",
 ];
 
-export const MODEL = MODEL_CANDIDATES[0];
+export const GEMINI_MODEL_CANDIDATES = [
+  "gemini-2.5-flash",
+  "gemini-1.5-flash",
+  "gemini-2.0-flash",
+  "gemini-1.5-pro",
+];
+
+export const MODEL = GROQ_MODEL_CANDIDATES[0];
 
 const FALLBACK_SKELETON = [
   {
@@ -96,62 +103,106 @@ export function getGroqClient() {
   return new Groq({ apiKey });
 }
 
+async function callGeminiForJson<T>(
+  apiKey: string,
+  params: { system: string; user: string }
+): Promise<T | null> {
+  for (const model of GEMINI_MODEL_CANDIDATES) {
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            system_instruction: { parts: [{ text: params.system }] },
+            contents: [{ parts: [{ text: params.user }] }],
+            generationConfig: {
+              response_mime_type: "application/json",
+            },
+          }),
+        }
+      );
+
+      if (!res.ok) continue;
+
+      const data = await res.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) continue;
+
+      const cleaned = text.replace(/```json|```/g, "").trim();
+      return JSON.parse(cleaned) as T;
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
+}
+
 /**
- * Calls Groq with a system prompt that demands JSON-only output, and
- * parses the result defensively. Automatically falls back to available Groq models
- * if a specific model returns 404 or is unavailable on the account.
+ * Calls Gemini or Groq depending on configured API keys in .env.
+ * Supports GEMINI_API_KEY and GROQ_API_KEY with automatic model fallback.
  */
 export async function callForJson<T>(params: {
   system: string;
   user: string;
   maxTokens?: number;
 }): Promise<T> {
-  const apiKey = process.env.GROQ_API_KEY?.trim();
+  const geminiKey = process.env.GEMINI_API_KEY?.trim();
+  const groqKey = process.env.GROQ_API_KEY?.trim();
 
-  // Fallback demo mode if GROQ_API_KEY is not configured or is a placeholder
-  if (!apiKey || apiKey.includes("your-groq") || apiKey === "gsk_placeholder") {
-    if (params.system.includes("curriculum designer")) {
-      return { stages: FALLBACK_SKELETON } as unknown as T;
-    }
-    return { stages: FALLBACK_ASSEMBLED } as unknown as T;
+  // If Gemini API Key is configured and valid
+  if (
+    geminiKey &&
+    !geminiKey.includes("your-gemini") &&
+    geminiKey !== "your-groq-api-key"
+  ) {
+    const geminiResult = await callGeminiForJson<T>(geminiKey, params);
+    if (geminiResult) return geminiResult;
   }
 
-  const groq = new Groq({ apiKey });
+  // If Groq API Key is configured and valid
+  if (
+    groqKey &&
+    !groqKey.includes("your-groq") &&
+    groqKey !== "gsk_placeholder"
+  ) {
+    const groq = new Groq({ apiKey: groqKey });
 
-  for (const modelName of MODEL_CANDIDATES) {
-    try {
-      const response = await groq.chat.completions.create({
-        model: modelName,
-        max_tokens: params.maxTokens ?? 2000,
-        messages: [
-          { role: "system", content: params.system },
-          { role: "user", content: params.user },
-        ],
-        response_format: { type: "json_object" },
-      });
+    for (const modelName of GROQ_MODEL_CANDIDATES) {
+      try {
+        const response = await groq.chat.completions.create({
+          model: modelName,
+          max_tokens: params.maxTokens ?? 2000,
+          messages: [
+            { role: "system", content: params.system },
+            { role: "user", content: params.user },
+          ],
+          response_format: { type: "json_object" },
+        });
 
-      const content = response.choices[0]?.message?.content;
-      if (!content) continue;
+        const content = response.choices[0]?.message?.content;
+        if (!content) continue;
 
-      const cleaned = content.replace(/```json|```/g, "").trim();
-      return JSON.parse(cleaned) as T;
-    } catch (err: any) {
-      const errMsg = String(err?.message || err);
-      // If error is model_not_found (404), continue trying next supported model in list
-      if (
-        errMsg.includes("model_not_found") ||
-        errMsg.includes("does not exist") ||
-        errMsg.includes("not have access") ||
-        errMsg.includes("404")
-      ) {
+        const cleaned = content.replace(/```json|```/g, "").trim();
+        return JSON.parse(cleaned) as T;
+      } catch (err: any) {
+        const errMsg = String(err?.message || err);
+        if (
+          errMsg.includes("model_not_found") ||
+          errMsg.includes("does not exist") ||
+          errMsg.includes("not have access") ||
+          errMsg.includes("404")
+        ) {
+          continue;
+        }
         continue;
       }
-      // Continue to next model candidate
-      continue;
     }
   }
 
-  // Graceful fallback if Groq API key or models are unreachable
+  // Fallback demo mode if keys fail or are unconfigured
   if (params.system.includes("curriculum designer")) {
     return { stages: FALLBACK_SKELETON } as unknown as T;
   }
