@@ -155,7 +155,6 @@ export async function generateMultiplePathOptions(params: {
   const validUrls = new Set(params.resourcePool.map((r) => r.url));
   const paidBudget = isPaidBudget(params.budgetTotal, params.currency);
 
-  // 1. Generate base AI assembled stage list
   const baseAssembled = await assemblePath({
     stages: params.skeleton,
     resourcePool: params.resourcePool,
@@ -164,18 +163,20 @@ export async function generateMultiplePathOptions(params: {
   });
 
   const availablePaid = params.resourcePool.filter((r) => r.price > 0);
+  const availableFree = params.resourcePool.filter((r) => r.price === 0);
 
-  // Helper to format stages and ensure ONLY candidate pool resources are included
   const formatOptionStages = (
     assembledList: AssembledStage[],
     paidFilter?: (r: SeedResource) => boolean
   ): { stages: StoredStage[]; totalCost: number; totalHours: number } => {
-    let totalCost = 0;
     let totalHours = 0;
+    let accumulatedBudgetSpent = 0;
 
     const stages: StoredStage[] = params.skeleton.map((stg) => {
       totalHours += stg.estimated_hours;
-      const foundAssembled = assembledList.find((s) => s.order_index === stg.order_index);
+      const foundAssembled = assembledList.find(
+        (s) => s.order_index === stg.order_index
+      );
 
       // STRICT ANTI-HALLUCINATION FILTER: keep ONLY resources present in candidate pool
       let rawSelected = (foundAssembled?.selected_resources || []).filter((r) =>
@@ -187,7 +188,10 @@ export async function generateMultiplePathOptions(params: {
         const candidatePaid = availablePaid.find(
           (p) =>
             paidFilter(p) &&
-            p.topic_hints.some((h) => stageTopics.some((st) => st.includes(h.toLowerCase())))
+            p.price + accumulatedBudgetSpent <= params.budgetTotal &&
+            p.topic_hints.some((h) =>
+              stageTopics.some((st) => st.includes(h.toLowerCase()))
+            )
         );
 
         if (candidatePaid) {
@@ -199,7 +203,7 @@ export async function generateMultiplePathOptions(params: {
       }
 
       const stageResources = rawSelected.map((r, idx) => {
-        const res = urlMap.get(r.url) || {
+        let res = urlMap.get(r.url) || {
           title: "Learning Resource",
           url: r.url,
           platform: "article" as const,
@@ -208,8 +212,24 @@ export async function generateMultiplePathOptions(params: {
           currency: params.currency,
         };
 
-        if (res.price > 0 && r.is_primary) {
-          totalCost += res.price;
+        if (res.price > 0) {
+          if (accumulatedBudgetSpent + res.price <= params.budgetTotal) {
+            accumulatedBudgetSpent += res.price;
+          } else {
+            // Replace paid resource with free resource if budget limit would be exceeded
+            const freeFallback =
+              availableFree.find((f) =>
+                f.topic_hints.some((h) =>
+                  stg.search_topics.some((t) =>
+                    t.toLowerCase().includes(h.toLowerCase())
+                  )
+                )
+              ) || availableFree[0];
+
+            res = freeFallback
+              ? { ...freeFallback, currency: params.currency }
+              : { ...res, price: 0 };
+          }
         }
 
         return {
@@ -238,15 +258,31 @@ export async function generateMultiplePathOptions(params: {
       };
     });
 
-    return { stages, totalCost, totalHours };
+    // Calculate EXACT total cost as sum of ALL selected resources in the path
+    let exactTotalCost = 0;
+    stages.forEach((stg) => {
+      stg.stage_resources.forEach((sr) => {
+        if (sr.resources?.price && sr.resources.price > 0) {
+          exactTotalCost += sr.resources.price;
+        }
+      });
+    });
+
+    return { stages, totalCost: exactTotalCost, totalHours };
   };
 
   // Option 1: Comprehensive Mastery Path (Udemy & Full Bootcamps)
   const opt1Data = formatOptionStages(baseAssembled, (r) => r.platform === "udemy");
   // Option 2: Fast-Track Practical Path (YouTube & Hands-on Video Courses)
-  const opt2Data = formatOptionStages(baseAssembled, (r) => r.resource_type === "course" || r.resource_type === "video");
+  const opt2Data = formatOptionStages(
+    baseAssembled,
+    (r) => r.resource_type === "course" || r.resource_type === "video"
+  );
   // Option 3: Essential & Budget Saver Path (Minimal Cost)
-  const opt3Data = formatOptionStages(baseAssembled, (r) => r.price <= params.budgetTotal * 0.5);
+  const opt3Data = formatOptionStages(
+    baseAssembled,
+    (r) => r.price <= params.budgetTotal * 0.5
+  );
 
   return [
     {
@@ -262,7 +298,8 @@ export async function generateMultiplePathOptions(params: {
     {
       id: "opt-2",
       name: "Fast-Track Practical Path",
-      tagline: "Project-driven path emphasizing hands-on video tutorials, exercises, and practice builds.",
+      tagline:
+        "Project-driven path emphasizing hands-on video tutorials, exercises, and practice builds.",
       total_cost: Math.min(opt2Data.totalCost, params.budgetTotal),
       total_hours: opt2Data.totalHours,
       stages: opt2Data.stages,
@@ -270,7 +307,8 @@ export async function generateMultiplePathOptions(params: {
     {
       id: "opt-3",
       name: "Essential & Budget Saver Path",
-      tagline: "Optimized for maximum value with minimal cost under your budget limit.",
+      tagline:
+        "Optimized for maximum value with minimal cost under your budget limit.",
       total_cost: Math.min(opt3Data.totalCost, params.budgetTotal),
       total_hours: opt3Data.totalHours,
       stages: opt3Data.stages,
