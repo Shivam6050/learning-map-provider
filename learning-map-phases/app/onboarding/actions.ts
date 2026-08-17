@@ -5,10 +5,11 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { generateSkeleton } from "@/lib/ai/skeleton";
 import { assemblePath } from "@/lib/ai/assemble";
+import { getAdjustedResourcePool } from "@/lib/ai/seed-resources";
+import { inMemoryPaths } from "@/lib/db/in-memory-paths";
 import {
   ensureBackendDevField,
   ensureSeedResources,
-  getSeedResourcePool,
 } from "@/lib/db/ensure-seed-data";
 
 export async function generatePath(formData: FormData) {
@@ -25,25 +26,22 @@ export async function generatePath(formData: FormData) {
     | "beginner"
     | "intermediate"
     | "advanced";
-  const weeklyHours = Number(formData.get("weeklyHours"));
-  const budgetTotal = Number(formData.get("budgetTotal"));
+  const weeklyHours = Number(formData.get("weeklyHours") || 5);
+  const budgetTotal = Number(formData.get("budgetTotal") || 0);
   const currency = String(formData.get("currency") ?? "USD");
 
   let skeleton: any[];
   let assembled: any[];
 
+  const resourcePool = getAdjustedResourcePool(currency);
+
   try {
-    // --- Stage 1: skeleton (no search, per the pipeline design) ---
     skeleton = await generateSkeleton({
       fieldName: "Backend Development",
       skillLevel,
       weeklyHours,
     });
 
-    // --- Stages 2/3 stand-in for Phase 1: hardcoded resource pool ---
-    const resourcePool = getSeedResourcePool();
-
-    // --- Combined selection + assembly (Phase 1 simplification) ---
     assembled = await assemblePath({
       stages: skeleton,
       resourcePool,
@@ -51,31 +49,82 @@ export async function generatePath(formData: FormData) {
       currency,
     });
   } catch (err: any) {
-    const errorMsg = err?.message || "Failed to generate learning path. Check your Groq API key in .env.local.";
+    const errorMsg =
+      err?.message ||
+      "Failed to generate learning path. Check your Groq API key in .env.local.";
     redirect(`/onboarding?error=${encodeURIComponent(errorMsg)}`);
   }
 
-  const resourcePool = getSeedResourcePool();
-
-  // --- Guardrail: drop any URL the model returned that isn't actually
-  // in the candidate pool we gave it. This is the enforcement that
-  // matters, not the prompt instruction alone. ---
   const validUrls = new Set(resourcePool.map((r) => r.url));
   const sanitized = assembled.map((stage: any) => ({
     ...stage,
-    selected_resources: stage.selected_resources.filter((r: any) =>
+    selected_resources: (stage.selected_resources || []).filter((r: any) =>
       validUrls.has(r.url)
     ),
   }));
 
-  // --- Ensure field + resource rows exist (service role — these
-  // tables have no client write policy) ---
-  const fieldId = await ensureBackendDevField();
-  const urlToResourceId = await ensureSeedResources();
+  const urlToResourceMap = new Map(resourcePool.map((r) => [r.url, r]));
 
-  let pathId = "demo-path-" + Math.random().toString(36).substring(2, 9);
+  const pathId = "path-" + Math.random().toString(36).substring(2, 9);
 
+  const formattedStages = skeleton.map((stage: any) => {
+    const assembledStage = sanitized.find(
+      (s) => s.order_index === stage.order_index
+    );
+
+    const selectedResources = assembledStage?.selected_resources || [];
+    const stageResources = selectedResources.map((r: any, i: number) => {
+      const res = urlToResourceMap.get(r.url) || {
+        title: "Learning Resource",
+        url: r.url,
+        platform: "article",
+        resource_type: "article",
+        price: 0,
+        currency,
+      };
+
+      return {
+        is_primary: r.is_primary ?? i === 0,
+        order_index: i,
+        resources: res,
+      };
+    });
+
+    return {
+      id: `stage-${stage.order_index}`,
+      order_index: stage.order_index,
+      title: stage.title,
+      description: stage.description,
+      estimated_hours: stage.estimated_hours,
+      stage_resources: stageResources,
+      stage_progress: [
+        {
+          practice_check: {
+            description:
+              assembledStage?.practice_check ||
+              "Complete the practical exercise for this stage.",
+          },
+        },
+      ],
+    };
+  });
+
+  // Store in memory for reliable fallback & demo mode
+  inMemoryPaths.set(pathId, {
+    id: pathId,
+    field_name: "Backend Development",
+    skill_level: skillLevel,
+    weekly_hours: weeklyHours,
+    budget_total: budgetTotal,
+    currency,
+    stages: formattedStages,
+  });
+
+  // Also try to persist into Supabase if DB tables exist
   try {
+    const fieldId = await ensureBackendDevField();
+    const urlToResourceId = await ensureSeedResources();
+
     const { data: path } = await supabase
       .from("learning_paths")
       .insert({
@@ -91,9 +140,9 @@ export async function generatePath(formData: FormData) {
       .single();
 
     if (path?.id) {
-      pathId = path.id;
-
+      const dbPathId = path.id;
       const service = createServiceClient();
+
       for (const stage of skeleton) {
         const assembledStage = sanitized.find(
           (s) => s.order_index === stage.order_index
@@ -102,7 +151,7 @@ export async function generatePath(formData: FormData) {
         const { data: stageRow } = await service
           .from("stages")
           .insert({
-            path_id: path.id,
+            path_id: dbPathId,
             title: stage.title,
             order_index: stage.order_index,
             description: stage.description,
@@ -139,9 +188,22 @@ export async function generatePath(formData: FormData) {
           });
         }
       }
+
+      // If DB insert succeeded, also register dbPathId in inMemoryPaths
+      inMemoryPaths.set(dbPathId, {
+        id: dbPathId,
+        field_name: "Backend Development",
+        skill_level: skillLevel,
+        weekly_hours: weeklyHours,
+        budget_total: budgetTotal,
+        currency,
+        stages: formattedStages,
+      });
+
+      redirect(`/paths/${dbPathId}`);
     }
   } catch {
-    // If DB is unconfigured or in fallback mode, redirect to path view with fallback ID
+    // If DB is unconfigured, redirect to pathId backed by inMemoryPaths
   }
 
   redirect(`/paths/${pathId}`);

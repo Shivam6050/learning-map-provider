@@ -67,7 +67,8 @@ export default async function OnboardingPage({
               name="budgetTotal"
               type="number"
               min={0}
-              defaultValue={0}
+              defaultValue={50}
+              placeholder="e.g. 50"
               required
               className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-600"
             />

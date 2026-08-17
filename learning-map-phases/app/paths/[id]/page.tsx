@@ -1,5 +1,5 @@
-import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { inMemoryPaths } from "@/lib/db/in-memory-paths";
 
 export default async function PathPage({
   params,
@@ -9,12 +9,59 @@ export default async function PathPage({
   const { id } = await params;
   const supabase = await createClient();
 
-  let { data: path } = await supabase
-    .from("learning_paths")
-    .select("id, skill_level, weekly_hours, budget_total, currency, fields(name)")
-    .eq("id", id)
-    .single();
+  let path: any = null;
+  let stages: any[] = [];
 
+  try {
+    const { data: dbPath } = await supabase
+      .from("learning_paths")
+      .select("id, skill_level, weekly_hours, budget_total, currency, fields(name)")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (dbPath) {
+      path = dbPath;
+      const { data: dbStages } = await supabase
+        .from("stages")
+        .select(
+          `
+          id, order_index, title, description, estimated_hours,
+          stage_resources (
+            is_primary,
+            order_index,
+            resources ( title, url, platform, resource_type, price, currency )
+          ),
+          stage_progress ( practice_check )
+        `
+        )
+        .eq("path_id", id)
+        .order("order_index");
+
+      if (dbStages && dbStages.length) {
+        stages = dbStages;
+      }
+    }
+  } catch {
+    // Database query error or unconfigured DB
+  }
+
+  // Fallback to inMemoryPaths if not in database
+  if (!path || !stages.length) {
+    const stored = inMemoryPaths.get(id);
+    if (stored) {
+      path = {
+        id: stored.id,
+        skill_level: stored.skill_level,
+        weekly_hours: stored.weekly_hours,
+        budget_total: stored.budget_total,
+        currency: stored.currency,
+        fields: { name: stored.field_name },
+      };
+      stages = stored.stages;
+    }
+  }
+
+  // Default fallback if path ID is entirely unknown
   if (!path) {
     path = {
       id,
@@ -23,26 +70,10 @@ export default async function PathPage({
       budget_total: 0,
       currency: "USD",
       fields: { name: "Backend Development" },
-    } as any;
+    };
   }
 
-  let { data: stages } = await supabase
-    .from("stages")
-    .select(
-      `
-      id, order_index, title, description, estimated_hours,
-      stage_resources (
-        is_primary,
-        order_index,
-        resources ( title, url, platform, resource_type, price, currency )
-      ),
-      stage_progress ( practice_check )
-    `
-    )
-    .eq("path_id", id)
-    .order("order_index");
-
-  if (!stages || !stages.length) {
+  if (!stages.length) {
     stages = [
       {
         id: "stage-1",
@@ -64,115 +95,67 @@ export default async function PathPage({
         ],
         stage_progress: [{ practice_check: { description: "Build a simple HTTP server that handles GET and POST requests and returns JSON responses." } }],
       },
-      {
-        id: "stage-2",
-        order_index: 1,
-        title: "Node.js & Express Basics",
-        description: "Build server applications using Node.js runtime and Express framework routing.",
-        estimated_hours: 15,
-        stage_resources: [
-          {
-            is_primary: true,
-            order_index: 0,
-            resources: { title: "Express.js official documentation", url: "https://expressjs.com/", platform: "docs", resource_type: "docs", price: 0, currency: "USD" },
-          },
-          {
-            is_primary: false,
-            order_index: 1,
-            resources: { title: "Node.js Full Course — freeCodeCamp (YouTube)", url: "https://www.youtube.com/watch?v=Oe421EPjeBE", platform: "youtube", resource_type: "video", price: 0, currency: "USD" },
-          },
-        ],
-        stage_progress: [{ practice_check: { description: "Create a RESTful API using Express with routes for CRUD operations." } }],
-      },
-      {
-        id: "stage-3",
-        order_index: 2,
-        title: "Database Modeling with PostgreSQL",
-        description: "Design relational schemas, execute SQL queries, and integrate PostgreSQL with Prisma ORM.",
-        estimated_hours: 20,
-        stage_resources: [
-          {
-            is_primary: true,
-            order_index: 0,
-            resources: { title: "PostgreSQL Tutorial — freeCodeCamp (YouTube)", url: "https://www.youtube.com/watch?v=qw--VYLpxG4", platform: "youtube", resource_type: "video", price: 0, currency: "USD" },
-          },
-          {
-            is_primary: false,
-            order_index: 1,
-            resources: { title: "Prisma ORM official documentation", url: "https://www.prisma.io/docs", platform: "docs", resource_type: "docs", price: 0, currency: "USD" },
-          },
-        ],
-        stage_progress: [{ practice_check: { description: "Connect your Express app to a PostgreSQL database using Prisma ORM." } }],
-      },
-      {
-        id: "stage-4",
-        order_index: 3,
-        title: "Authentication & JWT Security",
-        description: "Implement secure user authentication, password hashing, and JWT token sessions.",
-        estimated_hours: 15,
-        stage_resources: [
-          {
-            is_primary: true,
-            order_index: 0,
-            resources: { title: "Authentication Cheat Sheet — OWASP", url: "https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html", platform: "docs", resource_type: "docs", price: 0, currency: "USD" },
-          },
-          {
-            is_primary: false,
-            order_index: 1,
-            resources: { title: "JWT Authentication Tutorial (YouTube)", url: "https://www.youtube.com/watch?v=mbsmsi7l3r4", platform: "youtube", resource_type: "video", price: 0, currency: "USD" },
-          },
-        ],
-        stage_progress: [{ practice_check: { description: "Add JWT authentication middleware to secure private API endpoints." } }],
-      },
-      {
-        id: "stage-5",
-        order_index: 4,
-        title: "Deployment & System Design",
-        description: "Containerize applications using Docker, configure hosting on Render, and explore system scalability.",
-        estimated_hours: 20,
-        stage_resources: [
-          {
-            is_primary: true,
-            order_index: 0,
-            resources: { title: "Deploying Node Apps — Render Docs", url: "https://render.com/docs/deploy-node-express-app", platform: "docs", resource_type: "docs", price: 0, currency: "USD" },
-          },
-          {
-            is_primary: false,
-            order_index: 1,
-            resources: { title: "Docker for Beginners (YouTube)", url: "https://www.youtube.com/watch?v=fqMOX6JJhGo", platform: "youtube", resource_type: "video", price: 0, currency: "USD" },
-          },
-        ],
-        stage_progress: [{ practice_check: { description: "Containerize your Node.js application using Docker and deploy it to a live cloud platform." } }],
-      },
-    ] as any;
+    ];
   }
 
-  const field = Array.isArray((path as any).fields) ? (path as any).fields[0] : (path as any).fields;
+  const field = Array.isArray(path.fields) ? path.fields[0] : path.fields;
+
+  // Calculate total cost of selected paid resources in the path
+  let totalCost = 0;
+  stages.forEach((stage: any) => {
+    stage.stage_resources?.forEach((sr: any) => {
+      const res = Array.isArray(sr.resources) ? sr.resources[0] : sr.resources;
+      if (res?.price && res.price > 0) {
+        totalCost += Number(res.price);
+      }
+    });
+  });
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-16">
-      <p className="text-sm font-medium text-indigo-600">{field?.name}</p>
-      <h1 className="mt-1 font-serif text-2xl text-slate-900">Your learning path</h1>
-      <p className="mt-1 text-sm text-slate-500">
-        {path.skill_level} level · {path.weekly_hours} hrs/week · budget{" "}
-        {path.budget_total} {path.currency}
-      </p>
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium text-indigo-600">{field?.name}</p>
+        <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700 capitalize">
+          {path.skill_level} level
+        </span>
+      </div>
+
+      <h1 className="mt-2 font-serif text-3xl font-bold text-slate-900">Your Learning Path</h1>
+
+      <div className="mt-4 grid grid-cols-3 gap-4 rounded-xl border border-slate-200 bg-slate-50/80 p-4 text-center">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Weekly Hours</p>
+          <p className="mt-1 text-lg font-semibold text-slate-900">{path.weekly_hours} hrs/week</p>
+        </div>
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Your Budget</p>
+          <p className="mt-1 text-lg font-semibold text-slate-900">
+            {path.budget_total} {path.currency}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Path Est. Cost</p>
+          <p className="mt-1 text-lg font-semibold text-emerald-600">
+            {totalCost > 0 ? `${totalCost} ${path.currency}` : "Free ($0)"}
+          </p>
+        </div>
+      </div>
 
       <ol className="mt-8 space-y-6">
-        {stages?.map((stage: any) => (
-          <li key={stage.id} className="rounded-lg border border-slate-200 bg-white p-5">
+        {stages.map((stage: any) => (
+          <li key={stage.id} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md">
             <div className="flex items-baseline justify-between">
-              <h2 className="font-medium text-slate-900">
+              <h2 className="font-semibold text-slate-900">
                 {stage.order_index + 1}. {stage.title}
               </h2>
-              <span className="text-xs text-slate-400">
+              <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-500 font-medium">
                 ~{stage.estimated_hours}h
               </span>
             </div>
-            <p className="mt-1 text-sm text-slate-600">{stage.description}</p>
+            <p className="mt-2 text-sm text-slate-600 leading-relaxed">{stage.description}</p>
 
             {stage.stage_resources?.length ? (
-              <ul className="mt-4 space-y-2">
+              <ul className="mt-4 space-y-2 border-t border-slate-100 pt-3">
                 {stage.stage_resources
                   .sort((a: any, b: any) => a.order_index - b.order_index)
                   .map((sr: any, i: number) => {
@@ -181,26 +164,28 @@ export default async function PathPage({
                       : sr.resources;
                     if (!resource) return null;
                     return (
-                      <li key={i} className="flex items-center gap-2 text-sm">
-                        <a
-                          href={resource.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="font-medium text-indigo-600 hover:text-indigo-700"
-                        >
-                          {resource.title}
-                        </a>
-                        <span className="text-xs text-slate-400">
-                          {resource.platform}
+                      <li key={i} className="flex items-center justify-between gap-2 text-sm py-1">
+                        <div className="flex items-center gap-2">
+                          {sr.is_primary && (
+                            <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold tracking-wide uppercase text-indigo-800">
+                              Primary
+                            </span>
+                          )}
+                          <a
+                            href={resource.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
+                          >
+                            {resource.title}
+                          </a>
+                        </div>
+                        <span className="text-xs text-slate-500 whitespace-nowrap font-medium">
+                          {resource.platform} ·{" "}
                           {resource.price > 0
-                            ? ` · ${resource.price} ${resource.currency}`
-                            : " · free"}
+                            ? `${resource.price} ${resource.currency}`
+                            : "Free"}
                         </span>
-                        {sr.is_primary && (
-                          <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-xs text-indigo-700">
-                            primary
-                          </span>
-                        )}
                       </li>
                     );
                   })}
@@ -212,11 +197,11 @@ export default async function PathPage({
             )}
 
             {stage.stage_progress?.[0]?.practice_check && (
-              <p className="mt-4 rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-600">
-                <span className="font-medium">Practice check: </span>
+              <div className="mt-4 rounded-lg bg-amber-50/70 border border-amber-200/60 p-3 text-xs text-amber-900">
+                <span className="font-semibold text-amber-800">Practice check: </span>
                 {(stage.stage_progress[0].practice_check as { description: string })
                   .description}
-              </p>
+              </div>
             )}
           </li>
         ))}

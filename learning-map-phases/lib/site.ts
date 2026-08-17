@@ -5,8 +5,9 @@ export function getSiteUrl() {
     return configuredUrl.replace(/\/$/, "");
   }
 
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL.replace(/\/$/, "")}`;
+  if (process.env.NODE_ENV === "production" && process.env.VERCEL_URL) {
+    const vUrl = process.env.VERCEL_URL.trim().replace(/\/$/, "");
+    return vUrl.startsWith("http://") || vUrl.startsWith("https://") ? vUrl : `https://${vUrl}`;
   }
 
   return "http://localhost:3000";

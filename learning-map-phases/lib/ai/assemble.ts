@@ -18,8 +18,8 @@ export type AssembledStage = {
  */
 const SYSTEM_PROMPT = `You are assembling a personalized learning path. You will be given:
 1. An ordered list of learning stages (title, description, topic hints)
-2. A pool of real candidate resources, each with a URL and topic hints
-3. The learner's total budget
+2. A pool of real candidate resources, each with a URL, price, currency, and topic hints
+3. The learner's total budget and currency
 
 You must choose 1-3 resources per stage from the candidate pool ONLY —
 never invent a resource, never modify a URL, never reference anything not
@@ -27,12 +27,10 @@ present in the candidate pool. Match resources to stages using the topic
 hints and descriptions provided, using your judgment for what's most
 relevant to each stage's topic.
 
-Budget rules: the budget is a soft target for the WHOLE path, not a
-per-stage cap. Prefer free resources for foundational/early stages.
-Reserve paid resources for the 1-2 stages where they add the most
-leverage, rather than spreading budget thinly across every stage. It is
-fine to go under budget. Do not exceed the total budget across all
-selected paid resources.
+Budget allocation rules:
+- If the learner's total budget is 0: choose ONLY free resources (price = 0).
+- If the learner's total budget is > 0: actively include valuable paid resources (price > 0) from the pool alongside essential free docs/tutorials, so that the cumulative cost across selected paid resources fits within the total budget.
+- Do NOT make everything free if the user has provided a non-zero budget. Select appropriate paid courses from the pool that fit within the budget.
 
 For each stage, also write one "practice_check": a short (1-2 sentence)
 description of a mini-project or a small set of quiz questions a learner
@@ -40,7 +38,7 @@ could use to self-verify they understood the stage. This is informal and
 ungraded.
 
 If fewer than 2 usable candidates exist for a stage, return what's
-available rather than inventing more — do not pad the list.
+available rather than inventing more.
 
 Output ONLY valid JSON, no prose, no markdown fences:
 {
