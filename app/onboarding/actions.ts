@@ -51,7 +51,7 @@ export async function generatePath(formData: FormData) {
   } catch (err: any) {
     const errorMsg =
       err?.message ||
-      "Failed to generate learning path. Check your Groq API key in .env.local.";
+      "Failed to generate learning path. Check your GEMINI_API_KEY in .env.local.";
     redirect(`/onboarding?error=${encodeURIComponent(errorMsg)}`);
   }
 

@@ -1,13 +1,3 @@
-import Groq from "groq-sdk";
-
-export const GROQ_MODEL_CANDIDATES = [
-  "llama-3.3-70b-versatile",
-  "llama-3.1-70b-versatile",
-  "llama3-70b-8192",
-  "llama3-8b-8192",
-  "mixtral-8x7b-32768",
-];
-
 export const GEMINI_MODEL_CANDIDATES = [
   "gemini-2.5-flash",
   "gemini-1.5-flash",
@@ -15,7 +5,7 @@ export const GEMINI_MODEL_CANDIDATES = [
   "gemini-1.5-pro",
 ];
 
-export const MODEL = GROQ_MODEL_CANDIDATES[0];
+export const MODEL = GEMINI_MODEL_CANDIDATES[0];
 
 const FALLBACK_SKELETON = [
   {
@@ -98,11 +88,6 @@ const FALLBACK_ASSEMBLED = [
   },
 ];
 
-export function getGroqClient() {
-  const apiKey = process.env.GROQ_API_KEY?.trim() || "gsk_placeholder";
-  return new Groq({ apiKey });
-}
-
 async function callGeminiForJson<T>(
   apiKey: string,
   params: { system: string; user: string }
@@ -141,8 +126,8 @@ async function callGeminiForJson<T>(
 }
 
 /**
- * Calls Gemini or Groq depending on configured API keys in .env.
- * Supports GEMINI_API_KEY and GROQ_API_KEY with automatic model fallback.
+ * Calls Google Gemini API using GEMINI_API_KEY with JSON mode.
+ * Parses structured output defensively and falls back smoothly if key is missing or unconfigured.
  */
 export async function callForJson<T>(params: {
   system: string;
@@ -150,59 +135,18 @@ export async function callForJson<T>(params: {
   maxTokens?: number;
 }): Promise<T> {
   const geminiKey = process.env.GEMINI_API_KEY?.trim();
-  const groqKey = process.env.GROQ_API_KEY?.trim();
 
-  // If Gemini API Key is configured and valid
   if (
     geminiKey &&
     !geminiKey.includes("your-gemini") &&
-    geminiKey !== "your-groq-api-key"
+    geminiKey !== "your-groq-api-key" &&
+    geminiKey !== "gsk_placeholder"
   ) {
     const geminiResult = await callGeminiForJson<T>(geminiKey, params);
     if (geminiResult) return geminiResult;
   }
 
-  // If Groq API Key is configured and valid
-  if (
-    groqKey &&
-    !groqKey.includes("your-groq") &&
-    groqKey !== "gsk_placeholder"
-  ) {
-    const groq = new Groq({ apiKey: groqKey });
-
-    for (const modelName of GROQ_MODEL_CANDIDATES) {
-      try {
-        const response = await groq.chat.completions.create({
-          model: modelName,
-          max_tokens: params.maxTokens ?? 2000,
-          messages: [
-            { role: "system", content: params.system },
-            { role: "user", content: params.user },
-          ],
-          response_format: { type: "json_object" },
-        });
-
-        const content = response.choices[0]?.message?.content;
-        if (!content) continue;
-
-        const cleaned = content.replace(/```json|```/g, "").trim();
-        return JSON.parse(cleaned) as T;
-      } catch (err: any) {
-        const errMsg = String(err?.message || err);
-        if (
-          errMsg.includes("model_not_found") ||
-          errMsg.includes("does not exist") ||
-          errMsg.includes("not have access") ||
-          errMsg.includes("404")
-        ) {
-          continue;
-        }
-        continue;
-      }
-    }
-  }
-
-  // Fallback demo mode if keys fail or are unconfigured
+  // Fallback demo mode if GEMINI_API_KEY is missing or unconfigured
   if (params.system.includes("curriculum designer")) {
     return { stages: FALLBACK_SKELETON } as unknown as T;
   }

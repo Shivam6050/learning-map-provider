@@ -97,7 +97,7 @@ export default async function OnboardingPage({
           Generate my path
         </button>
         <p className="text-xs text-slate-400">
-          This calls Groq twice (skeleton, then resource matching) and can
+          This calls Gemini twice (skeleton, then resource matching) and can
           take 5-10 seconds.
         </p>
       </form>

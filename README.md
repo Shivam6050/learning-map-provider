@@ -97,11 +97,11 @@ field, per the roadmap's "walking skeleton" approach.
 - `app/paths/[id]/page.tsx` — read-only display of the generated path
 
 ### Additional setup for Phase 1
-Add your Groq API key to `.env.local`:
+Add your Gemini API key to `.env.local`:
 ```
-GROQ_API_KEY=your-groq-api-key
+GEMINI_API_KEY=your-gemini-api-key
 ```
-Get one at console.groq.com if you don't have one yet.
+Get one at aistudio.google.com if you don't have one yet.
 
 ### Try it
 Log in → Dashboard → "Generate a new path" → fill in the form → wait
