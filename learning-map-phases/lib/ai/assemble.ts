@@ -8,14 +8,6 @@ export type AssembledStage = {
   practice_check: string;
 };
 
-/**
- * Phase 1 note: this collapses the pipeline's Stage 3 (judgment) and
- * Stage 4 (assembly) into one call, because Phase 1 has no real Stage 2
- * discovery output to judge — it's matching against the static seed
- * pool instead. Once Phase 2 wires up real discovery + judgment, this
- * function's job narrows back down to assembly only, taking Stage 3's
- * already-filtered output as input instead of the raw pool.
- */
 const SYSTEM_PROMPT = `You are assembling a personalized learning path. You will be given:
 1. An ordered list of learning stages (title, description, topic hints)
 2. A pool of real candidate resources, each with a URL, price, currency, and topic hints
@@ -24,21 +16,16 @@ const SYSTEM_PROMPT = `You are assembling a personalized learning path. You will
 You must choose 1-3 resources per stage from the candidate pool ONLY —
 never invent a resource, never modify a URL, never reference anything not
 present in the candidate pool. Match resources to stages using the topic
-hints and descriptions provided, using your judgment for what's most
-relevant to each stage's topic.
+hints and descriptions provided.
 
-Budget allocation rules:
-- If the learner's total budget is 0: choose ONLY free resources (price = 0).
-- If the learner's total budget is > 0: actively include valuable paid resources (price > 0) from the pool alongside essential free docs/tutorials, so that the cumulative cost across selected paid resources fits within the total budget.
-- Do NOT make everything free if the user has provided a non-zero budget. Select appropriate paid courses from the pool that fit within the budget.
+CRITICAL BUDGET ALLOCATION RULES:
+- If "Paid Budget Mode" is false (budget <= 1 USD, <= 1 EUR, or <= 100 INR): return ONLY free ($0) resources.
+- If "Paid Budget Mode" is true: the learner is READY TO PAY for their learning path. You MUST actively select paid courses (price > 0) as the primary (is_primary: true) resources for key stages in the path until the total cost approaches their budget.
+- Combine paid courses with official documentation/guides.
+- Do NOT output a path with 0 paid resources when Paid Budget Mode is true.
 
 For each stage, also write one "practice_check": a short (1-2 sentence)
-description of a mini-project or a small set of quiz questions a learner
-could use to self-verify they understood the stage. This is informal and
-ungraded.
-
-If fewer than 2 usable candidates exist for a stage, return what's
-available rather than inventing more.
+description of a mini-project or quiz questions to self-verify understanding.
 
 Output ONLY valid JSON, no prose, no markdown fences:
 {
@@ -53,13 +40,28 @@ Output ONLY valid JSON, no prose, no markdown fences:
   ]
 }`;
 
+export function isPaidBudget(budget: number, currency: string = "USD"): boolean {
+  const curr = currency.toUpperCase();
+  if (curr === "INR") return budget > 100;
+  if (curr === "EUR") return budget > 1;
+  return budget > 1;
+}
+
 export async function assemblePath(params: {
   stages: SkeletonStage[];
   resourcePool: SeedResource[];
   budgetTotal: number;
   currency: string;
 }): Promise<AssembledStage[]> {
-  const user = `Budget: ${params.budgetTotal} ${params.currency}
+  const paidBudget = isPaidBudget(params.budgetTotal, params.currency);
+
+  // If budget <= 1 USD/EUR or <= 100 INR, restrict candidates strictly to free ($0) resources
+  const effectivePool = paidBudget
+    ? params.resourcePool
+    : params.resourcePool.filter((r) => r.price === 0);
+
+  const user = `Learner Target Budget: ${params.budgetTotal} ${params.currency}
+Paid Budget Mode: ${paidBudget}
 
 Stages:
 ${JSON.stringify(
@@ -74,7 +76,7 @@ ${JSON.stringify(
 )}
 
 Candidate resource pool:
-${JSON.stringify(params.resourcePool, null, 2)}`;
+${JSON.stringify(effectivePool, null, 2)}`;
 
   const result = await callForJson<{ stages: AssembledStage[] }>({
     system: SYSTEM_PROMPT,
@@ -82,5 +84,65 @@ ${JSON.stringify(params.resourcePool, null, 2)}`;
     maxTokens: 3000,
   });
 
-  return result.stages;
+  const urlMap = new Map(params.resourcePool.map((r) => [r.url, r]));
+  let assembledStages = result.stages;
+
+  // Post-processing guarantee: if paid budget mode is true but 0 paid resources were selected,
+  // actively inject paid courses into matching stages up to budgetTotal!
+  if (paidBudget) {
+    let currentSpent = 0;
+    assembledStages.forEach((s) => {
+      (s.selected_resources || []).forEach((r) => {
+        const item = urlMap.get(r.url);
+        if (item?.price) currentSpent += item.price;
+      });
+    });
+
+    if (currentSpent === 0) {
+      const paidResources = params.resourcePool.filter((r) => r.price > 0);
+      let remainingBudget = params.budgetTotal;
+
+      assembledStages = assembledStages.map((stage) => {
+        const stageInfo = params.stages.find(
+          (st) => st.order_index === stage.order_index
+        );
+        const stageTitleLower = (stageInfo?.title || "").toLowerCase();
+        const stageTopics = (stageInfo?.search_topics || []).map((t) =>
+          t.toLowerCase()
+        );
+
+        const candidatePaid = paidResources.find((p) => {
+          if (p.price > remainingBudget) return false;
+          return (
+            stageTitleLower.includes(p.title.toLowerCase()) ||
+            p.topic_hints.some(
+              (hint) =>
+                stageTitleLower.includes(hint.toLowerCase()) ||
+                stageTopics.some((st) => st.includes(hint.toLowerCase()))
+            )
+          );
+        });
+
+        if (candidatePaid) {
+          remainingBudget -= candidatePaid.price;
+          const freeResources = (stage.selected_resources || []).filter((r) => {
+            const resObj = urlMap.get(r.url);
+            return resObj && resObj.price === 0;
+          });
+
+          return {
+            ...stage,
+            selected_resources: [
+              { url: candidatePaid.url, is_primary: true },
+              ...freeResources.slice(0, 2).map((r) => ({ ...r, is_primary: false })),
+            ],
+          };
+        }
+
+        return stage;
+      });
+    }
+  }
+
+  return assembledStages;
 }
