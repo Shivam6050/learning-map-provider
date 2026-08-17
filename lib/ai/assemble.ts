@@ -1,6 +1,7 @@
 import { callForJson } from "@/lib/ai/client";
 import type { SkeletonStage } from "@/lib/ai/skeleton";
 import type { SeedResource } from "@/lib/ai/seed-resources";
+import type { PathOption, StoredStage } from "@/lib/db/in-memory-paths";
 
 export type AssembledStage = {
   order_index: number;
@@ -55,7 +56,6 @@ export async function assemblePath(params: {
 }): Promise<AssembledStage[]> {
   const paidBudget = isPaidBudget(params.budgetTotal, params.currency);
 
-  // If budget <= 1 USD/EUR or <= 100 INR, restrict candidates strictly to free ($0) resources
   const effectivePool = paidBudget
     ? params.resourcePool
     : params.resourcePool.filter((r) => r.price === 0);
@@ -85,10 +85,8 @@ ${JSON.stringify(effectivePool, null, 2)}`;
   });
 
   const urlMap = new Map(params.resourcePool.map((r) => [r.url, r]));
-  let assembledStages = result.stages;
+  let assembledStages = result.stages || [];
 
-  // Post-processing guarantee: if paid budget mode is true but 0 paid resources were selected,
-  // actively inject paid courses into matching stages up to budgetTotal!
   if (paidBudget) {
     let currentSpent = 0;
     assembledStages.forEach((s) => {
@@ -145,4 +143,137 @@ ${JSON.stringify(effectivePool, null, 2)}`;
   }
 
   return assembledStages;
+}
+
+export async function generateMultiplePathOptions(params: {
+  skeleton: SkeletonStage[];
+  resourcePool: SeedResource[];
+  budgetTotal: number;
+  currency: string;
+}): Promise<PathOption[]> {
+  const urlMap = new Map(params.resourcePool.map((r) => [r.url, r]));
+  const validUrls = new Set(params.resourcePool.map((r) => r.url));
+  const paidBudget = isPaidBudget(params.budgetTotal, params.currency);
+
+  // 1. Generate base AI assembled stage list
+  const baseAssembled = await assemblePath({
+    stages: params.skeleton,
+    resourcePool: params.resourcePool,
+    budgetTotal: params.budgetTotal,
+    currency: params.currency,
+  });
+
+  const availablePaid = params.resourcePool.filter((r) => r.price > 0);
+
+  // Helper to format stages and ensure ONLY candidate pool resources are included
+  const formatOptionStages = (
+    assembledList: AssembledStage[],
+    paidFilter?: (r: SeedResource) => boolean
+  ): { stages: StoredStage[]; totalCost: number; totalHours: number } => {
+    let totalCost = 0;
+    let totalHours = 0;
+
+    const stages: StoredStage[] = params.skeleton.map((stg) => {
+      totalHours += stg.estimated_hours;
+      const foundAssembled = assembledList.find((s) => s.order_index === stg.order_index);
+
+      // STRICT ANTI-HALLUCINATION FILTER: keep ONLY resources present in candidate pool
+      let rawSelected = (foundAssembled?.selected_resources || []).filter((r) =>
+        validUrls.has(r.url)
+      );
+
+      if (paidFilter && paidBudget) {
+        const stageTopics = stg.search_topics.map((t) => t.toLowerCase());
+        const candidatePaid = availablePaid.find(
+          (p) =>
+            paidFilter(p) &&
+            p.topic_hints.some((h) => stageTopics.some((st) => st.includes(h.toLowerCase())))
+        );
+
+        if (candidatePaid) {
+          rawSelected = [
+            { url: candidatePaid.url, is_primary: true },
+            ...rawSelected.filter((r) => r.url !== candidatePaid.url).slice(0, 1),
+          ];
+        }
+      }
+
+      const stageResources = rawSelected.map((r, idx) => {
+        const res = urlMap.get(r.url) || {
+          title: "Learning Resource",
+          url: r.url,
+          platform: "article" as const,
+          resource_type: "article" as const,
+          price: 0,
+          currency: params.currency,
+        };
+
+        if (res.price > 0 && r.is_primary) {
+          totalCost += res.price;
+        }
+
+        return {
+          is_primary: r.is_primary ?? idx === 0,
+          order_index: idx,
+          resources: res,
+        };
+      });
+
+      return {
+        id: `stage-${stg.order_index}`,
+        order_index: stg.order_index,
+        title: stg.title,
+        description: stg.description,
+        estimated_hours: stg.estimated_hours,
+        stage_resources: stageResources,
+        stage_progress: [
+          {
+            practice_check: {
+              description:
+                foundAssembled?.practice_check ||
+                "Complete the practical verification exercise for this stage.",
+            },
+          },
+        ],
+      };
+    });
+
+    return { stages, totalCost, totalHours };
+  };
+
+  // Option 1: Comprehensive Mastery Path (Udemy & Full Bootcamps)
+  const opt1Data = formatOptionStages(baseAssembled, (r) => r.platform === "udemy");
+  // Option 2: Fast-Track Practical Path (YouTube & Hands-on Video Courses)
+  const opt2Data = formatOptionStages(baseAssembled, (r) => r.resource_type === "course" || r.resource_type === "video");
+  // Option 3: Essential & Budget Saver Path (Minimal Cost)
+  const opt3Data = formatOptionStages(baseAssembled, (r) => r.price <= params.budgetTotal * 0.5);
+
+  return [
+    {
+      id: "opt-1",
+      name: "Comprehensive Mastery Path",
+      tagline: paidBudget
+        ? "Blends full-length structured paid courses with official documentation for deep expertise."
+        : "Complete foundational roadmap using official documentation and top tutorials.",
+      total_cost: Math.min(opt1Data.totalCost, params.budgetTotal),
+      total_hours: opt1Data.totalHours,
+      stages: opt1Data.stages,
+    },
+    {
+      id: "opt-2",
+      name: "Fast-Track Practical Path",
+      tagline: "Project-driven path emphasizing hands-on video tutorials, exercises, and practice builds.",
+      total_cost: Math.min(opt2Data.totalCost, params.budgetTotal),
+      total_hours: opt2Data.totalHours,
+      stages: opt2Data.stages,
+    },
+    {
+      id: "opt-3",
+      name: "Essential & Budget Saver Path",
+      tagline: "Optimized for maximum value with minimal cost under your budget limit.",
+      total_cost: Math.min(opt3Data.totalCost, params.budgetTotal),
+      total_hours: opt3Data.totalHours,
+      stages: opt3Data.stages,
+    },
+  ];
 }

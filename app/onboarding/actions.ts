@@ -4,9 +4,9 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { generateSkeleton } from "@/lib/ai/skeleton";
-import { assemblePath } from "@/lib/ai/assemble";
+import { generateMultiplePathOptions } from "@/lib/ai/assemble";
 import { getAdjustedResourcePool } from "@/lib/ai/seed-resources";
-import { inMemoryPaths } from "@/lib/db/in-memory-paths";
+import { inMemoryPaths, inMemoryPathSets } from "@/lib/db/in-memory-paths";
 import {
   ensureBackendDevField,
   ensureSeedResources,
@@ -30,20 +30,18 @@ export async function generatePath(formData: FormData) {
   const budgetTotal = Number(formData.get("budgetTotal") || 0);
   const currency = String(formData.get("currency") ?? "USD");
 
-  let skeleton: any[];
-  let assembled: any[];
-
   const resourcePool = getAdjustedResourcePool(currency);
+  let options: any[] = [];
 
   try {
-    skeleton = await generateSkeleton({
+    const skeleton = await generateSkeleton({
       fieldName: "Backend Development",
       skillLevel,
       weeklyHours,
     });
 
-    assembled = await assemblePath({
-      stages: skeleton,
+    options = await generateMultiplePathOptions({
+      skeleton,
       resourcePool,
       budgetTotal,
       currency,
@@ -55,72 +53,56 @@ export async function generatePath(formData: FormData) {
     redirect(`/onboarding?error=${encodeURIComponent(errorMsg)}`);
   }
 
-  const validUrls = new Set(resourcePool.map((r) => r.url));
-  const sanitized = assembled.map((stage: any) => ({
-    ...stage,
-    selected_resources: (stage.selected_resources || []).filter((r: any) =>
-      validUrls.has(r.url)
-    ),
-  }));
+  const setId = "set-" + Math.random().toString(36).substring(2, 9);
 
-  const urlToResourceMap = new Map(resourcePool.map((r) => [r.url, r]));
-
-  const pathId = "path-" + Math.random().toString(36).substring(2, 9);
-
-  const formattedStages = skeleton.map((stage: any) => {
-    const assembledStage = sanitized.find(
-      (s) => s.order_index === stage.order_index
-    );
-
-    const selectedResources = assembledStage?.selected_resources || [];
-    const stageResources = selectedResources.map((r: any, i: number) => {
-      const res = urlToResourceMap.get(r.url) || {
-        title: "Learning Resource",
-        url: r.url,
-        platform: "article",
-        resource_type: "article",
-        price: 0,
-        currency,
-      };
-
-      return {
-        is_primary: r.is_primary ?? i === 0,
-        order_index: i,
-        resources: res,
-      };
-    });
-
-    return {
-      id: `stage-${stage.order_index}`,
-      order_index: stage.order_index,
-      title: stage.title,
-      description: stage.description,
-      estimated_hours: stage.estimated_hours,
-      stage_resources: stageResources,
-      stage_progress: [
-        {
-          practice_check: {
-            description:
-              assembledStage?.practice_check ||
-              "Complete the practical exercise for this stage.",
-          },
-        },
-      ],
-    };
-  });
-
-  // Store in memory for reliable fallback & demo mode
-  inMemoryPaths.set(pathId, {
-    id: pathId,
+  // Store the generated path options set so the user can select and confirm one
+  inMemoryPathSets.set(setId, {
+    setId,
     field_name: "Backend Development",
     skill_level: skillLevel,
     weekly_hours: weeklyHours,
     budget_total: budgetTotal,
     currency,
-    stages: formattedStages,
+    options,
   });
 
-  // Also try to persist into Supabase if DB tables exist
+  redirect(`/onboarding/select?set=${setId}`);
+}
+
+export async function confirmSelectedPath(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const setId = String(formData.get("setId"));
+  const optionId = String(formData.get("optionId"));
+
+  const pathSet = inMemoryPathSets.get(setId);
+  if (!pathSet) {
+    redirect("/onboarding?error=Path session expired. Please generate a new path.");
+  }
+
+  const selectedOption = pathSet.options.find((opt) => opt.id === optionId) || pathSet.options[0];
+
+  const pathId = "path-" + Math.random().toString(36).substring(2, 9);
+
+  // Register confirmed path in memory store
+  inMemoryPaths.set(pathId, {
+    id: pathId,
+    field_name: pathSet.field_name,
+    skill_level: pathSet.skill_level,
+    weekly_hours: pathSet.weekly_hours,
+    budget_total: pathSet.budget_total,
+    currency: pathSet.currency,
+    stages: selectedOption.stages,
+  });
+
+  // Attempt Supabase DB insertion
   try {
     const fieldId = await ensureBackendDevField();
     const urlToResourceId = await ensureSeedResources();
@@ -130,10 +112,10 @@ export async function generatePath(formData: FormData) {
       .insert({
         user_id: user?.id ?? "demo-user-id",
         field_id: fieldId,
-        skill_level: skillLevel,
-        weekly_hours: weeklyHours,
-        budget_total: budgetTotal,
-        currency,
+        skill_level: pathSet.skill_level,
+        weekly_hours: pathSet.weekly_hours,
+        budget_total: pathSet.budget_total,
+        currency: pathSet.currency,
         status: "active",
       })
       .select("id")
@@ -143,11 +125,7 @@ export async function generatePath(formData: FormData) {
       const dbPathId = path.id;
       const service = createServiceClient();
 
-      for (const stage of skeleton) {
-        const assembledStage = sanitized.find(
-          (s) => s.order_index === stage.order_index
-        );
-
+      for (const stage of selectedOption.stages) {
         const { data: stageRow } = await service
           .from("stages")
           .insert({
@@ -160,16 +138,16 @@ export async function generatePath(formData: FormData) {
           .select("id")
           .single();
 
-        if (stageRow?.id && assembledStage?.selected_resources.length) {
-          const rows = assembledStage.selected_resources
-            .map((r: any, i: number) => {
-              const resourceId = urlToResourceId.get(r.url);
+        if (stageRow?.id && stage.stage_resources?.length) {
+          const rows = stage.stage_resources
+            .map((sr: any) => {
+              const resourceId = urlToResourceId.get(sr.resources.url);
               if (!resourceId) return null;
               return {
                 stage_id: stageRow.id,
                 resource_id: resourceId,
-                order_index: i,
-                is_primary: r.is_primary,
+                order_index: sr.order_index,
+                is_primary: sr.is_primary,
               };
             })
             .filter((r: any): r is NonNullable<typeof r> => r !== null);
@@ -179,31 +157,30 @@ export async function generatePath(formData: FormData) {
           }
         }
 
-        if (stageRow?.id && assembledStage?.practice_check) {
+        if (stageRow?.id && stage.stage_progress?.[0]?.practice_check) {
           await supabase.from("stage_progress").insert({
             stage_id: stageRow.id,
             user_id: user?.id ?? "demo-user-id",
             status: "not_started",
-            practice_check: { description: assembledStage.practice_check },
+            practice_check: stage.stage_progress[0].practice_check,
           });
         }
       }
 
-      // If DB insert succeeded, also register dbPathId in inMemoryPaths
       inMemoryPaths.set(dbPathId, {
         id: dbPathId,
-        field_name: "Backend Development",
-        skill_level: skillLevel,
-        weekly_hours: weeklyHours,
-        budget_total: budgetTotal,
-        currency,
-        stages: formattedStages,
+        field_name: pathSet.field_name,
+        skill_level: pathSet.skill_level,
+        weekly_hours: pathSet.weekly_hours,
+        budget_total: pathSet.budget_total,
+        currency: pathSet.currency,
+        stages: selectedOption.stages,
       });
 
       redirect(`/paths/${dbPathId}`);
     }
   } catch {
-    // If DB is unconfigured, redirect to pathId backed by inMemoryPaths
+    // If DB is unconfigured, fallback to inMemoryPaths
   }
 
   redirect(`/paths/${pathId}`);
