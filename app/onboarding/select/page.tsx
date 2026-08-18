@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { inMemoryPathSets } from "@/lib/db/in-memory-paths";
+import { createClient } from "@/lib/supabase/server";
 import { confirmSelectedPath } from "@/app/onboarding/actions";
 
 export default async function OnboardingSelectPage({
@@ -8,8 +8,29 @@ export default async function OnboardingSelectPage({
   searchParams: Promise<{ set?: string }>;
 }) {
   const { set } = await searchParams;
+  const supabase = await createClient();
 
-  const pathSet = set ? inMemoryPathSets.get(set) : null;
+  // RLS (pending_path_sets_owner_all) ensures this returns null both
+  // when the row doesn't exist and when it belongs to someone else.
+  const { data: row } = set
+    ? await supabase
+        .from("pending_path_sets")
+        .select("id, skill_level, weekly_hours, budget_total, currency, options, fields(name)")
+        .eq("id", set)
+        .maybeSingle()
+    : { data: null };
+
+  const pathSet = row
+    ? {
+        setId: row.id,
+        field_name: (Array.isArray(row.fields) ? row.fields[0] : row.fields)?.name ?? "Backend Development",
+        skill_level: row.skill_level,
+        weekly_hours: row.weekly_hours,
+        budget_total: row.budget_total,
+        currency: row.currency,
+        options: row.options as any[],
+      }
+    : null;
 
   if (!pathSet) {
     return (
@@ -94,14 +115,14 @@ export default async function OnboardingSelectPage({
                     Included Curriculum & Courses:
                   </p>
                   <ul className="space-y-3">
-                    {option.stages.map((stage) => {
+                    {option.stages.map((stage: any) => {
                       return (
-                        <li key={stage.id} className="text-xs">
+                        <li key={stage.order_index} className="text-xs">
                           <p className="font-semibold text-slate-800">
                             {stage.order_index + 1}. {stage.title}
                           </p>
                           <div className="mt-1 space-y-1">
-                            {stage.stage_resources.map((sr, rIdx) => (
+                            {stage.stage_resources.map((sr: any, rIdx: number) => (
                               <div
                                 key={rIdx}
                                 className="flex items-center justify-between text-[11px] text-slate-600"

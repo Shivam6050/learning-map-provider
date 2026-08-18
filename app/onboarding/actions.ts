@@ -4,13 +4,13 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { generateSkeleton } from "@/lib/ai/skeleton";
-import { generateMultiplePathOptions } from "@/lib/ai/assemble";
-import { getAdjustedResourcePool } from "@/lib/ai/seed-resources";
-import { inMemoryPaths, inMemoryPathSets } from "@/lib/db/in-memory-paths";
-import {
-  ensureBackendDevField,
-  ensureSeedResources,
-} from "@/lib/db/ensure-seed-data";
+import { judgeStage } from "@/lib/ai/judge";
+import { generatePracticeChecks } from "@/lib/ai/practice-checks";
+import { buildPathOptions } from "@/lib/ai/build-options";
+import { discoverYoutubeForTopic } from "@/lib/youtube/discover";
+import { discoverWebForTopic } from "@/lib/web-discovery/discover";
+import { ensureBackendDevField } from "@/lib/db/ensure-seed-data";
+import type { DiscoveredResource } from "@/lib/youtube/discover";
 
 export async function generatePath(formData: FormData) {
   const supabase = await createClient();
@@ -30,43 +30,85 @@ export async function generatePath(formData: FormData) {
   const budgetTotal = Number(formData.get("budgetTotal") || 0);
   const currency = String(formData.get("currency") ?? "USD");
 
-  const resourcePool = getAdjustedResourcePool(currency, budgetTotal);
-  let options: any[] = [];
-
   try {
+    // --- Stage 1: skeleton (no search) ---
     const skeleton = await generateSkeleton({
       fieldName: "Backend Development",
       skillLevel,
       weeklyHours,
     });
 
-    options = await generateMultiplePathOptions({
+    // --- Stage 2: real discovery, cache-first, per stage's search topics ---
+    const resourcesByUrl = new Map<string, DiscoveredResource>();
+    const candidatesByStage = new Map<number, DiscoveredResource[]>();
+
+    for (const stage of skeleton) {
+      const stageCandidates: DiscoveredResource[] = [];
+      for (const topic of stage.search_topics) {
+        const [youtubeResults, webResults] = await Promise.all([
+          discoverYoutubeForTopic(topic),
+          discoverWebForTopic(topic),
+        ]);
+        for (const r of [...youtubeResults, ...webResults]) {
+          if (!resourcesByUrl.has(r.url)) resourcesByUrl.set(r.url, r);
+          if (!stageCandidates.some((c) => c.url === r.url)) stageCandidates.push(r);
+        }
+      }
+      candidatesByStage.set(stage.order_index, stageCandidates);
+    }
+
+    // --- Stage 3: real judgment per stage, grounded in real candidates ---
+    const judgedStages = await Promise.all(
+      skeleton.map((stage) => judgeStage(stage, candidatesByStage.get(stage.order_index) ?? []))
+    );
+
+    // --- Practice checks, one Gemini call shared across all 3 options ---
+    const practiceChecksByStage = await generatePracticeChecks(skeleton);
+
+    // --- Deterministic option-building (no LLM call) over the REAL,
+    // already-vetted candidates — see lib/ai/build-options.ts ---
+    const options = buildPathOptions({
       skeleton,
-      resourcePool,
+      judgedStages,
+      resourcesByUrl,
       budgetTotal,
-      currency,
+      practiceChecksByStage,
     });
-  } catch (err: any) {
-    const errorMsg =
-      err?.message ||
-      "Failed to generate learning path. Check your GEMINI_API_KEY in .env.local.";
-    redirect(`/onboarding?error=${encodeURIComponent(errorMsg)}`);
+
+    const fieldId = await ensureBackendDevField();
+
+    // --- Persist the pending option set to the DATABASE, not memory,
+    // so it survives across serverless instances until confirmation ---
+    const { data: pendingSet, error: pendingError } = await supabase
+      .from("pending_path_sets")
+      .insert({
+        user_id: user.id,
+        field_id: fieldId,
+        skill_level: skillLevel,
+        weekly_hours: weeklyHours,
+        budget_total: budgetTotal,
+        currency,
+        options,
+      })
+      .select("id")
+      .single();
+
+    if (pendingError || !pendingSet) {
+      throw new Error(`Failed to save path options: ${pendingError?.message}`);
+    }
+
+    redirect(`/onboarding/select?set=${pendingSet.id}`);
+  } catch (err) {
+    if (err && typeof err === "object" && "digest" in err) {
+      // Next.js redirect()/notFound() internals throw a special object
+      // with a "digest" — rethrow so Next.js can actually handle it,
+      // rather than treating it as a real error.
+      throw err;
+    }
+    const message = err instanceof Error ? err.message : "Failed to generate learning path.";
+    console.error("[generatePath]", message);
+    redirect(`/onboarding?error=${encodeURIComponent(message)}`);
   }
-
-  const setId = "set-" + Math.random().toString(36).substring(2, 9);
-
-  // Store the generated path options set so the user can select and confirm one
-  inMemoryPathSets.set(setId, {
-    setId,
-    field_name: "Backend Development",
-    skill_level: skillLevel,
-    weekly_hours: weeklyHours,
-    budget_total: budgetTotal,
-    currency,
-    options,
-  });
-
-  redirect(`/onboarding/select?set=${setId}`);
 }
 
 export async function confirmSelectedPath(formData: FormData) {
@@ -82,36 +124,27 @@ export async function confirmSelectedPath(formData: FormData) {
   const setId = String(formData.get("setId"));
   const optionId = String(formData.get("optionId"));
 
-  const pathSet = inMemoryPathSets.get(setId);
-  if (!pathSet) {
-    redirect("/onboarding?error=Path session expired. Please generate a new path.");
-  }
-
-  const selectedOption = pathSet.options.find((opt) => opt.id === optionId) || pathSet.options[0];
-
-  const pathId = "path-" + Math.random().toString(36).substring(2, 9);
-
-  // Register confirmed path in memory store
-  inMemoryPaths.set(pathId, {
-    id: pathId,
-    field_name: pathSet.field_name,
-    skill_level: pathSet.skill_level,
-    weekly_hours: pathSet.weekly_hours,
-    budget_total: pathSet.budget_total,
-    currency: pathSet.currency,
-    stages: selectedOption.stages,
-  });
-
-  // Attempt Supabase DB insertion
   try {
-    const fieldId = await ensureBackendDevField();
-    const urlToResourceId = await ensureSeedResources();
+    // RLS (pending_path_sets_owner_all) already ensures this only
+    // returns a row if it belongs to the current user.
+    const { data: pathSet, error: fetchError } = await supabase
+      .from("pending_path_sets")
+      .select("*")
+      .eq("id", setId)
+      .maybeSingle();
 
-    const { data: path } = await supabase
+    if (fetchError) throw new Error(`Failed to load path options: ${fetchError.message}`);
+    if (!pathSet) throw new Error("Path options not found or expired. Please generate a new path.");
+
+    const options = pathSet.options as { id: string; stages: any[] }[];
+    const selectedOption = options.find((opt) => opt.id === optionId) ?? options[0];
+    if (!selectedOption) throw new Error("No path option available to confirm.");
+
+    const { data: path, error: pathError } = await supabase
       .from("learning_paths")
       .insert({
-        user_id: user?.id ?? "demo-user-id",
-        field_id: fieldId,
+        user_id: user.id,
+        field_id: pathSet.field_id,
         skill_level: pathSet.skill_level,
         weekly_hours: pathSet.weekly_hours,
         budget_total: pathSet.budget_total,
@@ -121,67 +154,57 @@ export async function confirmSelectedPath(formData: FormData) {
       .select("id")
       .single();
 
-    if (path?.id) {
-      const dbPathId = path.id;
-      const service = createServiceClient();
+    if (pathError || !path) throw new Error(`Failed to create learning path: ${pathError?.message}`);
 
-      for (const stage of selectedOption.stages) {
-        const { data: stageRow } = await service
-          .from("stages")
-          .insert({
-            path_id: dbPathId,
-            title: stage.title,
-            order_index: stage.order_index,
-            description: stage.description,
-            estimated_hours: stage.estimated_hours,
-          })
-          .select("id")
-          .single();
+    const service = createServiceClient();
 
-        if (stageRow?.id && stage.stage_resources?.length) {
-          const rows = stage.stage_resources
-            .map((sr: any) => {
-              const resourceId = urlToResourceId.get(sr.resources.url);
-              if (!resourceId) return null;
-              return {
-                stage_id: stageRow.id,
-                resource_id: resourceId,
-                order_index: sr.order_index,
-                is_primary: sr.is_primary,
-              };
-            })
-            .filter((r: any): r is NonNullable<typeof r> => r !== null);
+    for (const stage of selectedOption.stages) {
+      const { data: stageRow, error: stageError } = await service
+        .from("stages")
+        .insert({
+          path_id: path.id,
+          title: stage.title,
+          order_index: stage.order_index,
+          description: stage.description,
+          estimated_hours: stage.estimated_hours,
+        })
+        .select("id")
+        .single();
 
-          if (rows.length) {
-            await service.from("stage_resources").insert(rows);
-          }
-        }
+      if (stageError || !stageRow) throw new Error(`Failed to create stage: ${stageError?.message}`);
 
-        if (stageRow?.id && stage.stage_progress?.[0]?.practice_check) {
-          await supabase.from("stage_progress").insert({
-            stage_id: stageRow.id,
-            user_id: user?.id ?? "demo-user-id",
-            status: "not_started",
-            practice_check: stage.stage_progress[0].practice_check,
-          });
-        }
+      if (stage.stage_resources?.length) {
+        const rows = stage.stage_resources.map((sr: any) => ({
+          stage_id: stageRow.id,
+          resource_id: sr.resource_id,
+          order_index: sr.order_index,
+          is_primary: sr.is_primary,
+        }));
+        const { error: linkError } = await service.from("stage_resources").insert(rows);
+        if (linkError) throw new Error(`Failed to link resources: ${linkError.message}`);
       }
 
-      inMemoryPaths.set(dbPathId, {
-        id: dbPathId,
-        field_name: pathSet.field_name,
-        skill_level: pathSet.skill_level,
-        weekly_hours: pathSet.weekly_hours,
-        budget_total: pathSet.budget_total,
-        currency: pathSet.currency,
-        stages: selectedOption.stages,
-      });
-
-      redirect(`/paths/${dbPathId}`);
+      if (stage.practice_check) {
+        const { error: progressError } = await supabase.from("stage_progress").insert({
+          stage_id: stageRow.id,
+          user_id: user.id,
+          status: "not_started",
+          practice_check: { description: stage.practice_check },
+        });
+        if (progressError) {
+          throw new Error(`Failed to save practice check: ${progressError.message}`);
+        }
+      }
     }
-  } catch {
-    // If DB is unconfigured, fallback to inMemoryPaths
-  }
 
-  redirect(`/paths/${pathId}`);
+    // Clean up — this pending set has been confirmed, no need to keep it.
+    await supabase.from("pending_path_sets").delete().eq("id", setId);
+
+    redirect(`/paths/${path.id}`);
+  } catch (err) {
+    if (err && typeof err === "object" && "digest" in err) throw err;
+    const message = err instanceof Error ? err.message : "Failed to confirm path.";
+    console.error("[confirmSelectedPath]", message);
+    redirect(`/onboarding?error=${encodeURIComponent(message)}`);
+  }
 }

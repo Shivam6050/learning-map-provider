@@ -4,84 +4,72 @@ import { BACKEND_DEV_RESOURCE_POOL, type SeedResource } from "@/lib/ai/seed-reso
 export const BACKEND_DEV_FIELD_SLUG = "backend-development";
 
 /**
- * Ensures the "Backend Development" field row exists. Phase 1 hardcodes
- * this one field per the roadmap — a field picker comes in Phase 6.
+ * Ensures the "Backend Development" field row exists. Still hardcoded
+ * per the roadmap — a field picker comes in Phase 6. Throws on failure
+ * rather than returning a fake UUID: a fabricated field_id would fail
+ * the learning_paths.field_id foreign key anyway, just less clearly.
  */
 export async function ensureBackendDevField(): Promise<string> {
   const service = createServiceClient();
 
-  try {
-    const { data: existing } = await service
-      .from("fields")
-      .select("id")
-      .eq("slug", BACKEND_DEV_FIELD_SLUG)
-      .maybeSingle();
+  const { data: existing, error: selectError } = await service
+    .from("fields")
+    .select("id")
+    .eq("slug", BACKEND_DEV_FIELD_SLUG)
+    .maybeSingle();
 
-    if (existing?.id) return existing.id;
+  if (selectError) throw new Error(`Failed to look up field: ${selectError.message}`);
+  if (existing?.id) return existing.id;
 
-    const { data, error } = await service
-      .from("fields")
-      .insert({ name: "Backend Development", slug: BACKEND_DEV_FIELD_SLUG })
-      .select("id")
-      .single();
+  const { data, error } = await service
+    .from("fields")
+    .insert({ name: "Backend Development", slug: BACKEND_DEV_FIELD_SLUG })
+    .select("id")
+    .single();
 
-    if (data?.id) return data.id;
-  } catch {
-    // Fallback if Supabase service role client is unconfigured or in demo mode
-  }
-
-  return "00000000-0000-0000-0000-000000000001";
+  if (error || !data) throw new Error(`Failed to seed field: ${error?.message}`);
+  return data.id;
 }
 
 /**
- * Upserts the hand-seeded resource pool into the resources table (by
- * unique url) and returns a map from url -> resources.id, so the caller
- * can translate the AI's chosen URLs into foreign keys for
- * stage_resources. Written via the service-role client because
- * `resources` has no client-facing write policy — see schema.sql.
+ * Upserts the Phase 1 static resource pool. No longer called by the
+ * live path-generation flow (real discovery now inserts resources
+ * directly with real UUIDs at discovery time) — kept for local
+ * dev/testing without API keys configured, e.g. seeding demo data.
  */
 export async function ensureSeedResources(): Promise<Map<string, string>> {
   const service = createServiceClient();
   const urlToId = new Map<string, string>();
 
   for (const resource of BACKEND_DEV_RESOURCE_POOL) {
-    try {
-      const { data: existing } = await service
-        .from("resources")
-        .select("id")
-        .eq("url", resource.url)
-        .maybeSingle();
+    const { data: existing, error: selectError } = await service
+      .from("resources")
+      .select("id")
+      .eq("url", resource.url)
+      .maybeSingle();
 
-      if (existing?.id) {
-        urlToId.set(resource.url, existing.id);
-        continue;
-      }
-
-      const { data } = await service
-        .from("resources")
-        .insert({
-          title: resource.title,
-          url: resource.url,
-          platform: resource.platform,
-          resource_type: resource.resource_type,
-          price: resource.price,
-          currency: resource.currency,
-          // Hand-picked by the founder for Phase 1 — see the caveat in
-          // seed-resources.ts. Real allowlisting logic arrives in Phase 5.
-          trust_status: "allowlisted",
-        })
-        .select("id")
-        .single();
-
-      if (data?.id) {
-        urlToId.set(resource.url, data.id);
-        continue;
-      }
-    } catch {
-      // Fallback
+    if (selectError) throw new Error(`Failed to look up resource: ${selectError.message}`);
+    if (existing?.id) {
+      urlToId.set(resource.url, existing.id);
+      continue;
     }
 
-    urlToId.set(resource.url, `res-${Math.random().toString(36).substring(2, 9)}`);
+    const { data, error } = await service
+      .from("resources")
+      .insert({
+        title: resource.title,
+        url: resource.url,
+        platform: resource.platform,
+        resource_type: resource.resource_type,
+        price: resource.price,
+        currency: resource.currency,
+        trust_status: "allowlisted",
+      })
+      .select("id")
+      .single();
+
+    if (error || !data) throw new Error(`Failed to seed resource ${resource.url}: ${error?.message}`);
+    urlToId.set(resource.url, data.id);
   }
 
   return urlToId;
