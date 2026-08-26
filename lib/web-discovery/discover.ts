@@ -1,78 +1,112 @@
-import { callForJson } from "@/lib/ai/client";
+import { callWithGoogleSearch } from "@/lib/ai/client";
 import { createServiceClient } from "@/lib/supabase/service";
 import { getCachedTopic, saveCachedTopic } from "@/lib/db/topic-cache";
+import { findOrProposeTrustedSource } from "@/lib/db/trusted-sources";
 import type { DiscoveredResource } from "@/lib/youtube/discover";
 
-type WebCandidate = {
-  title: string;
-  url: string;
+const PROMPT_TEMPLATE = (topic: string) =>
+  `Find official documentation, well-known written tutorials, and reputable paid courses (e.g. Coursera, official platform training) for: "${topic}". Do not include YouTube — that's covered separately.`;
+
+// Best-effort classification from the URL alone. Deliberately simple:
+// this is a courtesy label for the UI, not something judgment logic
+// depends on for correctness — trust_status and price come from real
+// data (trusted_sources approval, manual review), not this guess.
+function classifyByDomain(url: string): {
   platform: "mslearn" | "docs" | "article" | "course";
   resource_type: "docs" | "article" | "course";
-  price_estimate: number | null;
-  currency: string;
-};
-
-const SYSTEM_PROMPT = `You are researching real, currently-existing learning resources on the web for a specific topic. Search for official documentation, well-known written tutorials, and reputable paid courses (e.g. Coursera, official platform training) — do NOT search for or return YouTube videos, those come from a separate source.
-
-Only include resources you actually found via search. Never invent a URL. Prefer official sources (official docs, official platform courses) over third-party blogs when both exist.
-
-After searching, respond with ONLY valid JSON, no prose, no markdown fences:
-{
-  "candidates": [
-    {
-      "title": "string",
-      "url": "string, exact URL from search results",
-      "platform": "mslearn | docs | article | course",
-      "resource_type": "docs | article | course",
-      "price_estimate": number or null (null if free or unknown),
-      "currency": "string, e.g. USD"
+  price: number;
+} {
+  const host = (() => {
+    try {
+      return new URL(url).hostname.replace(/^www\./, "");
+    } catch {
+      return "";
     }
-  ]
+  })();
+
+  if (host.includes("learn.microsoft.com")) return { platform: "mslearn", resource_type: "docs", price: 0 };
+  if (host.includes("coursera.org")) return { platform: "course", resource_type: "course", price: 0 };
+  if (host.includes("developer.mozilla.org") || host.endsWith(".dev") || host.includes("docs."))
+    return { platform: "docs", resource_type: "docs", price: 0 };
+  return { platform: "article", resource_type: "article", price: 0 };
 }
-Return at most 4 candidates.`;
 
 async function fetchResourcesByIds(ids: string[]): Promise<DiscoveredResource[]> {
   if (ids.length === 0) return [];
   const service = createServiceClient();
   const { data } = await service
     .from("resources")
-    .select("id, title, url, platform, resource_type, price, currency, signals")
+    .select("id, title, url, platform, resource_type, price, currency, signals, trust_status")
     .in("id", ids);
   return (data ?? []) as DiscoveredResource[];
 }
 
+/**
+ * Discovers candidate web resources for a topic using Gemini's REAL
+ * Google Search grounding. Trusts the API's groundingChunks (actual
+ * search results the model consulted) for URLs, not the model's
+ * free-text claims — Gemini can't combine search grounding with forced
+ * JSON output for these models, so self-reported JSON URLs would carry
+ * no more guarantee of being real than an ungrounded call. See
+ * lib/ai/client.ts's callWithGoogleSearch for the detail.
+ */
 export async function discoverWebForTopic(
-  topic: string
+  topic: string,
+  fieldId: string
 ): Promise<DiscoveredResource[]> {
   const cached = await getCachedTopic(topic, "web");
   if (cached) return fetchResourcesByIds(cached);
 
-  let candidates: WebCandidate[] = [];
+  let chunks: { url: string; title: string }[] = [];
   try {
-    const result = await callForJson<{ candidates: WebCandidate[] }>({
-      system: SYSTEM_PROMPT,
-      user: `Topic: ${topic}`,
-      maxTokens: 2000,
-    });
-    candidates = result.candidates ?? [];
-  } catch {
-    // Search or parsing failed — cache an empty result briefly rather
-    // than retrying on every request and re-spending the search call.
+    const result = await callWithGoogleSearch({ prompt: PROMPT_TEMPLATE(topic) });
+    chunks = result.chunks;
+  } catch (err) {
+    console.error("[discoverWebForTopic]", err instanceof Error ? err.message : err);
     await saveCachedTopic(topic, "web", []);
     return [];
   }
 
   const service = createServiceClient();
   const resourceIds: string[] = [];
+  const seenUrls = new Set<string>();
+  const trustedSourceCache = new Map<string, { id: string; approved: boolean }>();
 
-  for (const candidate of candidates) {
+  for (const chunk of chunks.slice(0, 4)) {
+    if (seenUrls.has(chunk.url)) continue;
+    seenUrls.add(chunk.url);
+
+    const classification = classifyByDomain(chunk.url);
+    let host = "";
+    try {
+      host = new URL(chunk.url).hostname.replace(/^www\./, "");
+    } catch {
+      continue; // not a real URL — skip rather than insert garbage
+    }
+
+    let trustedSource = trustedSourceCache.get(host);
+    if (!trustedSource) {
+      trustedSource = await findOrProposeTrustedSource({
+        fieldId,
+        sourceName: host,
+        sourceUrl: `https://${host}`,
+        platform: "web",
+      });
+      trustedSourceCache.set(host, trustedSource);
+    }
+    const trustStatus = trustedSource.approved ? "allowlisted" : "pending";
+
     const { data: existing } = await service
       .from("resources")
       .select("id")
-      .eq("url", candidate.url)
+      .eq("url", chunk.url)
       .maybeSingle();
 
     if (existing) {
+      await service
+        .from("resources")
+        .update({ trust_status: trustStatus, trusted_source_id: trustedSource.id || null })
+        .eq("id", existing.id);
       resourceIds.push(existing.id);
       continue;
     }
@@ -80,13 +114,14 @@ export async function discoverWebForTopic(
     const { data: inserted, error } = await service
       .from("resources")
       .insert({
-        title: candidate.title,
-        url: candidate.url,
-        platform: candidate.platform,
-        resource_type: candidate.resource_type,
-        price: candidate.price_estimate ?? 0,
-        currency: candidate.currency ?? "USD",
-        trust_status: "pending",
+        title: chunk.title,
+        url: chunk.url,
+        platform: classification.platform,
+        resource_type: classification.resource_type,
+        price: classification.price,
+        currency: "USD",
+        trust_status: trustStatus,
+        trusted_source_id: trustedSource.id || null,
         signals: {},
       })
       .select("id")

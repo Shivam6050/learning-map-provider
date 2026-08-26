@@ -25,7 +25,12 @@ export default async function DashboardPage() {
 
   const { data: paths } = await supabase
     .from("learning_paths")
-    .select("id, skill_level, status, created_at, fields(name)")
+    .select(
+      `
+      id, skill_level, status, created_at, fields(name),
+      stages ( id, stage_progress ( status ) )
+    `
+    )
     .order("created_at", { ascending: false });
 
   return (
@@ -70,16 +75,38 @@ export default async function DashboardPage() {
         <ul className="mt-3 space-y-2">
           {paths.map((path: any) => {
             const field = Array.isArray(path.fields) ? path.fields[0] : path.fields;
+            const stages = path.stages ?? [];
+            const total = stages.length;
+            const completed = stages.filter(
+              (s: any) => s.stage_progress?.[0]?.status === "completed"
+            ).length;
+            const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+
             return (
               <li key={path.id}>
                 <Link
                   href={`/paths/${path.id}`}
                   className="block rounded-lg border border-slate-200 bg-white p-4 text-sm hover:border-indigo-300"
                 >
-                  <span className="font-medium text-slate-900">{field?.name}</span>
-                  <span className="ml-2 text-slate-500">
-                    {path.skill_level} · {path.status}
-                  </span>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="font-medium text-slate-900">{field?.name}</span>
+                      <span className="ml-2 text-slate-500">
+                        {path.skill_level} · {path.status}
+                      </span>
+                    </div>
+                    <span className="text-xs font-medium text-slate-500">
+                      {total > 0 ? `${completed}/${total} stages` : "—"}
+                    </span>
+                  </div>
+                  {total > 0 && (
+                    <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                      <div
+                        className="h-full rounded-full bg-emerald-500"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  )}
                 </Link>
               </li>
             );

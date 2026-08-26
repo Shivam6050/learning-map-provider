@@ -9,6 +9,7 @@ function key() {
 export type YoutubeSearchItem = {
   videoId: string;
   channelId: string;
+  channelTitle: string;
   title: string;
   publishedAt: string;
 };
@@ -34,6 +35,7 @@ export async function searchVideos(
   return (data.items ?? []).map((item: any) => ({
     videoId: item.id.videoId,
     channelId: item.snippet.channelId,
+    channelTitle: item.snippet.channelTitle,
     title: item.snippet.title,
     publishedAt: item.snippet.publishedAt,
   }));

@@ -31,6 +31,10 @@ export async function generatePath(formData: FormData) {
   const currency = String(formData.get("currency") ?? "USD");
 
   try {
+    // --- Field row needed before discovery now, since discovered
+    // resources propose trusted_sources scoped to this field ---
+    const fieldId = await ensureBackendDevField();
+
     // --- Stage 1: skeleton (no search) ---
     const skeleton = await generateSkeleton({
       fieldName: "Backend Development",
@@ -46,8 +50,8 @@ export async function generatePath(formData: FormData) {
       const stageCandidates: DiscoveredResource[] = [];
       for (const topic of stage.search_topics) {
         const [youtubeResults, webResults] = await Promise.all([
-          discoverYoutubeForTopic(topic),
-          discoverWebForTopic(topic),
+          discoverYoutubeForTopic(topic, fieldId),
+          discoverWebForTopic(topic, fieldId),
         ]);
         for (const r of [...youtubeResults, ...webResults]) {
           if (!resourcesByUrl.has(r.url)) resourcesByUrl.set(r.url, r);
@@ -74,8 +78,6 @@ export async function generatePath(formData: FormData) {
       budgetTotal,
       practiceChecksByStage,
     });
-
-    const fieldId = await ensureBackendDevField();
 
     // --- Persist the pending option set to the DATABASE, not memory,
     // so it survives across serverless instances until confirmation ---

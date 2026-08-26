@@ -39,7 +39,7 @@ function buildCandidatePayload(candidates: DiscoveredResource[]) {
     price: c.price,
     currency: c.currency,
     signals: c.signals,
-    on_trusted_allowlist: c.platform === "docs" || c.platform === "mslearn",
+    on_trusted_allowlist: c.trust_status === "allowlisted",
   }));
 }
 

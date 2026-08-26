@@ -16,6 +16,16 @@ function isConfiguredKey(key: string | undefined): key is string {
   return !PLACEHOLDER_KEY_MARKERS.some((marker) => trimmed.includes(marker));
 }
 
+function requireKey(): string {
+  const geminiKey = process.env.GEMINI_API_KEY?.trim();
+  if (!isConfiguredKey(geminiKey)) {
+    throw new Error(
+      "GEMINI_API_KEY is missing or still a placeholder value. Set a real key in .env.local (see .env.local.example)."
+    );
+  }
+  return geminiKey;
+}
+
 /**
  * Calls the Gemini API with one model, throwing with the real cause on
  * any failure — HTTP error, missing text in the response, or invalid
@@ -76,13 +86,7 @@ export async function callForJson<T>(params: {
   user: string;
   maxTokens?: number;
 }): Promise<T> {
-  const geminiKey = process.env.GEMINI_API_KEY?.trim();
-
-  if (!isConfiguredKey(geminiKey)) {
-    throw new Error(
-      "GEMINI_API_KEY is missing or still a placeholder value. Set a real key in .env.local (see .env.local.example)."
-    );
-  }
+  const geminiKey = requireKey();
 
   const failures: string[] = [];
   for (const model of GEMINI_MODEL_CANDIDATES) {
@@ -97,5 +101,62 @@ export async function callForJson<T>(params: {
 
   throw new Error(
     `All Gemini models failed. Tried: ${GEMINI_MODEL_CANDIDATES.join(", ")}.\n${failures.join("\n")}`
+  );
+}
+
+export type GroundingChunk = { url: string; title: string };
+
+/**
+ * Calls Gemini WITH real Google Search grounding enabled. Cannot be
+ * combined with forced JSON output — Gemini's API rejects that
+ * combination for these models — so this returns the raw grounding
+ * chunks (real uri/title pairs from actual search results) instead of
+ * asking the model to self-report URLs as JSON. Trusting groundingChunks
+ * over model-generated text is the actual anti-hallucination guarantee
+ * here: these come from the API's own search execution, not from the
+ * model being well-behaved about a prompt instruction.
+ */
+export async function callWithGoogleSearch(params: {
+  prompt: string;
+}): Promise<{ text: string; chunks: GroundingChunk[] }> {
+  const geminiKey = requireKey();
+
+  const failures: string[] = [];
+  for (const model of GEMINI_MODEL_CANDIDATES) {
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: params.prompt }] }],
+            tools: [{ google_search: {} }],
+          }),
+        }
+      );
+
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        throw new Error(`Gemini ${model} (grounded) returned ${res.status}: ${body.slice(0, 300)}`);
+      }
+
+      const data = await res.json();
+      const candidate = data.candidates?.[0];
+      const text = candidate?.content?.parts?.map((p: any) => p.text).join("") ?? "";
+      const chunks: GroundingChunk[] = (candidate?.groundingMetadata?.groundingChunks ?? [])
+        .filter((c: any) => c.web?.uri)
+        .map((c: any) => ({ url: c.web.uri, title: c.web.title ?? c.web.uri }));
+
+      return { text, chunks };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`[gemini grounded] ${model} failed:`, message);
+      failures.push(`${model}: ${message}`);
+    }
+  }
+
+  throw new Error(
+    `All Gemini models failed (grounded search). Tried: ${GEMINI_MODEL_CANDIDATES.join(", ")}.\n${failures.join("\n")}`
   );
 }
