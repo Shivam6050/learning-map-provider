@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Type-check
+        run: npx tsc --noEmit
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        # Real env vars aren't available in CI and shouldn't be — this
+        # verifies the app COMPILES with placeholder values, catching
+        # syntax/type errors and broken imports before merge. It does
+        # NOT verify the app actually works against real Supabase/
+        # Gemini/YouTube — that still needs a real deploy or local run.
+        run: |
+          for line in $(grep -v '^#' .env.local.example | grep '='); do
+            key=$(echo "$line" | cut -d '=' -f1)
+            echo "$key=placeholder" >> .env.local
+          done
+          npm run build

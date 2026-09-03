@@ -18,14 +18,20 @@ export type YoutubeSearchItem = {
 // lib/youtube/discover.ts. Returns snippet data only, no stats.
 export async function searchVideos(
   query: string,
-  maxResults = 8
+  options?: { maxResults?: number; regionCode?: string }
 ): Promise<YoutubeSearchItem[]> {
   const url = new URL(`${YT_BASE}/search`);
   url.searchParams.set("part", "snippet");
   url.searchParams.set("q", query);
   url.searchParams.set("type", "video");
-  url.searchParams.set("maxResults", String(maxResults));
+  url.searchParams.set("maxResults", String(options?.maxResults ?? 8));
   url.searchParams.set("relevanceLanguage", "en");
+  // Biases results toward what's popular/relevant in the learner's
+  // region, rather than defaulting to whatever YouTube's global
+  // ranking (which skews US/English-heavy) would otherwise surface.
+  if (options?.regionCode) {
+    url.searchParams.set("regionCode", options.regionCode);
+  }
   url.searchParams.set("key", key());
 
   const res = await fetch(url.toString());

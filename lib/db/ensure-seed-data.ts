@@ -4,18 +4,20 @@ import { BACKEND_DEV_RESOURCE_POOL, type SeedResource } from "@/lib/ai/seed-reso
 export const BACKEND_DEV_FIELD_SLUG = "backend-development";
 
 /**
- * Ensures the "Backend Development" field row exists. Still hardcoded
- * per the roadmap — a field picker comes in Phase 6. Throws on failure
+ * Ensures a field row exists for the given catalog entry (see
+ * lib/fields/catalog.ts). Generalized from the old
+ * ensureBackendDevField — the pipeline was already field-agnostic
+ * everywhere except this one hardcoded lookup. Throws on failure
  * rather than returning a fake UUID: a fabricated field_id would fail
  * the learning_paths.field_id foreign key anyway, just less clearly.
  */
-export async function ensureBackendDevField(): Promise<string> {
+export async function ensureField(name: string, slug: string): Promise<string> {
   const service = createServiceClient();
 
   const { data: existing, error: selectError } = await service
     .from("fields")
     .select("id")
-    .eq("slug", BACKEND_DEV_FIELD_SLUG)
+    .eq("slug", slug)
     .maybeSingle();
 
   if (selectError) throw new Error(`Failed to look up field: ${selectError.message}`);
@@ -23,7 +25,7 @@ export async function ensureBackendDevField(): Promise<string> {
 
   const { data, error } = await service
     .from("fields")
-    .insert({ name: "Backend Development", slug: BACKEND_DEV_FIELD_SLUG })
+    .insert({ name, slug })
     .select("id")
     .single();
 

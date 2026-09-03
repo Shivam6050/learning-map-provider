@@ -49,6 +49,15 @@ function createFallbackServiceClient() {
  * Requires SUPABASE_SERVICE_ROLE_KEY (no NEXT_PUBLIC_ prefix, so
  * Next.js will not bundle it into client code) in .env.local.
  */
+const fetchWithTimeout = (input: RequestInfo | URL, init?: RequestInit) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 3000);
+  return fetch(input, {
+    ...init,
+    signal: init?.signal ?? controller.signal,
+  }).finally(() => clearTimeout(timeoutId));
+};
+
 export function createServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
@@ -62,5 +71,8 @@ export function createServiceClient() {
     return createFallbackServiceClient() as any;
   }
 
-  return createSupabaseClient(url!, key, { auth: { persistSession: false } });
+  return createSupabaseClient(url!, key, {
+    global: { fetch: fetchWithTimeout },
+    auth: { persistSession: false },
+  });
 }

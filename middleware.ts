@@ -36,7 +36,17 @@ export async function middleware(request: NextRequest) {
   }
 
   try {
+    const fetchWithTimeout = (input: RequestInfo | URL, init?: RequestInit) => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 1500);
+      return fetch(input, {
+        ...init,
+        signal: init?.signal ?? controller.signal,
+      }).finally(() => clearTimeout(timeoutId));
+    };
+
     const supabase = createServerClient(url!, key, {
+      global: { fetch: fetchWithTimeout },
       cookies: {
         getAll() {
           return request.cookies.getAll();
@@ -53,9 +63,14 @@ export async function middleware(request: NextRequest) {
       },
     });
 
+    const userPromise = supabase.auth.getUser();
+    const timeoutPromise = new Promise<{ data: { user: null }; error: any }>((resolve) =>
+      setTimeout(() => resolve({ data: { user: null }, error: new Error("Timeout") }), 1500)
+    );
+
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await Promise.race([userPromise, timeoutPromise]);
 
     const isProtected = PROTECTED_PREFIXES.some((p) =>
       request.nextUrl.pathname.startsWith(p)
@@ -67,7 +82,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(redirectUrl);
     }
   } catch {
-    // If Supabase network call fails, pass through safely
+    // If Supabase network call fails or times out, pass through safely
   }
 
   return response;

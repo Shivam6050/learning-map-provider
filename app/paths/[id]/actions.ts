@@ -27,30 +27,50 @@ export async function updateStageProgress(formData: FormData) {
   // RLS's stage_progress_owner_all policy enforces user_id = auth.uid()
   // on this update regardless of what's in the form — a tampered
   // stageId just updates nothing (0 rows match), not someone else's row.
-  const { error, count } = await supabase
+  const updatePayload: Record<string, any> = {
+    status,
+    completed_at: status === "completed" ? new Date().toISOString() : null,
+  };
+
+  let { error, count } = await supabase
     .from("stage_progress")
-    .update({
-      status,
-      completed_at: status === "completed" ? new Date().toISOString() : null,
-    })
+    .update({ ...updatePayload, updated_at: new Date().toISOString() })
     .eq("stage_id", stageId)
     .eq("user_id", user.id)
     .select("*", { count: "exact", head: true });
+
+  if (error && error.message.includes("updated_at")) {
+    const fallback = await supabase
+      .from("stage_progress")
+      .update(updatePayload)
+      .eq("stage_id", stageId)
+      .eq("user_id", user.id)
+      .select("*", { count: "exact", head: true });
+    error = fallback.error;
+    count = fallback.count;
+  }
 
   if (error) {
     throw new Error(`Failed to update progress: ${error.message}`);
   }
 
-  // Defensive fallback: a stage_progress row should always exist
-  // (created at confirmSelectedPath time), but if it's somehow
-  // missing, insert rather than silently no-op.
   if (count === 0) {
-    const { error: insertError } = await supabase.from("stage_progress").insert({
+    let { error: insertError } = await supabase.from("stage_progress").insert({
       stage_id: stageId,
       user_id: user.id,
-      status,
-      completed_at: status === "completed" ? new Date().toISOString() : null,
+      ...updatePayload,
+      updated_at: new Date().toISOString(),
     });
+
+    if (insertError && insertError.message.includes("updated_at")) {
+      const fallbackInsert = await supabase.from("stage_progress").insert({
+        stage_id: stageId,
+        user_id: user.id,
+        ...updatePayload,
+      });
+      insertError = fallbackInsert.error;
+    }
+
     if (insertError) {
       throw new Error(`Failed to create progress row: ${insertError.message}`);
     }

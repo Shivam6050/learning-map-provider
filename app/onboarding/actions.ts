@@ -9,8 +9,17 @@ import { generatePracticeChecks } from "@/lib/ai/practice-checks";
 import { buildPathOptions } from "@/lib/ai/build-options";
 import { discoverYoutubeForTopic } from "@/lib/youtube/discover";
 import { discoverWebForTopic } from "@/lib/web-discovery/discover";
-import { ensureBackendDevField } from "@/lib/db/ensure-seed-data";
+import { currencyToRegion } from "@/lib/youtube/region";
+import { ensureField } from "@/lib/db/ensure-seed-data";
+import { getFieldBySlug } from "@/lib/fields/catalog";
+import { getQuizForField, blendSkillLevel, type SkillLevel } from "@/lib/onboarding/skill-quiz";
 import type { DiscoveredResource } from "@/lib/youtube/discover";
+import { ensureSeedCandidates } from "@/lib/ai/seed-resources";
+import { logError } from "@/lib/monitoring/log-error";
+
+const VALID_SKILL_LEVELS: SkillLevel[] = ["beginner", "intermediate", "advanced"];
+const VALID_CURRENCIES = ["USD", "INR", "EUR"];
+const MAX_GENERATIONS_PER_DAY = 10;
 
 export async function generatePath(formData: FormData) {
   const supabase = await createClient();
@@ -22,43 +31,125 @@ export async function generatePath(formData: FormData) {
     redirect("/login");
   }
 
-  const skillLevel = String(formData.get("skillLevel")) as
-    | "beginner"
-    | "intermediate"
-    | "advanced";
-  const weeklyHours = Number(formData.get("weeklyHours") || 5);
-  const budgetTotal = Number(formData.get("budgetTotal") || 0);
-  const currency = String(formData.get("currency") ?? "USD");
+  // Every field is attacker-controllable regardless of what the <select>/
+  // <input> HTML enforces — a direct POST to this action skips all of
+  // it. Validate for real, not just trust the form.
+  const field = getFieldBySlug(String(formData.get("fieldSlug")));
+  if (!field) {
+    redirect("/onboarding?error=Invalid field selection");
+  }
+
+  const rawSkillLevel = String(formData.get("skillLevel"));
+  if (!VALID_SKILL_LEVELS.includes(rawSkillLevel as SkillLevel)) {
+    redirect("/onboarding?error=Invalid skill level");
+  }
+  const selfReportedLevel = rawSkillLevel as SkillLevel;
+
+  const weeklyHours = Number(formData.get("weeklyHours"));
+  if (!Number.isFinite(weeklyHours) || weeklyHours < 1 || weeklyHours > 80) {
+    redirect("/onboarding?error=Weekly hours must be between 1 and 80");
+  }
+
+  const budgetTotal = Number(formData.get("budgetTotal"));
+  if (!Number.isFinite(budgetTotal) || budgetTotal < 0 || budgetTotal > 100000) {
+    redirect("/onboarding?error=Budget must be between 0 and 100,000");
+  }
+
+  const rawCurrency = String(formData.get("currency") ?? "USD");
+  const currency = VALID_CURRENCIES.includes(rawCurrency) ? rawCurrency : "USD";
+
+  // Rate limit: each generation triggers several real Gemini + YouTube
+  // API calls, which cost real money and real quota. Without a cap, one
+  // careless or malicious user hammering "generate" burns both for
+  // everyone else. 10/day is generous for real use, tight enough to
+  // stop abuse. Counts pending_path_sets, not learning_paths, since
+  // that's created on every generation attempt regardless of whether
+  // the user ever confirms an option.
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { count: recentGenerations } = await supabase
+    .from("pending_path_sets")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", user!.id)
+    .gte("created_at", since);
+
+  if ((recentGenerations ?? 0) >= MAX_GENERATIONS_PER_DAY) {
+    redirect("/onboarding?error=You've reached today's limit of 10 path generations. Try again tomorrow.");
+  }
+
+  // Blend the self-reported level with the quiz — only for fields that
+  let skillLevel: SkillLevel = selfReportedLevel;
+  let quizScore = 0;
+  let quizImpliedLevel: SkillLevel = selfReportedLevel;
+
+  const fieldQuiz = getQuizForField(field!.slug);
+  const quizAnswers = fieldQuiz.map((q) => {
+    const val = formData.get(`quiz_${q.id}`);
+    return val !== null && val !== "" ? Number(val) : -1;
+  });
+
+  const answeredCount = quizAnswers.filter((a) => a >= 0).length;
+  if (answeredCount > 0) {
+    const blended = blendSkillLevel(selfReportedLevel, quizAnswers, field!.slug);
+    skillLevel = blended.finalLevel;
+    quizScore = blended.quizScore;
+    quizImpliedLevel = blended.quizImpliedLevel;
+  }
 
   try {
     // --- Field row needed before discovery now, since discovered
     // resources propose trusted_sources scoped to this field ---
-    const fieldId = await ensureBackendDevField();
+    const fieldId = await ensureField(field!.name, field!.slug);
 
     // --- Stage 1: skeleton (no search) ---
     const skeleton = await generateSkeleton({
-      fieldName: "Backend Development",
+      fieldName: field!.name,
       skillLevel,
       weeklyHours,
     });
 
-    // --- Stage 2: real discovery, cache-first, per stage's search topics ---
+    // --- Stage 2: real discovery (parallelized for fast performance) ---
     const resourcesByUrl = new Map<string, DiscoveredResource>();
     const candidatesByStage = new Map<number, DiscoveredResource[]>();
 
-    for (const stage of skeleton) {
-      const stageCandidates: DiscoveredResource[] = [];
-      for (const topic of stage.search_topics) {
-        const [youtubeResults, webResults] = await Promise.all([
-          discoverYoutubeForTopic(topic, fieldId),
-          discoverWebForTopic(topic, fieldId),
-        ]);
-        for (const r of [...youtubeResults, ...webResults]) {
-          if (!resourcesByUrl.has(r.url)) resourcesByUrl.set(r.url, r);
-          if (!stageCandidates.some((c) => c.url === r.url)) stageCandidates.push(r);
+    const stageResults = await Promise.all(
+      skeleton.map(async (stage) => {
+        const stageCandidates: DiscoveredResource[] = [];
+
+        const seedCandidates = await ensureSeedCandidates(stage.search_topics, currency, budgetTotal).catch(() => []);
+        for (const s of seedCandidates) {
+          if (!stageCandidates.some((c) => c.url === s.url)) stageCandidates.push(s);
+        }
+
+        const topicPromises = stage.search_topics.map(async (topic) => {
+          try {
+            const [youtubeResults, webResults] = await Promise.all([
+              discoverYoutubeForTopic(topic, fieldId, currencyToRegion(currency)).catch(() => []),
+              discoverWebForTopic(topic, fieldId).catch(() => []),
+            ]);
+            return [...youtubeResults, ...webResults];
+          } catch {
+            return [];
+          }
+        });
+
+        const topicResults = await Promise.all(topicPromises);
+        for (const list of topicResults) {
+          for (const r of list) {
+            if (!stageCandidates.some((c) => c.url === r.url)) stageCandidates.push(r);
+          }
+        }
+
+        return { order_index: stage.order_index, candidates: stageCandidates };
+      })
+    );
+
+    for (const res of stageResults) {
+      candidatesByStage.set(res.order_index, res.candidates);
+      for (const r of res.candidates) {
+        if (!resourcesByUrl.has(r.url)) {
+          resourcesByUrl.set(r.url, r);
         }
       }
-      candidatesByStage.set(stage.order_index, stageCandidates);
     }
 
     // --- Stage 3: real judgment per stage, grounded in real candidates ---
@@ -99,7 +190,9 @@ export async function generatePath(formData: FormData) {
       throw new Error(`Failed to save path options: ${pendingError?.message}`);
     }
 
-    redirect(`/onboarding/select?set=${pendingSet.id}`);
+    redirect(
+      `/onboarding/select?set=${pendingSet.id}&quizScore=${quizScore}&quizImplied=${quizImpliedLevel}&selfReported=${selfReportedLevel}&finalLevel=${skillLevel}`
+    );
   } catch (err) {
     if (err && typeof err === "object" && "digest" in err) {
       // Next.js redirect()/notFound() internals throw a special object
@@ -108,7 +201,7 @@ export async function generatePath(formData: FormData) {
       throw err;
     }
     const message = err instanceof Error ? err.message : "Failed to generate learning path.";
-    console.error("[generatePath]", message);
+    await logError("generatePath", err);
     redirect(`/onboarding?error=${encodeURIComponent(message)}`);
   }
 }
@@ -206,7 +299,7 @@ export async function confirmSelectedPath(formData: FormData) {
   } catch (err) {
     if (err && typeof err === "object" && "digest" in err) throw err;
     const message = err instanceof Error ? err.message : "Failed to confirm path.";
-    console.error("[confirmSelectedPath]", message);
+    await logError("confirmSelectedPath", err);
     redirect(`/onboarding?error=${encodeURIComponent(message)}`);
   }
 }

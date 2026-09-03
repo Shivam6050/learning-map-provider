@@ -2,6 +2,8 @@ import { callWithGoogleSearch } from "@/lib/ai/client";
 import { createServiceClient } from "@/lib/supabase/service";
 import { getCachedTopic, saveCachedTopic } from "@/lib/db/topic-cache";
 import { findOrProposeTrustedSource } from "@/lib/db/trusted-sources";
+import { checkUrlAlive } from "@/lib/link-check/check-url";
+import { isSafeHttpUrl } from "@/lib/link-check/url-safety";
 import type { DiscoveredResource } from "@/lib/youtube/discover";
 
 const PROMPT_TEMPLATE = (topic: string) =>
@@ -36,8 +38,11 @@ async function fetchResourcesByIds(ids: string[]): Promise<DiscoveredResource[]>
   const service = createServiceClient();
   const { data } = await service
     .from("resources")
-    .select("id, title, url, platform, resource_type, price, currency, signals, trust_status")
-    .in("id", ids);
+    .select(
+      "id, title, url, platform, resource_type, price, currency, signals, trust_status, rating, link_status"
+    )
+    .in("id", ids)
+    .neq("link_status", "broken");
   return (data ?? []) as DiscoveredResource[];
 }
 
@@ -76,12 +81,39 @@ export async function discoverWebForTopic(
     if (seenUrls.has(chunk.url)) continue;
     seenUrls.add(chunk.url);
 
+    // Reject anything that isn't a genuine http(s) URL before it's
+    // trusted with anything else — a javascript:/data: URI must never
+    // reach the database or an <a href>, regardless of how unlikely
+    // that seems from a search-grounded source.
+    if (!isSafeHttpUrl(chunk.url)) continue;
+
     const classification = classifyByDomain(chunk.url);
     let host = "";
     try {
       host = new URL(chunk.url).hostname.replace(/^www\./, "");
     } catch {
       continue; // not a real URL — skip rather than insert garbage
+    }
+
+    // Real search grounding means the URL is genuinely a search result,
+    // but that doesn't mean it still resolves right now — check before
+    // ever offering it as a candidate. This is what actually prevents
+    // the "clicked it, page is gone" problem, not the search step.
+    const alive = await checkUrlAlive(chunk.url);
+    const linkCheckedAt = new Date().toISOString();
+    if (!alive) {
+      const { data: existingDead } = await service
+        .from("resources")
+        .select("id")
+        .eq("url", chunk.url)
+        .maybeSingle();
+      if (existingDead) {
+        await service
+          .from("resources")
+          .update({ link_status: "broken", link_checked_at: linkCheckedAt })
+          .eq("id", existingDead.id);
+      }
+      continue;
     }
 
     let trustedSource = trustedSourceCache.get(host);
@@ -105,7 +137,12 @@ export async function discoverWebForTopic(
     if (existing) {
       await service
         .from("resources")
-        .update({ trust_status: trustStatus, trusted_source_id: trustedSource.id || null })
+        .update({
+          trust_status: trustStatus,
+          trusted_source_id: trustedSource.id || null,
+          link_status: "ok",
+          link_checked_at: linkCheckedAt,
+        })
         .eq("id", existing.id);
       resourceIds.push(existing.id);
       continue;
@@ -123,6 +160,8 @@ export async function discoverWebForTopic(
         trust_status: trustStatus,
         trusted_source_id: trustedSource.id || null,
         signals: {},
+        link_status: "ok",
+        link_checked_at: linkCheckedAt,
       })
       .select("id")
       .single();
