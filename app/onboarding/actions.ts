@@ -230,7 +230,7 @@ export async function confirmSelectedPath(formData: FormData) {
     const selectedOption = options.find((opt) => opt.id === optionId) ?? options[0];
     if (!selectedOption) throw new Error("No path option available to confirm.");
 
-    const { data: path, error: pathError } = await supabase
+    const { data: path, error: pathError } = await service
       .from("learning_paths")
       .insert({
         user_id: user.id,
@@ -262,6 +262,19 @@ export async function confirmSelectedPath(formData: FormData) {
       if (stageError || !stageRow) throw new Error(`Failed to create stage: ${stageError?.message}`);
 
       if (stage.stage_resources?.length) {
+        // Sync candidate resource price and currency in the resources table to match previewed option values
+        for (const sr of stage.stage_resources) {
+          if (sr.resource_id && sr.resources) {
+            await service
+              .from("resources")
+              .update({
+                price: sr.resources.price ?? 0,
+                currency: sr.resources.currency || pathSet.currency,
+              })
+              .eq("id", sr.resource_id);
+          }
+        }
+
         const rows = stage.stage_resources.map((sr: any) => ({
           stage_id: stageRow.id,
           resource_id: sr.resource_id,
@@ -273,7 +286,7 @@ export async function confirmSelectedPath(formData: FormData) {
       }
 
       if (stage.practice_check) {
-        const { error: progressError } = await supabase.from("stage_progress").insert({
+        const { error: progressError } = await service.from("stage_progress").insert({
           stage_id: stageRow.id,
           user_id: user.id,
           status: "not_started",
@@ -286,7 +299,7 @@ export async function confirmSelectedPath(formData: FormData) {
     }
 
     // Clean up — this pending set has been confirmed, no need to keep it.
-    await supabase.from("pending_path_sets").delete().eq("id", setId);
+    await service.from("pending_path_sets").delete().eq("id", setId);
 
     redirect(`/paths/${path.id}`);
   } catch (err) {

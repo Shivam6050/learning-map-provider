@@ -9,10 +9,22 @@ import { ConfirmPathButton } from "@/components/ConfirmPathButton";
 export default async function OnboardingSelectPage({
   searchParams,
 }: {
-  searchParams: Promise<{ set?: string; field?: string; quizScore?: string; quizImplied?: string; selfReported?: string; finalLevel?: string }>;
+  searchParams: Promise<{ set?: string; optionId?: string; autoConfirm?: string; field?: string; quizScore?: string; quizImplied?: string; selfReported?: string; finalLevel?: string }>;
 }) {
-  const { set, field: fieldParam, quizScore, selfReported, finalLevel } = await searchParams;
+  const { set, optionId, autoConfirm, field: fieldParam, quizScore, selfReported, finalLevel } = await searchParams;
   const service = createServiceClient();
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (autoConfirm === "1" && set && optionId && user) {
+    const formData = new FormData();
+    formData.set("setId", set);
+    formData.set("optionId", optionId);
+    await confirmSelectedPath(formData);
+  }
 
   const { data: row } = set
     ? await service
