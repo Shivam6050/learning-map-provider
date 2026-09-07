@@ -70,17 +70,6 @@ export async function discoverYoutubeForTopic(
       const url = `https://www.youtube.com/watch?v=${result.videoId}`;
 
       if (!stats) {
-        const { data: existingDead } = await service
-          .from("resources")
-          .select("id")
-          .eq("url", url)
-          .maybeSingle();
-        if (existingDead) {
-          await service
-            .from("resources")
-            .update({ link_status: "broken", link_checked_at: new Date().toISOString() })
-            .eq("id", existingDead.id);
-        }
         continue;
       }
 
@@ -108,7 +97,6 @@ export async function discoverYoutubeForTopic(
         published_at: result.publishedAt,
       };
       const trustStatus = trustedSource.approved ? "allowlisted" : "pending";
-      const linkCheckedAt = new Date().toISOString();
 
       if (existing) {
         await service
@@ -117,8 +105,6 @@ export async function discoverYoutubeForTopic(
             signals,
             trust_status: trustStatus,
             trusted_source_id: trustedSource.id || null,
-            link_status: "ok",
-            link_checked_at: linkCheckedAt,
           })
           .eq("id", existing.id);
         resourceIds.push(existing.id);
@@ -137,8 +123,6 @@ export async function discoverYoutubeForTopic(
           trust_status: trustStatus,
           trusted_source_id: trustedSource.id || null,
           signals,
-          link_status: "ok",
-          link_checked_at: linkCheckedAt,
         })
         .select("id")
         .single();

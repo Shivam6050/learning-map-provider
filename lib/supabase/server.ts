@@ -42,7 +42,7 @@ function createFallbackClient() {
           if (prop === "then") {
             return (resolve: any) => resolve({ data: [], error: null });
           }
-          return (..._args: any[]) => builder;
+          return () => builder;
         },
         apply() {
           return builder;

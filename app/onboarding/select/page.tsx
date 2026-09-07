@@ -1,28 +1,48 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { confirmSelectedPath } from "@/app/onboarding/actions";
 import { ensureHttpUrl } from "@/lib/link-check/url-safety";
+import { getFieldBySlug } from "@/lib/fields/catalog";
 
 export default async function OnboardingSelectPage({
   searchParams,
 }: {
-  searchParams: Promise<{ set?: string; quizScore?: string; quizImplied?: string; selfReported?: string; finalLevel?: string }>;
+  searchParams: Promise<{ set?: string; field?: string; quizScore?: string; quizImplied?: string; selfReported?: string; finalLevel?: string }>;
 }) {
-  const { set, quizScore, quizImplied, selfReported, finalLevel } = await searchParams;
-  const supabase = await createClient();
+  const { set, field: fieldParam, quizScore, selfReported, finalLevel } = await searchParams;
+  const service = createServiceClient();
 
   const { data: row } = set
-    ? await supabase
+    ? await service
         .from("pending_path_sets")
-        .select("id, skill_level, weekly_hours, budget_total, currency, options, fields(name)")
+        .select("id, field_id, skill_level, weekly_hours, budget_total, currency, options, fields(name, slug)")
         .eq("id", set)
         .maybeSingle()
     : { data: null };
 
+  let resolvedFieldName = Array.isArray(row?.fields) ? row?.fields[0]?.name : (row?.fields as any)?.name;
+  let resolvedFieldSlug = Array.isArray(row?.fields) ? row?.fields[0]?.slug : (row?.fields as any)?.slug;
+
+  if (!resolvedFieldName && row?.field_id) {
+    const { data: fRow } = await service.from("fields").select("name, slug").eq("id", row.field_id).maybeSingle();
+    if (fRow?.name) {
+      resolvedFieldName = fRow.name;
+      resolvedFieldSlug = fRow.slug;
+    }
+  }
+
+  if (!resolvedFieldName && (resolvedFieldSlug || fieldParam)) {
+    const catalogMatch = getFieldBySlug(resolvedFieldSlug || fieldParam || "");
+    if (catalogMatch) {
+      resolvedFieldName = catalogMatch.name;
+    }
+  }
+
   const pathSet = row
     ? {
         setId: row.id,
-        field_name: (Array.isArray(row.fields) ? row.fields[0] : row.fields)?.name ?? "Backend Development",
+        field_name: resolvedFieldName || "Selected Learning Stream",
         skill_level: row.skill_level,
         weekly_hours: row.weekly_hours,
         budget_total: row.budget_total,
@@ -130,31 +150,52 @@ export default async function OnboardingSelectPage({
                           <div className="mt-2 space-y-1.5">
                             {stage.stage_resources.map((sr: any, rIdx: number) => {
                               const safeUrl = ensureHttpUrl(sr.resources?.url || "");
+                              const p = (sr.resources?.platform || "").toLowerCase();
+                              const t = (sr.resources?.resource_type || "").toLowerCase();
+                              let icon = "📰";
+                              let label = "Guide";
+                              let action = "Read Guide";
+                              if (p === "youtube" || t === "video") {
+                                icon = "🎥"; label = "YouTube"; action = "Watch Video";
+                              } else if (p === "udemy" || p === "coursera" || t === "course") {
+                                icon = "🎓"; label = p === "udemy" ? "Udemy" : p === "coursera" ? "Coursera" : "Course"; action = "Open Course";
+                              } else if (p === "docs" || p === "mslearn" || t === "docs") {
+                                icon = "📄"; label = "Docs"; action = "Read Docs";
+                              }
+
                               return (
                                 <div
                                   key={rIdx}
-                                  className="flex items-center justify-between gap-2 text-[11px] bg-slate-950/80 rounded-lg p-2 border border-slate-800/80"
+                                  className="flex flex-col gap-1.5 bg-slate-950/90 rounded-xl p-2.5 border border-slate-800/80 hover:border-indigo-500/40 transition"
                                 >
+                                  <div className="flex items-center justify-between gap-2 text-[10px]">
+                                    <span className="font-bold tracking-wider text-slate-400 flex items-center gap-1 uppercase">
+                                      <span>{icon}</span>
+                                      <span>{label}</span>
+                                    </span>
+                                    <span className="font-extrabold text-emerald-400">
+                                      {sr.resources.price > 0
+                                        ? `${sr.resources.price} ${pathSet.currency}`
+                                        : "Free"}
+                                    </span>
+                                  </div>
                                   {safeUrl ? (
                                     <a
                                       href={safeUrl}
                                       target="_blank"
                                       rel="noreferrer"
-                                      className="truncate max-w-[200px] font-bold text-indigo-400 transition hover:text-indigo-300 hover:underline flex items-center gap-1"
+                                      className="font-bold text-xs text-indigo-400 hover:text-indigo-300 hover:underline flex items-center justify-between gap-2 group"
                                     >
-                                      <span>🔗 {sr.resources.title}</span>
-                                      <span className="text-[10px]">↗</span>
+                                      <span className="truncate">{sr.resources.title}</span>
+                                      <span className="shrink-0 text-[10px] font-bold bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-md border border-indigo-500/30 group-hover:bg-indigo-500 group-hover:text-white transition">
+                                        {action} ↗
+                                      </span>
                                     </a>
                                   ) : (
-                                    <span className="truncate max-w-[200px] font-medium text-slate-300">
+                                    <span className="font-medium text-xs text-slate-300 truncate">
                                       {sr.resources.title}
                                     </span>
                                   )}
-                                  <span className="shrink-0 text-[10px] font-bold text-slate-400">
-                                    {sr.resources.price > 0
-                                      ? `${sr.resources.price} ${pathSet.currency}`
-                                      : "Free"}
-                                  </span>
                                 </div>
                               );
                             })}

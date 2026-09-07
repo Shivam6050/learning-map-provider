@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { updateProfile } from "@/app/settings/actions";
-import { AVATAR_OPTIONS } from "@/lib/profile/avatars";
+import { AvatarSelectorWithPreview } from "@/components/AvatarSelectorWithPreview";
 import { DeleteAccountForm } from "@/components/DeleteAccountForm";
 
 export default async function SettingsPage({
@@ -79,32 +79,7 @@ export default async function SettingsPage({
             />
           </div>
 
-          <div>
-            <span className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
-              Companion Avatar
-            </span>
-            <p className="mt-1 text-xs text-slate-400">
-              Pick the avatar that walks your roadmaps with you.
-            </p>
-            <div className="mt-3 grid grid-cols-4 gap-2.5">
-              {AVATAR_OPTIONS.map((avatar) => (
-                <label key={avatar.id} className="cursor-pointer">
-                  <input
-                    type="radio"
-                    name="avatarId"
-                    value={avatar.id}
-                    defaultChecked={profile?.avatar_id === avatar.id}
-                    required
-                    className="peer sr-only"
-                  />
-                  <span className="flex flex-col items-center justify-center gap-1 rounded-xl border border-slate-800 bg-slate-900/90 p-2.5 text-2xl transition peer-checked:border-indigo-500 peer-checked:bg-indigo-500/10 peer-checked:ring-2 peer-checked:ring-indigo-500/30 hover:border-slate-700">
-                    {avatar.emoji}
-                    <span className="text-[10px] font-semibold text-slate-400">{avatar.label}</span>
-                  </span>
-                </label>
-              ))}
-            </div>
-          </div>
+          <AvatarSelectorWithPreview defaultAvatarId={profile?.avatar_id} />
 
           <button
             type="submit"

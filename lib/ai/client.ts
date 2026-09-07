@@ -1,9 +1,7 @@
 export const GEMINI_MODEL_CANDIDATES = [
   "gemini-2.5-flash",
-  "gemini-3.6-flash",
+  "gemini-2.5-pro",
   "gemini-1.5-flash",
-  "gemini-2.0-flash-exp",
-  "gemini-3.1-pro-preview",
 ];
 
 export const MODEL = GEMINI_MODEL_CANDIDATES[0];
@@ -37,51 +35,52 @@ async function callOneModel<T>(
   apiKey: string,
   params: { system: string; user: string }
 ): Promise<T> {
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: params.system }] },
-        contents: [{ parts: [{ text: params.user }] }],
-        generationConfig: { response_mime_type: "application/json" },
-      }),
-    }
-  );
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 4000);
 
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`Gemini ${model} returned ${res.status}: ${body.slice(0, 300)}`);
-  }
-
-  const data = await res.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) {
-    throw new Error(
-      `Gemini ${model} returned no text content: ${JSON.stringify(data).slice(0, 300)}`
-    );
-  }
-
-  const cleaned = text.replace(/```json|```/g, "").trim();
   try {
-    return JSON.parse(cleaned) as T;
-  } catch {
-    throw new Error(`Gemini ${model} returned invalid JSON: ${cleaned.slice(0, 300)}`);
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: params.system }] },
+          contents: [{ parts: [{ text: params.user }] }],
+          generationConfig: { response_mime_type: "application/json" },
+        }),
+        signal: controller.signal,
+      }
+    );
+    clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      const err = new Error(`Gemini ${model} returned ${res.status}: ${body.slice(0, 300)}`);
+      (err as any).status = res.status;
+      throw err;
+    }
+
+    const data = await res.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) {
+      throw new Error(
+        `Gemini ${model} returned no text content: ${JSON.stringify(data).slice(0, 300)}`
+      );
+    }
+
+    const cleaned = text.replace(/```json|```/g, "").trim();
+    try {
+      return JSON.parse(cleaned) as T;
+    } catch {
+      throw new Error(`Gemini ${model} returned invalid JSON: ${cleaned.slice(0, 300)}`);
+    }
+  } catch (err) {
+    clearTimeout(timeoutId);
+    throw err;
   }
 }
 
-/**
- * Calls Gemini using GEMINI_API_KEY, trying each model in
- * GEMINI_MODEL_CANDIDATES in order until one succeeds. Trying multiple
- * models is a legitimate resilience feature (a model rename/deprecation
- * shouldn't break the whole app) — but if EVERY model fails, or the key
- * is missing/a placeholder, this throws a real error with all the
- * per-model failure reasons attached. It does NOT return fabricated
- * fallback content on failure: a caller getting a result back can trust
- * it's real, and a caller catching an error knows something is actually
- * broken and needs fixing, rather than silently seeing fake data.
- */
 export async function callForJson<T>(params: {
   system: string;
   user: string;
@@ -93,10 +92,14 @@ export async function callForJson<T>(params: {
   for (const model of GEMINI_MODEL_CANDIDATES) {
     try {
       return await callOneModel<T>(model, geminiKey, params);
-    } catch (err) {
+    } catch (err: any) {
       const message = err instanceof Error ? err.message : String(err);
       console.error(`[gemini] ${model} failed:`, message);
       failures.push(`${model}: ${message}`);
+      if (err?.status === 429 || err?.status === 401 || err?.status === 403) {
+        // Quota/Auth error on API key — break fast to trigger instant fallback
+        break;
+      }
     }
   }
 
@@ -124,6 +127,9 @@ export async function callWithGoogleSearch(params: {
 
   const failures: string[] = [];
   for (const model of GEMINI_MODEL_CANDIDATES) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
+
     try {
       const res = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`,
@@ -134,12 +140,16 @@ export async function callWithGoogleSearch(params: {
             contents: [{ parts: [{ text: params.prompt }] }],
             tools: [{ google_search: {} }],
           }),
+          signal: controller.signal,
         }
       );
+      clearTimeout(timeoutId);
 
       if (!res.ok) {
         const body = await res.text().catch(() => "");
-        throw new Error(`Gemini ${model} (grounded) returned ${res.status}: ${body.slice(0, 300)}`);
+        const err = new Error(`Gemini ${model} (grounded) returned ${res.status}: ${body.slice(0, 300)}`);
+        (err as any).status = res.status;
+        throw err;
       }
 
       const data = await res.json();
@@ -150,10 +160,14 @@ export async function callWithGoogleSearch(params: {
         .map((c: any) => ({ url: c.web.uri, title: c.web.title ?? c.web.uri }));
 
       return { text, chunks };
-    } catch (err) {
+    } catch (err: any) {
+      clearTimeout(timeoutId);
       const message = err instanceof Error ? err.message : String(err);
       console.error(`[gemini grounded] ${model} failed:`, message);
       failures.push(`${model}: ${message}`);
+      if (err?.status === 429 || err?.status === 401 || err?.status === 403) {
+        break;
+      }
     }
   }
 

@@ -16,7 +16,7 @@ function isValidUrl(urlString?: string) {
   }
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
@@ -24,7 +24,7 @@ export async function middleware(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ??
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim();
 
-  // If Supabase credentials are missing or placeholders, bypass middleware auth refresh instantly
+  // If Supabase credentials are missing or placeholders, bypass proxy auth refresh instantly
   if (
     !isValidUrl(url) ||
     !key ||

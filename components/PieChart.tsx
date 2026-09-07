@@ -34,35 +34,35 @@ export function PieChart({
     );
   }
 
-  let cumulative = 0;
+  const activeSegments = segments.filter((s) => s.value > 0);
+  let accumulatedFraction = 0;
+  const preparedSegments = activeSegments.map((segment) => {
+    const fraction = segment.value / total;
+    const dashLength = fraction * circumference;
+    const dashArray = `${dashLength} ${circumference - dashLength}`;
+    const dashOffset = -accumulatedFraction * circumference;
+    accumulatedFraction += fraction;
+    return { segment, dashArray, dashOffset };
+  });
 
   return (
     <div className="relative" style={{ width: size, height: size }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
-        {segments
-          .filter((s) => s.value > 0)
-          .map((segment, i) => {
-            const fraction = segment.value / total;
-            const dashLength = fraction * circumference;
-            const dashArray = `${dashLength} ${circumference - dashLength}`;
-            const dashOffset = -cumulative * circumference;
-            cumulative += fraction;
-            return (
-              <circle
-                key={i}
-                cx={center}
-                cy={center}
-                r={radius}
-                fill="none"
-                stroke="currentColor"
-                className={segment.colorClass}
-                strokeWidth={strokeWidth}
-                strokeDasharray={dashArray}
-                strokeDashoffset={dashOffset}
-                strokeLinecap="butt"
-              />
-            );
-          })}
+        {preparedSegments.map(({ segment, dashArray, dashOffset }, i) => (
+          <circle
+            key={i}
+            cx={center}
+            cy={center}
+            r={radius}
+            fill="none"
+            stroke="currentColor"
+            className={segment.colorClass}
+            strokeWidth={strokeWidth}
+            strokeDasharray={dashArray}
+            strokeDashoffset={dashOffset}
+            strokeLinecap="butt"
+          />
+        ))}
       </svg>
       {centerLabel && (
         <div className="absolute inset-0 flex items-center justify-center">

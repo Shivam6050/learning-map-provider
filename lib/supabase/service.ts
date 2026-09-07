@@ -22,7 +22,7 @@ function createFallbackServiceClient() {
           if (prop === "then") {
             return (resolve: any) => resolve({ data: [], error: null });
           }
-          return (..._args: any[]) => builder;
+          return () => builder;
         },
         apply() {
           return builder;
@@ -51,7 +51,7 @@ function createFallbackServiceClient() {
  */
 const fetchWithTimeout = (input: RequestInfo | URL, init?: RequestInit) => {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 3000);
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
   return fetch(input, {
     ...init,
     signal: init?.signal ?? controller.signal,

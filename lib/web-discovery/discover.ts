@@ -5,6 +5,7 @@ import { findOrProposeTrustedSource } from "@/lib/db/trusted-sources";
 import { checkUrlAlive } from "@/lib/link-check/check-url";
 import { isSafeHttpUrl } from "@/lib/link-check/url-safety";
 import type { DiscoveredResource } from "@/lib/youtube/discover";
+import { fetchRealtimePrice } from "@/lib/web-discovery/price-fetcher";
 
 const PROMPT_TEMPLATE = (topic: string) =>
   `Find official documentation, well-known written tutorials, and reputable paid courses (e.g. Coursera, official platform training) for: "${topic}". Do not include YouTube — that's covered separately.`;
@@ -14,7 +15,7 @@ const PROMPT_TEMPLATE = (topic: string) =>
 // depends on for correctness — trust_status and price come from real
 // data (trusted_sources approval, manual review), not this guess.
 function classifyByDomain(url: string): {
-  platform: "mslearn" | "docs" | "article" | "course";
+  platform: "mslearn" | "docs" | "article" | "course" | "udemy" | "coursera";
   resource_type: "docs" | "article" | "course";
   price: number;
 } {
@@ -27,7 +28,9 @@ function classifyByDomain(url: string): {
   })();
 
   if (host.includes("learn.microsoft.com")) return { platform: "mslearn", resource_type: "docs", price: 0 };
-  if (host.includes("coursera.org")) return { platform: "course", resource_type: "course", price: 0 };
+  if (host.includes("udemy.com")) return { platform: "udemy", resource_type: "course", price: 25 };
+  if (host.includes("coursera.org")) return { platform: "coursera", resource_type: "course", price: 49 };
+  if (host.includes("pluralsight.com") || host.includes("edx.org")) return { platform: "course", resource_type: "course", price: 35 };
   if (host.includes("developer.mozilla.org") || host.endsWith(".dev") || host.includes("docs."))
     return { platform: "docs", resource_type: "docs", price: 0 };
   return { platform: "article", resource_type: "article", price: 0 };
@@ -148,6 +151,8 @@ export async function discoverWebForTopic(
       continue;
     }
 
+    const livePrice = await fetchRealtimePrice(chunk.url, "INR");
+
     const { data: inserted, error } = await service
       .from("resources")
       .insert({
@@ -155,8 +160,8 @@ export async function discoverWebForTopic(
         url: chunk.url,
         platform: classification.platform,
         resource_type: classification.resource_type,
-        price: classification.price,
-        currency: "USD",
+        price: livePrice.price,
+        currency: livePrice.currency,
         trust_status: trustStatus,
         trusted_source_id: trustedSource.id || null,
         signals: {},

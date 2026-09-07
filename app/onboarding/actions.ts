@@ -10,7 +10,7 @@ import { buildPathOptions } from "@/lib/ai/build-options";
 import { discoverYoutubeForTopic } from "@/lib/youtube/discover";
 import { discoverWebForTopic } from "@/lib/web-discovery/discover";
 import { currencyToRegion } from "@/lib/youtube/region";
-import { ensureField } from "@/lib/db/ensure-seed-data";
+import { ensureField, ensureGuestUser } from "@/lib/db/ensure-seed-data";
 import { getFieldBySlug } from "@/lib/fields/catalog";
 import { getQuizForField, blendSkillLevel, type SkillLevel } from "@/lib/onboarding/skill-quiz";
 import type { DiscoveredResource } from "@/lib/youtube/discover";
@@ -19,7 +19,9 @@ import { logError } from "@/lib/monitoring/log-error";
 
 const VALID_SKILL_LEVELS: SkillLevel[] = ["beginner", "intermediate", "advanced"];
 const VALID_CURRENCIES = ["USD", "INR", "EUR"];
-const MAX_GENERATIONS_PER_DAY = 10;
+const MAX_GENERATIONS_PER_DAY = process.env.MAX_GENERATIONS_PER_DAY
+  ? Number(process.env.MAX_GENERATIONS_PER_DAY)
+  : 100;
 
 export async function generatePath(formData: FormData) {
   const supabase = await createClient();
@@ -27,9 +29,7 @@ export async function generatePath(formData: FormData) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) {
-    redirect("/login");
-  }
+  const effectiveUserId = user?.id ?? (await ensureGuestUser());
 
   // Every field is attacker-controllable regardless of what the <select>/
   // <input> HTML enforces — a direct POST to this action skips all of
@@ -58,22 +58,17 @@ export async function generatePath(formData: FormData) {
   const rawCurrency = String(formData.get("currency") ?? "USD");
   const currency = VALID_CURRENCIES.includes(rawCurrency) ? rawCurrency : "USD";
 
-  // Rate limit: each generation triggers several real Gemini + YouTube
-  // API calls, which cost real money and real quota. Without a cap, one
-  // careless or malicious user hammering "generate" burns both for
-  // everyone else. 10/day is generous for real use, tight enough to
-  // stop abuse. Counts pending_path_sets, not learning_paths, since
-  // that's created on every generation attempt regardless of whether
-  // the user ever confirms an option.
+  // Rate limit check
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const { count: recentGenerations } = await supabase
+  const service = createServiceClient();
+  const { count: recentGenerations } = await service
     .from("pending_path_sets")
     .select("*", { count: "exact", head: true })
-    .eq("user_id", user!.id)
+    .eq("user_id", effectiveUserId)
     .gte("created_at", since);
 
   if ((recentGenerations ?? 0) >= MAX_GENERATIONS_PER_DAY) {
-    redirect("/onboarding?error=You've reached today's limit of 10 path generations. Try again tomorrow.");
+    redirect("/onboarding?error=You've reached today's limit of path generations. Please try again later.");
   }
 
   // Blend the self-reported level with the quiz — only for fields that
@@ -115,7 +110,7 @@ export async function generatePath(formData: FormData) {
       skeleton.map(async (stage) => {
         const stageCandidates: DiscoveredResource[] = [];
 
-        const seedCandidates = await ensureSeedCandidates(stage.search_topics, currency, budgetTotal).catch(() => []);
+        const seedCandidates = await ensureSeedCandidates(stage.search_topics, currency, budgetTotal, field!.slug).catch(() => []);
         for (const s of seedCandidates) {
           if (!stageCandidates.some((c) => c.url === s.url)) stageCandidates.push(s);
         }
@@ -165,17 +160,17 @@ export async function generatePath(formData: FormData) {
     const options = buildPathOptions({
       skeleton,
       judgedStages,
+      candidatesByStage,
       resourcesByUrl,
       budgetTotal,
       practiceChecksByStage,
     });
 
-    // --- Persist the pending option set to the DATABASE, not memory,
-    // so it survives across serverless instances until confirmation ---
-    const { data: pendingSet, error: pendingError } = await supabase
+    // --- Persist the pending option set to the DATABASE ---
+    const { data: pendingSet, error: pendingError } = await service
       .from("pending_path_sets")
       .insert({
-        user_id: user.id,
+        user_id: effectiveUserId,
         field_id: fieldId,
         skill_level: skillLevel,
         weekly_hours: weeklyHours,

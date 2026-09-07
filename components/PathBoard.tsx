@@ -1,3 +1,7 @@
+"use client";
+
+import React from "react";
+
 type BoardStage = {
   id: string;
   order_index: number;
@@ -38,6 +42,18 @@ export function PathBoard({
   const avatarX = nodeX(currentIdx);
   const avatarY = nodeY(currentIdx);
 
+  const handleNodeClick = (e: React.MouseEvent, stageId: string) => {
+    e.preventDefault();
+    const el = document.getElementById(`stage-${stageId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.add("ring-2", "ring-indigo-500", "ring-offset-2", "ring-offset-slate-950");
+      setTimeout(() => {
+        el.classList.remove("ring-2", "ring-indigo-500", "ring-offset-2", "ring-offset-slate-950");
+      }, 2000);
+    }
+  };
+
   return (
     <div className="relative mx-auto" style={{ width: "100%", maxWidth: VIEW_WIDTH }}>
       <svg
@@ -77,8 +93,21 @@ export function PathBoard({
           const textColor = isCompleted || isInProgress ? "#ffffff" : "#cbd5e1";
 
           return (
-            <a key={stage.id} href={`#stage-${stage.id}`}>
-              <circle cx={x} cy={y} r={NODE_RADIUS} fill={fill} stroke={stroke} strokeWidth={3} />
+            <a
+              key={stage.id}
+              href={`#stage-${stage.id}`}
+              onClick={(e) => handleNodeClick(e, stage.id)}
+              className="cursor-pointer group"
+            >
+              <circle
+                cx={x}
+                cy={y}
+                r={NODE_RADIUS}
+                fill={fill}
+                stroke={stroke}
+                strokeWidth={3}
+                className="transition-transform duration-200 group-hover:scale-110"
+              />
               <text
                 x={x}
                 y={y}
@@ -87,6 +116,7 @@ export function PathBoard({
                 fontSize={isCompleted ? 20 : 15}
                 fontWeight={700}
                 fill={textColor}
+                className="pointer-events-none"
               >
                 {isCompleted ? "\u2713" : i + 1}
               </text>
@@ -97,6 +127,7 @@ export function PathBoard({
                 fontSize={11}
                 fontWeight={600}
                 fill="#f8fafc"
+                className="pointer-events-none group-hover:fill-indigo-300"
               >
                 {stage.title.length > 22 ? `${stage.title.slice(0, 20)}\u2026` : stage.title}
               </text>

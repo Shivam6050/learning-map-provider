@@ -117,4 +117,52 @@ describe("buildPathOptions", () => {
     const mastery = options.find((o) => o.id === "opt-1")!;
     expect(mastery.total_cost).toBeLessThanOrEqual(tightBudget);
   });
+
+  it("selects paid courses for mastery and practical options according to user budget", () => {
+    const candidatesByStage = new Map<number, DiscoveredResource[]>([
+      [0, [freeVideo, paidCourse]],
+      [1, [freeVideo, resource({ id: "paid-2", url: "https://example.com/paid2", price: 30, resource_type: "course" })]],
+    ]);
+
+    const fullResourcesByUrl = new Map<string, DiscoveredResource>([
+      [freeVideo.url, freeVideo],
+      [paidCourse.url, paidCourse],
+      ["https://example.com/paid2", resource({ id: "paid-2", url: "https://example.com/paid2", price: 30, resource_type: "course" })],
+    ]);
+
+    const options = buildPathOptions({
+      skeleton: stages,
+      judgedStages,
+      candidatesByStage,
+      resourcesByUrl: fullResourcesByUrl,
+      budgetTotal: 100,
+      practiceChecksByStage,
+    });
+
+    const mastery = options.find((o) => o.id === "opt-1")!;
+    const practical = options.find((o) => o.id === "opt-2")!;
+    const saver = options.find((o) => o.id === "opt-3")!;
+
+    expect(mastery.total_cost).toBeGreaterThan(0);
+    expect(mastery.total_cost).toBeLessThanOrEqual(100);
+    expect(practical.total_cost).toBeGreaterThan(0);
+    expect(saver.total_cost).toBe(0);
+  });
+
+  it("scales total hours based on path strategy depth (Mastery > Practical > Saver)", () => {
+    const options = buildPathOptions({
+      skeleton: stages,
+      judgedStages,
+      resourcesByUrl,
+      budgetTotal: 100,
+      practiceChecksByStage,
+    });
+
+    const mastery = options.find((o) => o.id === "opt-1")!;
+    const practical = options.find((o) => o.id === "opt-2")!;
+    const saver = options.find((o) => o.id === "opt-3")!;
+
+    expect(mastery.total_hours).toBeGreaterThan(practical.total_hours);
+    expect(practical.total_hours).toBeGreaterThan(saver.total_hours);
+  });
 });

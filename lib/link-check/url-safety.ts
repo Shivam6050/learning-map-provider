@@ -1,6 +1,6 @@
 export function ensureHttpUrl(rawUrl: string): string {
   if (!rawUrl) return "";
-  let trimmed = rawUrl.trim();
+  const trimmed = rawUrl.trim();
   if (/^[a-z0-9+.-]+:/i.test(trimmed)) {
     return trimmed;
   }

@@ -37,48 +37,112 @@ export type PathOption = {
 type Strategy = "mastery" | "practical" | "saver";
 
 function pickForStrategy(
-  candidates: DiscoveredResource[],
+  judgedCandidates: DiscoveredResource[],
+  stageCandidates: DiscoveredResource[],
   strategy: Strategy,
-  remainingBudget: number
+  remainingBudget: number,
+  seenUrlsInPath: Set<string>
 ): DiscoveredResource[] {
-  const free = candidates.filter((c) => c.price === 0);
-  const paid = candidates.filter((c) => c.price > 0);
+  const pool = judgedCandidates.length ? judgedCandidates : stageCandidates;
+
+  const allPaidCandidates = [
+    ...pool.filter((c) => c.price > 0),
+    ...stageCandidates.filter((c) => c.price > 0 && !pool.some((p) => p.url === c.url)),
+  ].sort((a, b) => b.price - a.price);
+
+  const allFreeCandidates = [
+    ...pool.filter((c) => c.price === 0),
+    ...stageCandidates.filter((c) => c.price === 0 && !pool.some((p) => p.url === c.url)),
+  ];
 
   if (strategy === "saver") {
-    // 100% Free Path ($0)
-    return free.length
-      ? free.slice(0, 2)
-      : candidates.slice(0, 1).map((c) => ({ ...c, price: 0 }));
+    // 100% Free Path ($0) -> strictly filter for 100% free resources
+    const freePool = stageCandidates.filter((c) => c.price === 0);
+    const fallbackFreePool = freePool.length ? freePool : pool.filter((c) => c.price === 0);
+
+    const unseenFreeDocs = fallbackFreePool.filter(
+      (c) => (c.resource_type === "docs" || c.platform === "docs" || c.platform === "article") && !seenUrlsInPath.has(c.url)
+    );
+    const freeDocs = unseenFreeDocs.length ? unseenFreeDocs : fallbackFreePool.filter((c) => c.resource_type === "docs" || c.platform === "docs" || c.platform === "article");
+
+    const unseenFreeVideos = fallbackFreePool.filter(
+      (c) => (c.resource_type === "video" || c.platform === "youtube") && !seenUrlsInPath.has(c.url)
+    );
+    const freeVideos = unseenFreeVideos.length ? unseenFreeVideos : fallbackFreePool.filter((c) => c.resource_type === "video" || c.platform === "youtube");
+
+    const picks: DiscoveredResource[] = [];
+    if (freeVideos.length > 0) picks.push(freeVideos[0]);
+    if (freeDocs.length > 0 && !picks.some((p) => p.url === freeDocs[0].url)) picks.push(freeDocs[0]);
+
+    if (picks.length < 2) {
+      for (const c of fallbackFreePool) {
+        if (!picks.some((p) => p.url === c.url)) picks.push(c);
+        if (picks.length >= 2) break;
+      }
+    }
+
+    // Ensure we only return 100% free candidates
+    return picks.filter((c) => c.price === 0).slice(0, 2);
   }
+
+  const picks: DiscoveredResource[] = [];
+
+  if (remainingBudget > 0) {
+    // Prefer an unseen paid candidate that fits budget
+    const unseenPaid = allPaidCandidates.find((p) => !seenUrlsInPath.has(p.url) && p.price <= remainingBudget);
+    const affordablePaid = unseenPaid || allPaidCandidates.find((p) => p.price <= remainingBudget);
+    if (affordablePaid) {
+      picks.push(affordablePaid);
+    }
+  } else {
+    // If remaining budget is 0, but an already-purchased paid course was used in an earlier stage, we can reuse it
+    const alreadyPurchasedPaid = allPaidCandidates.find((p) => seenUrlsInPath.has(p.url));
+    if (alreadyPurchasedPaid) {
+      picks.push(alreadyPurchasedPaid);
+    }
+  }
+
+  // Next, pick free resources (preferring unseen ones for this stage)
+  const unseenDocs = allFreeCandidates.filter(
+    (c) => (c.resource_type === "docs" || c.platform === "docs" || c.platform === "article") && !seenUrlsInPath.has(c.url)
+  );
+  const docs = unseenDocs.length ? unseenDocs : allFreeCandidates.filter((c) => c.resource_type === "docs" || c.platform === "docs" || c.platform === "article");
+
+  const unseenVideos = allFreeCandidates.filter(
+    (c) => (c.resource_type === "video" || c.platform === "youtube") && !seenUrlsInPath.has(c.url)
+  );
+  const freeVideos = unseenVideos.length ? unseenVideos : allFreeCandidates.filter((c) => c.resource_type === "video" || c.platform === "youtube");
 
   if (strategy === "practical") {
-    // Mid-Range Path: Include 1 paid course if budget permits, balanced with videos & docs
-    const picks: DiscoveredResource[] = [];
-    const videos = candidates.filter((c) => c.resource_type === "video");
-
-    const midPaid = paid.find((p) => p.price <= remainingBudget);
-    if (midPaid && remainingBudget > 0) {
-      picks.push(midPaid);
+    if (freeVideos.length > 0 && !picks.some((p) => p.url === freeVideos[0].url)) {
+      picks.push(freeVideos[0]);
     }
-    if (videos.length && !picks.some((p) => p.url === videos[0].url)) {
-      picks.push(videos[0]);
+  } else {
+    // mastery
+    if (docs.length > 0 && !picks.some((p) => p.url === docs[0].url)) {
+      picks.push(docs[0]);
     }
-    if (free.length && !picks.some((p) => p.url === free[0].url)) {
-      picks.push(free[0]);
-    }
-    return picks.length ? picks.slice(0, 2) : (free.length ? free.slice(0, 2) : candidates.slice(0, 2));
   }
 
-  // Mastery Path (Upper-Range): Prioritize premium paid courses for depth across stages
-  const picks: DiscoveredResource[] = [];
-  const affordablePaid = paid.find((p) => p.price <= remainingBudget);
-  if (affordablePaid && remainingBudget > 0) {
-    picks.push(affordablePaid);
+  if (picks.length < 2) {
+    for (const c of allFreeCandidates) {
+      if (!picks.some((p) => p.url === c.url) && !seenUrlsInPath.has(c.url)) {
+        picks.push(c);
+      }
+      if (picks.length >= 2) break;
+    }
   }
-  if (free.length && !picks.some((p) => p.url === free[0].url)) {
-    picks.push(free[0]);
+
+  if (picks.length < 2) {
+    for (const c of allFreeCandidates) {
+      if (!picks.some((p) => p.url === c.url)) {
+        picks.push(c);
+      }
+      if (picks.length >= 2) break;
+    }
   }
-  return picks.length ? picks.slice(0, 2) : (candidates.length ? candidates.slice(0, 2) : []);
+
+  return picks.slice(0, 2);
 }
 
 function buildOption(
@@ -88,34 +152,63 @@ function buildOption(
   strategy: Strategy,
   skeleton: SkeletonStage[],
   judgedStages: JudgedStage[],
+  candidatesByStage: Map<number, DiscoveredResource[]> | undefined,
   resourcesByUrl: Map<string, DiscoveredResource>,
   budgetTotal: number,
   practiceChecksByStage: Map<number, string>
 ): PathOption {
+  // Strategy budget caps: Option 1 = full budget, Option 2 = slightly less than budget (~60%), Option 3 = $0
   let remainingBudget = budgetTotal;
+  if (strategy === "practical") {
+    remainingBudget = Math.round(budgetTotal * 0.60);
+  } else if (strategy === "saver") {
+    remainingBudget = 0;
+  }
+
+  // Hour scaling factor based on path strategy depth
+  const hourMultiplier = strategy === "mastery" ? 1.25 : strategy === "practical" ? 1.0 : 0.75;
+
   let totalCost = 0;
   let totalHours = 0;
-  const allResources = Array.from(resourcesByUrl.values());
+  const seenUrlsInPath = new Set<string>();
 
   const stages: OptionStage[] = skeleton.map((stg) => {
-    totalHours += stg.estimated_hours;
+    const stageHours = Math.max(4, Math.round(stg.estimated_hours * hourMultiplier));
+    totalHours += stageHours;
+
     const judged = judgedStages.find((j) => j.order_index === stg.order_index);
-    let candidates = (judged?.selected_resources ?? [])
+    const judgedCandidates = (judged?.selected_resources ?? [])
       .map((r) => resourcesByUrl.get(r.url))
       .filter((r): r is DiscoveredResource => !!r);
 
-    if (candidates.length === 0) {
-      candidates = allResources;
-    }
+    const rawStageCandidates = candidatesByStage?.get(stg.order_index) ?? [];
+    const stageCandidates = rawStageCandidates.length
+      ? rawStageCandidates
+      : judgedCandidates.length
+      ? judgedCandidates
+      : Array.from(candidatesByStage?.values() ?? []).flat();
 
-    const picked = pickForStrategy(candidates, strategy, remainingBudget);
+    const picked = pickForStrategy(judgedCandidates, stageCandidates, strategy, remainingBudget, seenUrlsInPath);
 
     const stageResources: OptionStageResource[] = picked.map((resource, i) => {
-      const finalPrice = strategy === "saver" ? 0 : resource.price;
-      if (finalPrice > 0) {
-        remainingBudget -= finalPrice;
-        totalCost += finalPrice;
+      const alreadyPurchased = seenUrlsInPath.has(resource.url);
+      let priceForOptionCost = resource.price;
+
+      if (alreadyPurchased) {
+        priceForOptionCost = 0;
+      } else if (priceForOptionCost > 0) {
+        if (priceForOptionCost <= remainingBudget) {
+          remainingBudget -= priceForOptionCost;
+          totalCost += priceForOptionCost;
+          seenUrlsInPath.add(resource.url);
+        } else {
+          totalCost += priceForOptionCost;
+          seenUrlsInPath.add(resource.url);
+        }
+      } else {
+        seenUrlsInPath.add(resource.url);
       }
+
       return {
         is_primary: i === 0,
         order_index: i,
@@ -125,7 +218,7 @@ function buildOption(
           url: resource.url,
           platform: resource.platform,
           resource_type: resource.resource_type,
-          price: finalPrice,
+          price: resource.price,
           currency: resource.currency,
         },
       };
@@ -135,7 +228,7 @@ function buildOption(
       order_index: stg.order_index,
       title: stg.title,
       description: stg.description,
-      estimated_hours: stg.estimated_hours,
+      estimated_hours: stageHours,
       stage_resources: stageResources,
       practice_check:
         practiceChecksByStage.get(stg.order_index) ??
@@ -149,42 +242,46 @@ function buildOption(
 export function buildPathOptions(params: {
   skeleton: SkeletonStage[];
   judgedStages: JudgedStage[];
+  candidatesByStage?: Map<number, DiscoveredResource[]>;
   resourcesByUrl: Map<string, DiscoveredResource>;
   budgetTotal: number;
   practiceChecksByStage: Map<number, string>;
 }): PathOption[] {
-  const { skeleton, judgedStages, resourcesByUrl, budgetTotal, practiceChecksByStage } = params;
+  const { skeleton, judgedStages, candidatesByStage, resourcesByUrl, budgetTotal, practiceChecksByStage } = params;
 
   return [
     buildOption(
       "opt-1",
-      "Comprehensive Mastery Path (Upper-Range Budget)",
-      "Comprehensive path featuring top-tier paid bootcamps and deep-dive courses up to your budget limit.",
+      "Option 1: Full Budget Path (Mastery)",
+      "Full budget path featuring top-tier paid bootcamps and deep-dive courses up to your budget limit.",
       "mastery",
       skeleton,
       judgedStages,
+      candidatesByStage,
       resourcesByUrl,
       budgetTotal,
       practiceChecksByStage
     ),
     buildOption(
       "opt-2",
-      "Fast-Track Practical Path (Mid-Range Budget)",
-      "Combines hands-on video tutorials with targeted mid-range courses within your budget.",
+      "Option 2: Moderate Path (Slightly Below Budget)",
+      "Combines hands-on video tutorials with targeted mid-range courses, spending slightly less than your budget.",
       "practical",
       skeleton,
       judgedStages,
+      candidatesByStage,
       resourcesByUrl,
       budgetTotal,
       practiceChecksByStage
     ),
     buildOption(
       "opt-3",
-      "Essential & Budget Saver Path (Free)",
+      "Option 3: 100% Free Path (Budget Saver)",
       "100% Free, high-quality videos and official documentation — no spending required ($0).",
       "saver",
       skeleton,
       judgedStages,
+      candidatesByStage,
       resourcesByUrl,
       budgetTotal,
       practiceChecksByStage

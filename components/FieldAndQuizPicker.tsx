@@ -4,8 +4,16 @@ import { useState } from "react";
 import { FIELD_CATALOG } from "@/lib/fields/catalog";
 import { FIELD_QUIZZES } from "@/lib/onboarding/skill-quiz";
 
-export function FieldAndQuizPicker() {
-  const [fieldSlug, setFieldSlug] = useState(FIELD_CATALOG[0].slug);
+interface FieldAndQuizPickerProps {
+  initialField?: string;
+}
+
+export function FieldAndQuizPicker({ initialField }: FieldAndQuizPickerProps) {
+  const defaultSlug = initialField && FIELD_CATALOG.some((f) => f.slug === initialField)
+    ? initialField
+    : FIELD_CATALOG[0].slug;
+
+  const [fieldSlug, setFieldSlug] = useState(defaultSlug);
   const [skipQuiz, setSkipQuiz] = useState(false);
 
   const quiz = FIELD_QUIZZES[fieldSlug] ?? FIELD_QUIZZES["backend-development"];
@@ -90,7 +98,6 @@ export function FieldAndQuizPicker() {
                         type="radio"
                         name={`quiz_${q.id}`}
                         value={oi}
-                        required={!skipQuiz}
                         className="h-4 w-4 text-indigo-600 border-slate-700 bg-slate-900 focus:ring-indigo-500"
                       />
                       <span>{option}</span>

@@ -80,3 +80,33 @@ export async function ensureSeedResources(): Promise<Map<string, string>> {
 export function getSeedResourcePool(): SeedResource[] {
   return BACKEND_DEV_RESOURCE_POOL;
 }
+
+export async function ensureGuestUser(): Promise<string> {
+  const service = createServiceClient();
+  const guestEmail = "guest-demo-user@learningmap.local";
+
+  const { data: existing } = await service
+    .from("profiles")
+    .select("id")
+    .eq("email", guestEmail)
+    .maybeSingle();
+
+  if (existing?.id) return existing.id;
+
+  const { data: inserted } = await service
+    .from("profiles")
+    .insert({
+      email: guestEmail,
+      display_name: "Guest Learner",
+      avatar_id: "fox",
+    })
+    .select("id")
+    .maybeSingle();
+
+  if (inserted?.id) return inserted.id;
+
+  const { data: anyProfile } = await service.from("profiles").select("id").limit(1).maybeSingle();
+  if (anyProfile?.id) return anyProfile.id;
+
+  return "00000000-0000-0000-0000-000000000000";
+}
