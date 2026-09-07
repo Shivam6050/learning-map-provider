@@ -83,17 +83,26 @@ export default async function PathPage({
 
   const usdToPathCurrency = await getConversionRate("USD", path.currency);
 
-  function convertedPrice(amountUsd: number): { amount: number; converted: boolean } {
-    if (usdToPathCurrency === null) return { amount: amountUsd, converted: false };
-    return { amount: Math.round(amountUsd * usdToPathCurrency * 100) / 100, converted: true };
-  }
-
   let totalCost = 0;
+  const processedResourceUrls = new Set<string>();
+
   (stages ?? []).forEach((stage: any) => {
     stage.stage_resources?.forEach((sr: any) => {
       const res = Array.isArray(sr.resources) ? sr.resources[0] : sr.resources;
-      if (res?.price && res.price > 0) {
-        totalCost += convertedPrice(Number(res.price)).amount;
+      if (res?.price && Number(res.price) > 0 && res.url && !processedResourceUrls.has(res.url)) {
+        processedResourceUrls.add(res.url);
+
+        const resCurrency = (res.currency || "USD").toUpperCase();
+        const targetCurrency = (path.currency || "USD").toUpperCase();
+
+        if (resCurrency === targetCurrency) {
+          totalCost += Number(res.price);
+        } else if (resCurrency === "USD" && targetCurrency === "INR") {
+          const rate = usdToPathCurrency ?? 80;
+          totalCost += Math.round(Number(res.price) * rate);
+        } else {
+          totalCost += Number(res.price);
+        }
       }
     });
   });

@@ -35,9 +35,17 @@ export function FilteredStageList({
   const [editingNoteStageId, setEditingNoteStageId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  function convertedPrice(amountUsd: number): { amount: number; converted: boolean } {
-    if (usdToPathCurrency === null) return { amount: amountUsd, converted: false };
-    return { amount: Math.round(amountUsd * usdToPathCurrency * 100) / 100, converted: true };
+  function convertedPrice(price: number, resCurrencyRaw?: string): { amount: number; currency: string } {
+    const resCurrency = (resCurrencyRaw || "USD").toUpperCase();
+    const targetCurrency = (path.currency || "USD").toUpperCase();
+
+    if (resCurrency === targetCurrency) {
+      return { amount: price, currency: targetCurrency };
+    } else if (resCurrency === "USD" && targetCurrency === "INR") {
+      const rate = usdToPathCurrency ?? 80;
+      return { amount: Math.round(price * rate), currency: targetCurrency };
+    }
+    return { amount: price, currency: resCurrency };
   }
 
   const counts = {
@@ -183,10 +191,8 @@ export function FilteredStageList({
                                 <span className="text-xs text-slate-400 font-medium">
                                   {resource.price > 0 ? (
                                     (() => {
-                                      const conv = convertedPrice(Number(resource.price));
-                                      return conv.converted && path.currency !== resource.currency
-                                        ? `${conv.amount} ${path.currency}`
-                                        : `${resource.price} ${resource.currency}`;
+                                      const conv = convertedPrice(Number(resource.price), resource.currency);
+                                      return `${conv.amount} ${conv.currency}`;
                                     })()
                                   ) : (
                                     <span className="text-emerald-400 font-semibold">Free</span>
