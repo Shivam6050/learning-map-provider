@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { AVATAR_OPTIONS } from "@/lib/profile/avatars";
+import { logError } from "@/lib/monitoring/log-error";
 
 export async function updateProfile(formData: FormData) {
   const supabase = await createClient();
@@ -17,12 +18,6 @@ export async function updateProfile(formData: FormData) {
   const displayName = String(formData.get("displayName") ?? "").trim();
   const avatarId = String(formData.get("avatarId") ?? "");
 
-  // Never trust a client-submitted avatarId as-is — validate against
-  // the real catalog server-side, same as any other enum input. Worst
-  // case of skipping this is cosmetic (getAvatarEmoji already falls
-  // back gracefully), but storing arbitrary unvalidated strings in a
-  // column meant to be an enum is the kind of small looseness that
-  // compounds into real bugs later.
   const isValidAvatar = AVATAR_OPTIONS.some((a) => a.id === avatarId);
   if (!isValidAvatar) {
     redirect("/settings?error=Invalid avatar selection");
@@ -31,27 +26,40 @@ export async function updateProfile(formData: FormData) {
     redirect("/settings?error=Name must be between 1 and 100 characters");
   }
 
-  const { error } = await supabase
+  // 1. Always persist avatar_id and display_name in Supabase Auth user metadata
+  const { error: authErr } = await supabase.auth.updateUser({
+    data: {
+      avatar_id: avatarId,
+      display_name: displayName,
+    },
+  });
+
+  if (authErr) {
+    await logError("updateProfile:auth", authErr);
+  }
+
+  // 2. Persist in profiles table using service client (bypasses schema cache/RLS limits)
+  const service = createServiceClient();
+  const { error: dbErr } = await service
     .from("profiles")
     .update({ display_name: displayName, avatar_id: avatarId })
     .eq("id", user.id);
 
-  if (error) {
-    if (error.message.includes("avatar_id")) {
-      const { error: fallbackErr } = await supabase
-        .from("profiles")
-        .update({ display_name: displayName })
-        .eq("id", user.id);
-      if (fallbackErr) {
-        redirect(`/settings?error=${encodeURIComponent(fallbackErr.message)}`);
-      }
-    } else {
-      redirect(`/settings?error=${encodeURIComponent(error.message)}`);
+  if (dbErr && dbErr.message.includes("avatar_id")) {
+    const { error: fallbackErr } = await service
+      .from("profiles")
+      .update({ display_name: displayName })
+      .eq("id", user.id);
+    if (fallbackErr) {
+      redirect(`/settings?error=${encodeURIComponent(fallbackErr.message)}`);
     }
+  } else if (dbErr) {
+    redirect(`/settings?error=${encodeURIComponent(dbErr.message)}`);
   }
 
   revalidatePath("/dashboard");
   revalidatePath("/settings");
+  revalidatePath("/", "layout");
   redirect("/settings?saved=1");
 }
 

@@ -35,6 +35,9 @@ export default async function SettingsPage({
     profile = pData;
   }
 
+  const effectiveAvatarId = profile?.avatar_id ?? (user.user_metadata?.avatar_id as string | undefined);
+  const effectiveDisplayName = profile?.display_name ?? (user.user_metadata?.display_name as string | undefined) ?? "";
+
   return (
     <div className="relative flex min-h-[calc(100vh-64px)] items-center justify-center px-4 py-16 bg-slate-950 text-slate-100 bg-grid-pattern">
       <div className="glow-orb-indigo top-10 left-1/2 -translate-x-1/2" />
@@ -74,12 +77,12 @@ export default async function SettingsPage({
               type="text"
               required
               maxLength={100}
-              defaultValue={profile?.display_name ?? ""}
+              defaultValue={effectiveDisplayName}
               className="mt-1.5 block w-full rounded-xl border border-slate-800 bg-slate-900/80 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
             />
           </div>
 
-          <AvatarSelectorWithPreview defaultAvatarId={profile?.avatar_id} />
+          <AvatarSelectorWithPreview defaultAvatarId={effectiveAvatarId} key={effectiveAvatarId || "default"} />
 
           <button
             type="submit"

@@ -55,7 +55,8 @@ export default async function DashboardPage() {
     )
     .order("created_at", { ascending: false });
 
-  const avatarEmoji = getAvatarEmoji(profile?.avatar_id);
+  const effectiveAvatarId = profile?.avatar_id ?? (user?.user_metadata?.avatar_id as string | undefined);
+  const avatarEmoji = getAvatarEmoji(effectiveAvatarId);
 
   let totalCompleted = 0;
   let totalInProgress = 0;

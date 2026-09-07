@@ -35,6 +35,8 @@ export default async function RootLayout({
     if (!pErr) profile = pData;
   }
 
+  const effectiveAvatarId = profile?.avatar_id ?? (user?.user_metadata?.avatar_id as string | undefined);
+
   return (
     <html lang="en" className={`${inter.variable} ${outfit.variable} h-full antialiased dark`}>
       <body className="min-h-full flex flex-col bg-slate-950 text-slate-100 font-sans selection:bg-indigo-500 selection:text-white">
@@ -75,7 +77,7 @@ export default async function RootLayout({
                     className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-700/60 bg-slate-900/60 text-slate-200 transition hover:border-indigo-500/50 hover:bg-slate-800"
                     title="Account Settings"
                   >
-                    <span className="text-lg leading-none">{getAvatarEmoji(profile?.avatar_id)}</span>
+                    <span className="text-lg leading-none">{getAvatarEmoji(effectiveAvatarId)}</span>
                     <span className="hidden sm:inline">Settings</span>
                   </Link>
                   <form action={logout}>
