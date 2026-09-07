@@ -50,7 +50,7 @@ export default async function DashboardPage() {
     .select(
       `
       id, skill_level, status, created_at, fields(name),
-      stages ( id, title, order_index, estimated_hours, stage_progress ( status, updated_at ) )
+      stages ( id, title, order_index, estimated_hours, stage_progress ( status, completed_at ) )
     `
     )
     .order("created_at", { ascending: false });
