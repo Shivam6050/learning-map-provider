@@ -103,6 +103,11 @@ export async function fetchRealtimePrice(
     host.includes("github.com") ||
     host.includes("react.dev") ||
     host.includes("nextjs.org") ||
+    host.includes("nodejs.org") ||
+    host.includes("expressjs.com") ||
+    host.includes("postgresql.org") ||
+    host.includes("owasp.org") ||
+    host.includes("python.org") ||
     host.includes("tailwindcss.com") ||
     host.includes("prisma.io") ||
     host.includes("pytorch.org") ||
@@ -112,7 +117,10 @@ export async function fetchRealtimePrice(
     host.includes("docker.com") ||
     host.includes("kubernetes.io") ||
     host.includes("vercel.com") ||
-    host.includes("testing-library.com")
+    host.includes("testing-library.com") ||
+    host.startsWith("docs.") ||
+    host.startsWith("developer.") ||
+    host.includes("/docs")
   ) {
     return { price: 0, currency: currUpper, isRealtime: true };
   }

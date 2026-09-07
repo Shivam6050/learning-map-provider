@@ -788,13 +788,25 @@ export async function ensureSeedCandidates(
   if (missingSeeds.length > 0) {
     const rowsToInsert = await Promise.all(
       missingSeeds.map(async (seed) => {
-        const livePrice = await fetchRealtimePrice(seed.url, currency);
+        const isFree =
+          seed.price === 0 ||
+          seed.platform === "docs" ||
+          seed.platform === "article" ||
+          seed.platform === "youtube" ||
+          seed.resource_type === "docs" ||
+          seed.resource_type === "article" ||
+          seed.resource_type === "video";
+
+        const livePrice = isFree
+          ? { price: 0, currency: currency.toUpperCase() }
+          : await fetchRealtimePrice(seed.url, currency);
+
         return {
           title: seed.title,
           url: seed.url,
           platform: seed.platform,
           resource_type: seed.resource_type,
-          price: livePrice.price,
+          price: isFree ? 0 : livePrice.price,
           currency: livePrice.currency,
           trust_status: "allowlisted",
           signals: {},
@@ -817,7 +829,18 @@ export async function ensureSeedCandidates(
   return Promise.all(
     matched.map(async (seed) => {
       const existing = existingMap.get(seed.url);
-      const livePrice = await fetchRealtimePrice(seed.url, currency);
+      const isFree =
+        seed.price === 0 ||
+        seed.platform === "docs" ||
+        seed.platform === "article" ||
+        seed.platform === "youtube" ||
+        seed.resource_type === "docs" ||
+        seed.resource_type === "article" ||
+        seed.resource_type === "video";
+
+      const livePrice = isFree
+        ? { price: 0, currency: currency.toUpperCase() }
+        : await fetchRealtimePrice(seed.url, currency);
 
       return {
         id: existing?.id ?? `seed-${Math.random().toString(36).slice(2, 9)}`,
@@ -825,7 +848,7 @@ export async function ensureSeedCandidates(
         url: seed.url,
         platform: (existing?.platform ?? seed.platform) as any,
         resource_type: (existing?.resource_type ?? seed.resource_type) as any,
-        price: livePrice.price,
+        price: isFree ? 0 : livePrice.price,
         currency: livePrice.currency,
         signals: {},
         trust_status: "allowlisted",
