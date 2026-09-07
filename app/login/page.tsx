@@ -5,7 +5,7 @@ import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; message?: string }>;
+  searchParams: Promise<{ error?: string; message?: string; next?: string }>;
 }) {
   const params = await searchParams;
 
@@ -38,7 +38,7 @@ export default async function LoginPage({
         )}
 
         <div className="mt-6">
-          <GoogleSignInButton />
+          <GoogleSignInButton nextParam={params.next} />
         </div>
 
         <div className="my-6 flex items-center gap-3 text-xs font-semibold uppercase tracking-wider text-slate-500">

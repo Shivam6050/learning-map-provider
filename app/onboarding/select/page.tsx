@@ -4,6 +4,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { confirmSelectedPath } from "@/app/onboarding/actions";
 import { ensureHttpUrl } from "@/lib/link-check/url-safety";
 import { getFieldBySlug } from "@/lib/fields/catalog";
+import { ConfirmPathButton } from "@/components/ConfirmPathButton";
 
 export default async function OnboardingSelectPage({
   searchParams,
@@ -174,8 +175,8 @@ export default async function OnboardingSelectPage({
                                       <span>{label}</span>
                                     </span>
                                     <span className="font-extrabold text-emerald-400">
-                                      {sr.resources.price > 0
-                                        ? `${sr.resources.price} ${pathSet.currency}`
+                                      {(sr.resources?.price ?? 0) > 0
+                                        ? `${sr.resources?.price} ${pathSet.currency}`
                                         : "Free"}
                                     </span>
                                   </div>
@@ -186,14 +187,14 @@ export default async function OnboardingSelectPage({
                                       rel="noreferrer"
                                       className="font-bold text-xs text-indigo-400 hover:text-indigo-300 hover:underline flex items-center justify-between gap-2 group"
                                     >
-                                      <span className="truncate">{sr.resources.title}</span>
+                                      <span className="truncate">{sr.resources?.title || "Resource Link"}</span>
                                       <span className="shrink-0 text-[10px] font-bold bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-md border border-indigo-500/30 group-hover:bg-indigo-500 group-hover:text-white transition">
                                         {action} ↗
                                       </span>
                                     </a>
                                   ) : (
                                     <span className="font-medium text-xs text-slate-300 truncate">
-                                      {sr.resources.title}
+                                      {sr.resources?.title || "Resource"}
                                     </span>
                                   )}
                                 </div>
@@ -209,12 +210,7 @@ export default async function OnboardingSelectPage({
                 <form action={confirmSelectedPath} className="mt-8">
                   <input type="hidden" name="setId" value={pathSet.setId} />
                   <input type="hidden" name="optionId" value={option.id} />
-                  <button
-                    type="submit"
-                    className={`btn-primary w-full rounded-xl py-3 px-4 text-xs font-bold shadow-lg`}
-                  >
-                    Confirm & Start This Path →
-                  </button>
+                  <ConfirmPathButton />
                 </form>
               </div>
             );

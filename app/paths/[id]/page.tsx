@@ -41,7 +41,7 @@ export default async function PathPage({
     .eq("path_id", id)
     .order("order_index");
 
-  if (stagesError && stagesError.message.includes("link_status")) {
+  if (stagesError && stagesError.message?.includes("link_status")) {
     const fallback = await supabase
       .from("stages")
       .select(
@@ -62,7 +62,7 @@ export default async function PathPage({
   }
 
   if (stagesError) {
-    throw new Error(`Failed to load path stages: ${stagesError.message}`);
+    throw new Error(`Failed to load path stages: ${stagesError.message || "Unknown error"}`);
   }
 
   let fieldName = Array.isArray(path.fields) ? path.fields[0]?.name : (path.fields as any)?.name;

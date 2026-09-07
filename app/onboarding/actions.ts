@@ -207,17 +207,17 @@ export async function confirmSelectedPath(formData: FormData) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  const setId = String(formData.get("setId") ?? "");
+  const optionId = String(formData.get("optionId") ?? "");
+
   if (!user) {
-    redirect("/login");
+    const nextPath = `/onboarding/select?set=${setId}&optionId=${optionId}&autoConfirm=1`;
+    redirect(`/login?next=${encodeURIComponent(nextPath)}`);
   }
 
-  const setId = String(formData.get("setId"));
-  const optionId = String(formData.get("optionId"));
-
   try {
-    // RLS (pending_path_sets_owner_all) already ensures this only
-    // returns a row if it belongs to the current user.
-    const { data: pathSet, error: fetchError } = await supabase
+    const service = createServiceClient();
+    const { data: pathSet, error: fetchError } = await service
       .from("pending_path_sets")
       .select("*")
       .eq("id", setId)
@@ -245,8 +245,6 @@ export async function confirmSelectedPath(formData: FormData) {
       .single();
 
     if (pathError || !path) throw new Error(`Failed to create learning path: ${pathError?.message}`);
-
-    const service = createServiceClient();
 
     for (const stage of selectedOption.stages) {
       const { data: stageRow, error: stageError } = await service

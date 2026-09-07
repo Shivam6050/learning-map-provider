@@ -15,7 +15,7 @@ export function DeletePathButton({ pathId, pathName }: { pathId: string; pathNam
       <input type="hidden" name="pathId" value={pathId} />
       <button
         type="submit"
-        className="rounded-lg p-2 text-slate-400 transition hover:bg-red-500/10 hover:text-red-400 border border-transparent hover:border-red-500/20"
+        className="cursor-pointer rounded-lg p-2 text-slate-400 transition hover:bg-red-500/10 hover:text-red-400 border border-transparent hover:border-red-500/20 active:scale-95"
         title="Delete this path"
         aria-label="Delete this path"
       >

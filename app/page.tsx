@@ -4,10 +4,14 @@ import { redirect } from "next/navigation";
 import { LandingRoadmapPreview } from "@/components/LandingRoadmapPreview";
 
 export default async function Home() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user = null;
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase.auth.getUser();
+    user = data?.user ?? null;
+  } catch (err) {
+    user = null;
+  }
 
   if (user) {
     redirect("/dashboard");

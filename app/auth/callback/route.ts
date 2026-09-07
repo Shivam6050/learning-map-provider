@@ -8,15 +8,26 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const origin = getRequestOrigin(request);
   const code = searchParams.get("code");
+  const errorParam = searchParams.get("error_description") || searchParams.get("error");
   const next = searchParams.get("next") ?? "/dashboard";
+
+  const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
+
+  if (errorParam) {
+    return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(errorParam)}`);
+  }
 
   if (code) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`);
+      return NextResponse.redirect(`${origin}${safeNext}`);
+    } else {
+      return NextResponse.redirect(
+        `${origin}/login?error=${encodeURIComponent(error.message || "Could not confirm account")}`
+      );
     }
   }
 
-  return NextResponse.redirect(`${origin}/login?error=Could not confirm account`);
+  return NextResponse.redirect(`${origin}/login?error=Invalid+authentication+callback`);
 }

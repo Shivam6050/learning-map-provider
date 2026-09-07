@@ -24,7 +24,7 @@ export default async function SettingsPage({
     .eq("id", user.id)
     .maybeSingle();
 
-  if (pErr && pErr.message.includes("avatar_id")) {
+  if (pErr && pErr.message?.includes("avatar_id")) {
     const { data: fallbackP } = await supabase
       .from("profiles")
       .select("display_name")

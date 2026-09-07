@@ -34,7 +34,7 @@ export default async function DashboardPage() {
     .eq("id", user?.id)
     .maybeSingle();
 
-  if (pErr && pErr.message.includes("avatar_id")) {
+  if (pErr && pErr.message?.includes("avatar_id")) {
     const { data: fallbackP } = await supabase
       .from("profiles")
       .select("display_name, role, created_at")

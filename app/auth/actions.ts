@@ -82,16 +82,22 @@ export async function login(formData: FormData) {
 
     if (error) {
       const msg = error.message || String(error);
-      errorMessage = (!msg || msg === "{}" || msg === "[object Object]")
-        ? "Supabase service error (502 Bad Gateway). Please check your Supabase project status."
-        : msg;
+      if (msg.toLowerCase().includes("captcha")) {
+        errorMessage = "CAPTCHA protection is enabled on your Supabase project. Please disable CAPTCHA in Supabase Dashboard (Authentication -> Security) or use Google Sign-In.";
+      } else {
+        errorMessage = (!msg || msg === "{}" || msg === "[object Object]")
+          ? "Supabase service error (502 Bad Gateway). Please check your Supabase project status."
+          : msg;
+      }
     }
   } catch (err: any) {
     if (err && typeof err === "object" && "digest" in err) {
       throw err;
     }
     const rawMsg = typeof err === "string" ? err : err?.message || String(err);
-    if (!rawMsg || rawMsg === "{}" || rawMsg === "[object Object]" || rawMsg.includes("502")) {
+    if (rawMsg.toLowerCase().includes("captcha")) {
+      errorMessage = "CAPTCHA protection is enabled on your Supabase project. Please disable CAPTCHA in Supabase Dashboard (Authentication -> Security) or use Google Sign-In.";
+    } else if (!rawMsg || rawMsg === "{}" || rawMsg === "[object Object]" || rawMsg.includes("502")) {
       errorMessage = "Supabase service error (502 Bad Gateway). Please check your Supabase project status.";
     } else if (rawMsg.includes("fetch failed") || rawMsg.includes("ENOTFOUND")) {
       errorMessage = "Supabase connection failed. Please check your network or Supabase project URL.";
