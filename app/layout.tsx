@@ -14,6 +14,9 @@ const outfit = Outfit({ subsets: ["latin"], variable: "--font-serif" });
 export const metadata: Metadata = {
   title: "Learning Map — AI-Powered Personalized Roadmaps",
   description: "Curate your perfect learning path from zero to expert with AI-driven milestones, budget-aware YouTube/Web resources, and progress tracking.",
+  other: {
+    "impact-site-verification": "105c3802-b4bb-4386-a33c-46865d7825a5",
+  },
 };
 
 export default async function RootLayout({
@@ -40,6 +43,9 @@ export default async function RootLayout({
 
   return (
     <html lang="en" className={`${inter.variable} ${outfit.variable} h-full antialiased dark`}>
+      <head>
+        <meta name="impact-site-verification" content="105c3802-b4bb-4386-a33c-46865d7825a5" />
+      </head>
       <body className="min-h-full flex flex-col bg-slate-950 text-slate-100 font-sans selection:bg-indigo-500 selection:text-white">
         <a
           href="#main-content"
