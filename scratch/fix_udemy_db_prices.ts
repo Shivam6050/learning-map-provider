@@ -3,7 +3,7 @@ import { createServiceClient } from "../lib/supabase/service";
 async function fixUdemyDbPrices() {
   const service = createServiceClient();
 
-  // 1. Update resources table for all Udemy courses
+  // 1. Update resources table for all Udemy courses to match current price 619 INR
   const { data: udemyResources } = await service
     .from("resources")
     .select("id, url, price, currency")
@@ -12,13 +12,13 @@ async function fixUdemyDbPrices() {
   if (udemyResources && udemyResources.length > 0) {
     console.log(`Found ${udemyResources.length} Udemy resources in DB.`);
     for (const res of udemyResources) {
-      const newPrice = res.currency === "INR" ? 486 : 13;
+      const newPrice = res.currency === "INR" ? 619 : 15;
       await service.from("resources").update({ price: newPrice }).eq("id", res.id);
       console.log(`Updated resource ${res.id} (${res.url}) price to ${newPrice} ${res.currency}`);
     }
   }
 
-  // 2. Clear out old pending_path_sets so new roadmap generations compute fresh Option totals with 486 INR
+  // 2. Clear out old pending_path_sets so roadmap generations compute fresh totals with 619 INR
   const { error: deleteErr } = await service.from("pending_path_sets").delete().neq("id", "00000000-0000-0000-0000-000000000000");
   console.log("Cleared old pending path sets:", deleteErr ? deleteErr.message : "Success");
 }

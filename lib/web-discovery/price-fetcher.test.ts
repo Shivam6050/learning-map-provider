@@ -29,7 +29,7 @@ describe("Udemy API & Realtime Price Fetcher", () => {
 
     const res = await fetchRealtimePrice("https://www.udemy.com/course/the-complete-nodejs-developer-course-2/", "INR");
     expect(res).toEqual({
-      price: 486,
+      price: 619,
       currency: "INR",
       isRealtime: false,
     });

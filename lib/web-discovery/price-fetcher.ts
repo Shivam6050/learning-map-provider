@@ -238,7 +238,7 @@ export async function fetchRealtimePrice(
 
   // 3. Verified Platform Market Rates Fallback
   if (host.includes("udemy.com")) {
-    const udemyPrice = currUpper === "INR" ? 486 : currUpper === "EUR" ? 13 : 13;
+    const udemyPrice = currUpper === "INR" ? 619 : currUpper === "EUR" ? 15 : 15;
     return { price: udemyPrice, currency: currUpper, isRealtime: false };
   }
 
@@ -253,6 +253,6 @@ export async function fetchRealtimePrice(
   }
 
   // Default fallback for unrecognized paid resources
-  const defaultPrice = currUpper === "INR" ? 486 : 13;
+  const defaultPrice = currUpper === "INR" ? 619 : 15;
   return { price: defaultPrice, currency: currUpper, isRealtime: false };
 }
