@@ -85,7 +85,7 @@ export default async function Home() {
             <div className="mt-1 text-xs font-medium text-slate-400">Supported Tech Fields</div>
           </div>
           <div>
-            <div className="text-2xl font-extrabold text-indigo-400 sm:text-3xl">10,000+</div>
+            <div className="text-2xl font-extrabold text-indigo-400 sm:text-3xl">100 +</div>
             <div className="mt-1 text-xs font-medium text-slate-400">Roadmaps Generated</div>
           </div>
           <div>
@@ -93,7 +93,7 @@ export default async function Home() {
             <div className="mt-1 text-xs font-medium text-slate-400">Budget Tailored</div>
           </div>
           <div>
-            <div className="text-2xl font-extrabold text-emerald-400 sm:text-3xl">99.4%</div>
+            <div className="text-2xl font-extrabold text-emerald-400 sm:text-3xl">99%</div>
             <div className="mt-1 text-xs font-medium text-slate-400">Verified Resource Safety</div>
           </div>
         </div>
