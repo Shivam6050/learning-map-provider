@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   title: "Learning Map — AI-Powered Personalized Roadmaps",
   description: "Curate your perfect learning path from zero to expert with AI-driven milestones, budget-aware YouTube/Web resources, and progress tracking.",
   other: {
-    "impact-site-verification": "105c3802-b4bb-4386-a33c-46865d7825a5",
+    "impact-site-verification": "dd861887-c236-4c32-bc00-b96581dfde25",
   },
 };
 
@@ -44,8 +44,8 @@ export default async function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${outfit.variable} h-full antialiased dark`}>
       <head>
-        <meta name="impact-site-verification" content="105c3802-b4bb-4386-a33c-46865d7825a5" />
-        <span dangerouslySetInnerHTML={{ __html: '<meta name="impact-site-verification" value="105c3802-b4bb-4386-a33c-46865d7825a5" />' }} />
+        <meta name="impact-site-verification" content="dd861887-c236-4c32-bc00-b96581dfde25" />
+        <span dangerouslySetInnerHTML={{ __html: '<meta name="impact-site-verification" value="dd861887-c236-4c32-bc00-b96581dfde25" />' }} />
       </head>
       <body className="min-h-full flex flex-col bg-slate-950 text-slate-100 font-sans selection:bg-indigo-500 selection:text-white">
         <a
