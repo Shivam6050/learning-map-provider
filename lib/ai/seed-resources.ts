@@ -842,6 +842,13 @@ export async function ensureSeedCandidates(
         ? { price: 0, currency: currency.toUpperCase() }
         : await fetchRealtimePrice(seed.url, currency);
 
+      if (existing && existing.price !== livePrice.price) {
+        await service
+          .from("resources")
+          .update({ price: livePrice.price, currency: livePrice.currency })
+          .eq("id", existing.id);
+      }
+
       return {
         id: existing?.id ?? `seed-${Math.random().toString(36).slice(2, 9)}`,
         title: existing?.title ?? seed.title,

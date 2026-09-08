@@ -138,9 +138,12 @@ export async function discoverWebForTopic(
       .maybeSingle();
 
     if (existing) {
+      const livePrice = await fetchRealtimePrice(chunk.url, "INR");
       await service
         .from("resources")
         .update({
+          price: livePrice.price,
+          currency: livePrice.currency,
           trust_status: trustStatus,
           trusted_source_id: trustedSource.id || null,
           link_status: "ok",
