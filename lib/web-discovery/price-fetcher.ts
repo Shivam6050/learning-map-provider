@@ -4,22 +4,43 @@ export type LivePriceResult = {
   price: number;
   currency: string;
   isRealtime: boolean;
+  title?: string;
+  headline?: string;
+  rating?: number;
+  instructor?: string;
 };
+
+function getUdemyCredentials(): { clientId: string; clientSecret: string } | null {
+  let clientId = process.env.UDEMY_CLIENT_ID?.trim() || "";
+  let clientSecret = process.env.UDEMY_CLIENT_SECRET?.trim() || "";
+  const apiKey = process.env.UDEMY_API_KEY?.trim() || "";
+
+  if ((!clientId || !clientSecret) && apiKey) {
+    if (apiKey.includes(":")) {
+      const parts = apiKey.split(":");
+      clientId = parts[0].trim();
+      clientSecret = parts[1].trim();
+    }
+  }
+
+  if (clientId && clientSecret) {
+    return { clientId, clientSecret };
+  }
+  return null;
+}
 
 /**
  * Official Udemy API Client Integration
- * Uses UDEMY_CLIENT_ID and UDEMY_CLIENT_SECRET to query Udemy REST API v2.0
+ * Uses UDEMY_CLIENT_ID & UDEMY_CLIENT_SECRET (or UDEMY_API_KEY="id:secret") to query Udemy REST API v2.0
  * Endpoint: https://www.udemy.com/api-2.0/courses/
- * Header: Authorization: Basic Base64(UDEMY_CLIENT_ID:UDEMY_CLIENT_SECRET)
+ * Header: Authorization: Basic Base64(CLIENT_ID:CLIENT_SECRET)
  */
 export async function fetchUdemyApiPrice(
   url: string,
   targetCurrency: string = "INR"
 ): Promise<LivePriceResult | null> {
-  const clientId = process.env.UDEMY_CLIENT_ID;
-  const clientSecret = process.env.UDEMY_CLIENT_SECRET;
-
-  if (!clientId || !clientSecret) {
+  const creds = getUdemyCredentials();
+  if (!creds) {
     return null;
   }
 
@@ -32,32 +53,53 @@ export async function fetchUdemyApiPrice(
 
     if (!slug) return null;
 
-    const authHeader = `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`;
+    const authHeader = `Basic ${Buffer.from(`${creds.clientId}:${creds.clientSecret}`).toString("base64")}`;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 4000);
 
-    const apiUrl = `https://www.udemy.com/api-2.0/courses/?search=${encodeURIComponent(slug)}&fields[course]=price,price_detail,discount_price&page_size=1`;
+    const apiUrl = `https://www.udemy.com/api-2.0/courses/?search=${encodeURIComponent(slug)}&fields[course]=title,headline,price,price_detail,discount_price,rating,visible_instructors,url&page_size=5`;
     const response = await fetch(apiUrl, {
       signal: controller.signal,
       headers: {
         Authorization: authHeader,
         Accept: "application/json, text/plain, */*",
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
       },
     }).finally(() => clearTimeout(timeoutId));
 
     if (response.ok) {
       const data = await response.json();
-      const course = data.results?.[0];
+      const results: any[] = data.results ?? [];
+      const course =
+        results.find((c) => c.url && c.url.includes(slug)) ||
+        results[0];
+
       if (course) {
         const discountPrice = course.discount_price?.amount;
         const priceDetail = course.price_detail?.amount;
         const rawAmount = discountPrice ?? priceDetail;
         const rawCurrency = course.discount_price?.currency || course.price_detail?.currency || "USD";
 
-        if (typeof rawAmount === "number" && rawAmount > 0) {
+        const title = course.title;
+        const headline = course.headline;
+        const rating = typeof course.rating === "number" ? Math.round(course.rating * 10) / 10 : undefined;
+        const instructor = Array.isArray(course.visible_instructors) && course.visible_instructors[0]?.title
+          ? course.visible_instructors[0].title
+          : undefined;
+
+        if (typeof rawAmount === "number" && rawAmount >= 0) {
           const rate = await getConversionRate(rawCurrency.toUpperCase(), currUpper);
           const converted = Math.round(rawAmount * (rate ?? 1));
-          return { price: converted, currency: currUpper, isRealtime: true };
+          return {
+            price: converted,
+            currency: currUpper,
+            isRealtime: true,
+            title,
+            headline,
+            rating,
+            instructor,
+          };
         }
       }
     }
