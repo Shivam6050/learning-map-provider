@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { PieChart, PieChartLegend } from "@/components/PieChart";
 import { DeletePathButton } from "@/components/DeletePathButton";
 import { getAvatarEmoji } from "@/lib/profile/avatars";
+import { LogoutButton } from "@/components/LogoutButton";
 
 type ResumeTarget = {
   pathId: string;
@@ -135,14 +136,12 @@ export default async function DashboardPage() {
           <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
             <Link
               href="/settings"
-              className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:bg-slate-800 hover:border-slate-600"
+              className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-xs font-semibold text-slate-200 transition-all duration-200 hover:bg-slate-800 hover:border-slate-600 active:scale-95 cursor-pointer flex items-center gap-1.5"
             >
               ⚙️ Settings
             </Link>
             <form action={logout}>
-              <button className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-xs font-semibold text-red-300 transition hover:bg-red-500/20">
-                Log out
-              </button>
+              <LogoutButton className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-xs font-semibold text-red-300 transition-all duration-200 hover:bg-red-500/20 active:scale-95 cursor-pointer flex items-center gap-1.5" />
             </form>
           </div>
         </div>

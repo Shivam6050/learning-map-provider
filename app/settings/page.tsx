@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { updateProfile } from "@/app/settings/actions";
 import { AvatarSelectorWithPreview } from "@/components/AvatarSelectorWithPreview";
 import { DeleteAccountForm } from "@/components/DeleteAccountForm";
+import { SaveProfileButton } from "@/components/SaveProfileButton";
 
 export default async function SettingsPage({
   searchParams,
@@ -84,12 +85,7 @@ export default async function SettingsPage({
 
           <AvatarSelectorWithPreview defaultAvatarId={effectiveAvatarId} key={effectiveAvatarId || "default"} />
 
-          <button
-            type="submit"
-            className="btn-primary w-full rounded-xl px-4 py-3 text-sm font-semibold shadow-lg"
-          >
-            Save Profile Changes
-          </button>
+          <SaveProfileButton />
         </form>
 
         <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-5 space-y-3">

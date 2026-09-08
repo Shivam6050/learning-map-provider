@@ -72,7 +72,7 @@
 .btn-primary:active,
 button:active,
 a.btn-primary:active {
-  transform: scale(0.97);
+  transform: scale(0.96);
   transition: transform 0.1s ease;
 }
 
@@ -81,6 +81,7 @@ button,
 a.btn-primary,
 input[type="submit"] {
   cursor: pointer;
+  transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.15s ease, background-color 0.15s ease;
 }
 
 /* Glow Orbs & Accents */

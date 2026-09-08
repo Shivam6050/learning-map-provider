@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { logout } from "@/app/auth/actions";
 import { getAvatarEmoji } from "@/lib/profile/avatars";
 import { Footer } from "@/components/Footer";
+import { NavbarNav } from "@/components/NavbarNav";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-serif" });
@@ -57,52 +58,7 @@ export default async function RootLayout({
               </span>
             </Link>
 
-            <nav className="flex items-center gap-2 sm:gap-4 text-sm font-medium">
-              <Link
-                href="/onboarding"
-                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-slate-300 transition hover:bg-slate-800/60 hover:text-white"
-              >
-                <span>✨</span> Generate Path
-              </Link>
-              {user ? (
-                <>
-                  <Link
-                    href="/dashboard"
-                    className="px-3 py-1.5 rounded-lg text-slate-300 transition hover:bg-slate-800/60 hover:text-white"
-                  >
-                    Dashboard
-                  </Link>
-                  <Link
-                    href="/settings"
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-700/60 bg-slate-900/60 text-slate-200 transition hover:border-indigo-500/50 hover:bg-slate-800"
-                    title="Account Settings"
-                  >
-                    <span className="text-lg leading-none">{getAvatarEmoji(effectiveAvatarId)}</span>
-                    <span className="hidden sm:inline">Settings</span>
-                  </Link>
-                  <form action={logout}>
-                    <button className="px-3 py-1.5 rounded-lg text-slate-400 transition hover:bg-red-500/10 hover:text-red-400">
-                      Log out
-                    </button>
-                  </form>
-                </>
-              ) : (
-                <>
-                  <Link
-                    href="/login"
-                    className="px-3.5 py-1.5 rounded-lg text-slate-300 transition hover:bg-slate-800/60 hover:text-white"
-                  >
-                    Log in
-                  </Link>
-                  <Link
-                    href="/signup"
-                    className="btn-primary rounded-lg px-4 py-2 text-sm shadow-md"
-                  >
-                    Sign up free
-                  </Link>
-                </>
-              )}
-            </nav>
+            <NavbarNav user={user} avatarEmoji={getAvatarEmoji(effectiveAvatarId)} />
           </div>
         </header>
 
