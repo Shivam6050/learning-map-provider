@@ -25,31 +25,31 @@ try {
 }
 
 async function runTest() {
-  console.log("--- Testing Public Frontend Udemy Endpoints ---");
+  console.log("--- Testing Field Permutations on Udemy API ---");
+  const clientId = process.env.UDEMY_CLIENT_ID;
+  const clientSecret = process.env.UDEMY_CLIENT_SECRET;
+  const authHeader = `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`;
   const slug = "sql-and-postgresql-for-beginners";
 
-  const publicEndpoints = [
-    `https://www.udemy.com/api-2.0/course-landing-pages/find_by_slug/?slug=${slug}&fields[course]=id,title,price,price_detail,discount_price`,
-    `https://www.udemy.com/api-2.0/pricing/?course_ids=2259166&fields[pricing_result]=price,discount_price,list_price`,
+  const queries = [
+    `https://www.udemy.com/api-2.0/courses/?search=${encodeURIComponent(slug)}`,
+    `https://www.udemy.com/api-2.0/courses/?search=${encodeURIComponent(slug)}&fields[course]=title,price`,
+    `https://www.udemy.com/api-2.0/courses/?search=${encodeURIComponent(slug)}&fields[course]=title,price,price_detail,discount_price`,
+    `https://www.udemy.com/api-2.0/courses/?search=${encodeURIComponent(slug)}&fields[course]=@default,price_detail,discount_price`,
   ];
 
-  for (const apiUrl of publicEndpoints) {
-    console.log("\nFetching URL:", apiUrl);
-    try {
-      const response = await fetch(apiUrl, {
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-          "Accept": "application/json, text/plain, */*",
-          "Accept-Language": "en-IN,en;q=0.9",
-        },
-      });
-
-      console.log("Status:", response.status, response.statusText);
-      const text = await response.text();
-      console.log("Response:", text.slice(0, 300));
-    } catch (e) {
-      console.error("Error:", e);
-    }
+  for (const apiUrl of queries) {
+    console.log(`\nTesting URL: ${apiUrl}`);
+    const response = await fetch(apiUrl, {
+      headers: {
+        Authorization: authHeader,
+        Accept: "application/json",
+        "User-Agent": "UdemyAPI/2.0",
+      },
+    });
+    console.log("Status:", response.status, response.statusText);
+    const text = await response.text();
+    console.log("Body snippet:", text.slice(0, 400));
   }
 }
 
