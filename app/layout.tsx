@@ -45,6 +45,7 @@ export default async function RootLayout({
     <html lang="en" className={`${inter.variable} ${outfit.variable} h-full antialiased dark`}>
       <head>
         <meta name="impact-site-verification" content="105c3802-b4bb-4386-a33c-46865d7825a5" />
+        <span dangerouslySetInnerHTML={{ __html: '<meta name="impact-site-verification" value="105c3802-b4bb-4386-a33c-46865d7825a5" />' }} />
       </head>
       <body className="min-h-full flex flex-col bg-slate-950 text-slate-100 font-sans selection:bg-indigo-500 selection:text-white">
         <a
