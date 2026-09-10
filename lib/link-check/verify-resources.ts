@@ -1,5 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/service";
-import { checkUrlAlive } from "@/lib/link-check/check-url";
+import { inspectUrl, type LinkStatus } from "@/lib/link-check/check-url";
 import { getVideoStats } from "@/lib/youtube/client";
 
 function extractYoutubeVideoId(url: string): string | null {
@@ -19,21 +19,21 @@ async function checkOneResource(resource: {
   id: string;
   url: string;
   platform: string;
-}): Promise<boolean> {
+}): Promise<LinkStatus> {
   if (resource.platform === "youtube") {
     const videoId = extractYoutubeVideoId(resource.url);
-    if (!videoId) return checkUrlAlive(resource.url); // malformed, fall back
+    if (!videoId) return (await inspectUrl(resource.url)).status; // malformed, fall back
     try {
       const stats = await getVideoStats([videoId]);
-      return stats.length > 0;
+      return stats.length > 0 ? "ok" : "broken";
     } catch {
       // YouTube API itself failing shouldn't mark every video broken —
       // fall back to a plain HTTP check rather than assuming the worst.
-      return checkUrlAlive(resource.url);
+      return "unknown";
     }
   }
 
-  return checkUrlAlive(resource.url);
+  return (await inspectUrl(resource.url)).status;
 }
 
 /**
@@ -47,6 +47,7 @@ export async function verifyResourceLinks(
   resources: { id: string; url: string; platform: string }[],
   concurrency = 5
 ): Promise<{ id: string; alive: boolean }[]> {
+  concurrency = Math.max(1, Math.min(10, Math.floor(concurrency) || 5));
   const service = createServiceClient();
   const results: { id: string; alive: boolean }[] = [];
 
@@ -54,18 +55,18 @@ export async function verifyResourceLinks(
     const batch = resources.slice(i, i + concurrency);
     const batchResults = await Promise.all(
       batch.map(async (resource) => {
-        const alive = await checkOneResource(resource);
-        return { id: resource.id, alive };
+        const status = await checkOneResource(resource);
+        return { id: resource.id, alive: status === "ok", status };
       })
     );
     results.push(...batchResults);
 
     await Promise.all(
-      batchResults.map(({ id, alive }) =>
+      batchResults.map(({ id, status }) =>
         service
           .from("resources")
           .update({
-            link_status: alive ? "ok" : "broken",
+            link_status: status === "unknown" ? "unchecked" : status,
             link_checked_at: new Date().toISOString(),
           })
           .eq("id", id)

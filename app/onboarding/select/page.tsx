@@ -1,3 +1,5 @@
+import { Money, RememberCurrency } from "@/components/CurrencyProvider";
+import { providerName } from "@/lib/web-discovery/providers";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -86,6 +88,7 @@ export default async function OnboardingSelectPage({
 
   return (
     <div className="relative min-h-[calc(100vh-64px)] bg-slate-950 text-slate-100 bg-grid-pattern py-12">
+      <RememberCurrency value={pathSet.currency} />
       <div className="glow-orb-indigo top-10 left-1/3" />
       <div className="glow-orb-purple bottom-10 right-10" />
 
@@ -100,19 +103,22 @@ export default async function OnboardingSelectPage({
           <p className="mt-3 text-sm text-slate-300">
             We generated 3 path options based on your <span className="font-bold text-white capitalize">{pathSet.skill_level}</span> level,{" "}
             <span className="font-bold text-white">{pathSet.weekly_hours} hrs/week</span> commitment, and budget of{" "}
-            <span className="font-bold text-emerald-400">{pathSet.budget_total} {pathSet.currency}</span>.
+            <span className="font-bold text-emerald-400"><Money amount={pathSet.budget_total} currency={pathSet.currency} /></span>.
           </p>
           {quizScore && (
             <p className="mt-2 text-xs text-slate-400">
-              Level assessment: self-reported <strong>{selfReported}</strong> + quiz check score ({quizScore}/5) → calibrated to{" "}
+              Starting-level estimate: quiz score ({quizScore}/5) →{" "}
               <strong className="text-indigo-300">{finalLevel}</strong>.
             </p>
           )}
         </div>
 
+        <p className="mt-6 rounded-xl border border-slate-700 p-4 text-sm text-slate-300">Course costs are planning estimates. Provider checkout prices can vary by region, account, tax and promotion. Courses without a verifiable price are excluded; subscription prices are not treated as one-time purchases.</p>
+        {pathSet.options.some(option => option.stages.some((stage: any) => stage.stage_resources.some((sr: any) => sr.resources?.affiliate))) && <p className="mt-3 text-sm text-slate-400">Some course links are affiliate links. Learning Map may earn a commission if you buy through them. Selection is based on relevance and your budget.</p>}
         <div className="mt-10 grid grid-cols-1 gap-8 md:grid-cols-3">
           {pathSet.options.map((option, idx) => {
-            const isBestValue = idx === 0 && pathSet.budget_total > 0;
+            const paidUnavailable = idx < 2 && pathSet.budget_total > 0 && option.total_cost === 0;
+            const isBestValue = idx === 0 && pathSet.budget_total > 0 && option.target_met === true;
 
             return (
               <div
@@ -137,19 +143,18 @@ export default async function OnboardingSelectPage({
                     <div>
                       <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Est. Cost</p>
                       <p className="text-lg font-extrabold text-emerald-400">
-                        {option.total_cost > 0
-                          ? `${option.total_cost} ${pathSet.currency}`
-                          : "Free ($0)"}
+                        {paidUnavailable ? "Paid courses unavailable" : <Money amount={option.total_cost} currency={pathSet.currency} freeLabel />}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Budget Limit</p>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Tier Limit</p>
                       <p className="text-sm font-semibold text-slate-300">
-                        {pathSet.budget_total} {pathSet.currency}
+                        <Money amount={option.budget_cap ?? pathSet.budget_total} currency={pathSet.currency} />
                       </p>
                     </div>
                   </div>
 
+                  {option.availability_note && <p role="status" className="mt-4 rounded-xl border border-amber-600/30 p-3 text-xs text-amber-300">{option.availability_note}</p>}
                   <div className="mt-6">
                     <p className="text-xs font-bold uppercase tracking-wider text-slate-300 mb-3">
                       Curated Stages ({option.stages.length}):
@@ -184,19 +189,17 @@ export default async function OnboardingSelectPage({
                                   <div className="flex items-center justify-between gap-2 text-[10px]">
                                     <span className="font-bold tracking-wider text-slate-400 flex items-center gap-1 uppercase">
                                       <span>{icon}</span>
-                                      <span>{label}</span>
+                                      <span>{t === "course" ? p === "udemy" ? "Udemy" : providerName(sr.resources?.url ?? "") : label}</span>
                                     </span>
                                     <span className="font-extrabold text-emerald-400">
-                                      {(sr.resources?.price ?? 0) > 0
-                                        ? `${sr.resources?.price} ${pathSet.currency}`
-                                        : "Free"}
+                                      <Money amount={sr.resources?.price ?? 0} currency={sr.resources?.currency ?? pathSet.currency} freeLabel />
                                     </span>
                                   </div>
                                   {safeUrl ? (
                                     <a
                                       href={safeUrl}
                                       target="_blank"
-                                      rel="noreferrer"
+                                      rel={sr.resources?.affiliate ? "sponsored noopener noreferrer" : "noopener noreferrer"}
                                       className="font-bold text-xs text-indigo-400 hover:text-indigo-300 hover:underline flex items-center justify-between gap-2 group"
                                     >
                                       <span className="truncate">{sr.resources?.title || "Resource Link"}</span>
@@ -222,7 +225,7 @@ export default async function OnboardingSelectPage({
                 <form action={confirmSelectedPath} className="mt-8">
                   <input type="hidden" name="setId" value={pathSet.setId} />
                   <input type="hidden" name="optionId" value={option.id} />
-                  <ConfirmPathButton />
+                  {paidUnavailable ? <p className="text-xs text-slate-400">Generate again when paid courses are available, or choose the free route.</p> : <ConfirmPathButton />}
                 </form>
               </div>
             );

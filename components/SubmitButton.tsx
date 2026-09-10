@@ -14,7 +14,7 @@ export function SubmitButton() {
       {pending ? (
         <>
           <span className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-          <span>Curating Personalized Roadmap (5-10s)...</span>
+          <span>Checking resources and building your path…</span>
         </>
       ) : (
         <>

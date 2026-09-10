@@ -11,8 +11,8 @@ export type SkeletonStage = {
 const SYSTEM_PROMPT = `You are an expert curriculum designer. Given a field and a learner's background, produce an ordered, progressive learning path that starts from foundational basics and takes the learner step-by-step to advanced mastery in the field.
 
 Rules:
-- 5 to 9 stages, ordered strictly from basic fundamentals (Stage 0) to advanced topics & production deployment (Final stage).
-- Stage 0 MUST cover essential fundamentals & basic concepts of the field.
+- 5 to 9 stages, ordered progressively from the learner's current level to more challenging work.
+- Adapt the starting point to skillLevel: beginner starts at fundamentals; intermediate starts with applied projects and briefly reviews prerequisites; advanced starts with complex design, evaluation, performance and expert practice. Do not force experienced learners to repeat beginner stages.
 - Middle stages MUST cover core practical tools, frameworks, and architecture.
 - Final stages MUST cover advanced optimization, security, scaling, and production deployment.
 - Each stage should represent 1-3 weeks of effort at the learner's stated weekly hours.
@@ -287,13 +287,10 @@ Weekly time available: ${params.weeklyHours} hours`;
   }
 
   // Fallback to field-tailored structured curriculum if AI model hits demand limits (503/429)
-  const slugKey = (params.fieldName || "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  const slugKey = (params.fieldName || "").toLowerCase().replace(/&/g, " ").replace(/[^a-z0-9]+/g, "-");
   const fallback = FIELD_FALLBACK_SKELETONS[slugKey] || FIELD_FALLBACK_SKELETONS["backend-development"];
 
   // Scale estimated hours based on user's weekly commitment (baseline ~15 hrs/wk)
-  const hourMultiplier = Math.max(0.5, Math.min(2.5, params.weeklyHours / 15));
-  return fallback.map((stg) => ({
-    ...stg,
-    estimated_hours: Math.max(5, Math.round(stg.estimated_hours * hourMultiplier)),
-  }));
+  const start = params.skillLevel === "advanced" ? Math.max(1, fallback.length - 2) : params.skillLevel === "intermediate" ? 1 : 0;
+  return fallback.slice(start).map((stage, index) => ({ ...stage, order_index: index }));
 }

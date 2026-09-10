@@ -22,12 +22,9 @@ async function fetchResourcesByIds(ids: string[]): Promise<DiscoveredResource[]>
   const service = createServiceClient();
   const { data } = await service
     .from("resources")
-    .select(
-      "id, title, url, platform, resource_type, price, currency, signals, trust_status, rating, link_status"
-    )
-    .in("id", ids)
-    .neq("link_status", "broken");
-  return (data ?? []) as DiscoveredResource[];
+    .select("*")
+    .in("id", ids);
+  return (data ?? []).filter((resource: DiscoveredResource) => resource.link_status !== "broken").map((resource: DiscoveredResource) => ({ ...resource, link_status: resource.link_status ?? "unchecked" })) as DiscoveredResource[];
 }
 
 /**

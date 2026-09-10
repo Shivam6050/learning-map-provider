@@ -1,14 +1,15 @@
+import { isPaidCourseUrl } from "./providers";
 import { callWithGoogleSearch } from "@/lib/ai/client";
 import { createServiceClient } from "@/lib/supabase/service";
 import { getCachedTopic, saveCachedTopic } from "@/lib/db/topic-cache";
 import { findOrProposeTrustedSource } from "@/lib/db/trusted-sources";
-import { checkUrlAlive } from "@/lib/link-check/check-url";
+import { inspectUrl } from "@/lib/link-check/check-url";
 import { isSafeHttpUrl } from "@/lib/link-check/url-safety";
 import type { DiscoveredResource } from "@/lib/youtube/discover";
 import { fetchRealtimePrice } from "@/lib/web-discovery/price-fetcher";
 
-const PROMPT_TEMPLATE = (topic: string) =>
-  `Find official documentation, well-known written tutorials, and reputable paid courses (e.g. Coursera, official platform training) for: "${topic}". Do not include YouTube — that's covered separately.`;
+const PROMPT_TEMPLATE = (topic: string, currency: string, budget: number) =>
+  `Find relevant individual courses and free tutorials for "${topic}". For a total learning budget of ${budget} ${currency}, include course detail pages from several of Udemy, Coursera, pwskills.com (Physics Wallah), GeeksforGeeks and campus.w3schools.com when relevant. Include free official documentation and w3schools.com tutorials. Prioritize currently purchasable courses with explicit one-time total prices, not monthly fees or EMI. Do not include search listings, blog roundups, subscription landing pages or YouTube. Never invent a URL or price.`;
 
 // Best-effort classification from the URL alone. Deliberately simple:
 // this is a courtesy label for the UI, not something judgment logic
@@ -17,7 +18,7 @@ const PROMPT_TEMPLATE = (topic: string) =>
 function classifyByDomain(url: string): {
   platform: "mslearn" | "docs" | "article" | "course" | "udemy" | "coursera";
   resource_type: "docs" | "article" | "course";
-  price: number;
+
 } {
   const host = (() => {
     try {
@@ -27,13 +28,14 @@ function classifyByDomain(url: string): {
     }
   })();
 
-  if (host.includes("learn.microsoft.com")) return { platform: "mslearn", resource_type: "docs", price: 0 };
-  if (host.includes("udemy.com")) return { platform: "udemy", resource_type: "course", price: 25 };
-  if (host.includes("coursera.org")) return { platform: "coursera", resource_type: "course", price: 49 };
-  if (host.includes("pluralsight.com") || host.includes("edx.org")) return { platform: "course", resource_type: "course", price: 35 };
+  if (isPaidCourseUrl(url) && !["udemy.com", "coursera.org"].includes(host)) return { platform: "course", resource_type: "course" };
+  if (host === "learn.microsoft.com") return { platform: "mslearn", resource_type: "docs" };
+  if (host === "udemy.com") return { platform: "udemy", resource_type: "course" };
+  if (host === "coursera.org") return { platform: "coursera", resource_type: "course" };
+  if (host.includes("pluralsight.com") || host.includes("edx.org")) return { platform: "course", resource_type: "course" };
   if (host.includes("developer.mozilla.org") || host.endsWith(".dev") || host.includes("docs."))
-    return { platform: "docs", resource_type: "docs", price: 0 };
-  return { platform: "article", resource_type: "article", price: 0 };
+    return { platform: "docs", resource_type: "docs" };
+  return { platform: "article", resource_type: "article" };
 }
 
 async function fetchResourcesByIds(ids: string[]): Promise<DiscoveredResource[]> {
@@ -41,12 +43,9 @@ async function fetchResourcesByIds(ids: string[]): Promise<DiscoveredResource[]>
   const service = createServiceClient();
   const { data } = await service
     .from("resources")
-    .select(
-      "id, title, url, platform, resource_type, price, currency, signals, trust_status, rating, link_status"
-    )
-    .in("id", ids)
-    .neq("link_status", "broken");
-  return (data ?? []) as DiscoveredResource[];
+    .select("*")
+    .in("id", ids);
+  return (data ?? []).filter((resource: DiscoveredResource) => resource.link_status !== "broken").map((resource: DiscoveredResource) => ({ ...resource, link_status: resource.link_status ?? "unchecked" })) as DiscoveredResource[];
 }
 
 /**
@@ -60,27 +59,31 @@ async function fetchResourcesByIds(ids: string[]): Promise<DiscoveredResource[]>
  */
 export async function discoverWebForTopic(
   topic: string,
-  fieldId: string
+  fieldId: string,
+  currency = "USD",
+  budget = 0
 ): Promise<DiscoveredResource[]> {
-  const cached = await getCachedTopic(topic, "web");
+  const cacheTopic = `${topic} [offers-v2 ${currency} ${budget > 0 ? "paid" : "free"}]`;
+  const cached = await getCachedTopic(cacheTopic, "web");
   if (cached) return fetchResourcesByIds(cached);
 
   let chunks: { url: string; title: string }[] = [];
   try {
-    const result = await callWithGoogleSearch({ prompt: PROMPT_TEMPLATE(topic) });
+    const result = await callWithGoogleSearch({ prompt: PROMPT_TEMPLATE(topic, currency, budget) });
     chunks = result.chunks;
   } catch (err) {
     console.error("[discoverWebForTopic]", err instanceof Error ? err.message : err);
-    await saveCachedTopic(topic, "web", []);
     return [];
   }
 
   const service = createServiceClient();
+  const { error: healthSchemaError } = await service.from("resources").select("link_status").limit(0);
+  const supportsLinkHealth = !healthSchemaError;
   const resourceIds: string[] = [];
   const seenUrls = new Set<string>();
   const trustedSourceCache = new Map<string, { id: string; approved: boolean }>();
 
-  for (const chunk of chunks.slice(0, 4)) {
+  for (const chunk of chunks.slice(0, 12)) {
     if (seenUrls.has(chunk.url)) continue;
     seenUrls.add(chunk.url);
 
@@ -90,6 +93,10 @@ export async function discoverWebForTopic(
     // that seems from a search-grounded source.
     if (!isSafeHttpUrl(chunk.url)) continue;
 
+    // Grounded search can return a redirect URL. Classify the verified destination.
+    const resolved = await inspectUrl(chunk.url);
+    if (resolved.status !== "ok") continue;
+    chunk.url = resolved.url;
     const classification = classifyByDomain(chunk.url);
     let host = "";
     try {
@@ -102,7 +109,8 @@ export async function discoverWebForTopic(
     // but that doesn't mean it still resolves right now — check before
     // ever offering it as a candidate. This is what actually prevents
     // the "clicked it, page is gone" problem, not the search step.
-    const alive = await checkUrlAlive(chunk.url);
+    const inspection = resolved;
+    const alive = inspection.status === "ok";
     const linkCheckedAt = new Date().toISOString();
     if (!alive) {
       const { data: existingDead } = await service
@@ -110,10 +118,10 @@ export async function discoverWebForTopic(
         .select("id")
         .eq("url", chunk.url)
         .maybeSingle();
-      if (existingDead) {
+      if (existingDead && supportsLinkHealth) {
         await service
           .from("resources")
-          .update({ link_status: "broken", link_checked_at: linkCheckedAt })
+          .update({ link_status: inspection.status === "broken" ? "broken" : "unchecked", link_checked_at: linkCheckedAt })
           .eq("id", existingDead.id);
       }
       continue;
@@ -138,7 +146,8 @@ export async function discoverWebForTopic(
       .maybeSingle();
 
     if (existing) {
-      const livePrice = await fetchRealtimePrice(chunk.url, "INR");
+      const livePrice = await fetchRealtimePrice(chunk.url, currency);
+      if (livePrice.price === null) continue;
       await service
         .from("resources")
         .update({
@@ -146,16 +155,16 @@ export async function discoverWebForTopic(
           currency: livePrice.currency,
           trust_status: trustStatus,
           trusted_source_id: trustedSource.id || null,
-          link_status: "ok",
-          link_checked_at: linkCheckedAt,
+          ...(supportsLinkHealth ? { link_status: "ok", link_checked_at: linkCheckedAt } : {}),
         })
         .eq("id", existing.id);
       resourceIds.push(existing.id);
       continue;
     }
 
-    const livePrice = await fetchRealtimePrice(chunk.url, "INR");
+    const livePrice = await fetchRealtimePrice(chunk.url, currency);
 
+    if (livePrice.price === null) continue;
     const { data: inserted, error } = await service
       .from("resources")
       .insert({
@@ -168,8 +177,7 @@ export async function discoverWebForTopic(
         trust_status: trustStatus,
         trusted_source_id: trustedSource.id || null,
         signals: {},
-        link_status: "ok",
-        link_checked_at: linkCheckedAt,
+        ...(supportsLinkHealth ? { link_status: "ok", link_checked_at: linkCheckedAt } : {}),
       })
       .select("id")
       .single();
@@ -178,6 +186,6 @@ export async function discoverWebForTopic(
     resourceIds.push(inserted.id);
   }
 
-  await saveCachedTopic(topic, "web", resourceIds);
+  if (resourceIds.length) await saveCachedTopic(cacheTopic, "web", resourceIds);
   return fetchResourcesByIds(resourceIds);
 }

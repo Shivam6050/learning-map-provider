@@ -653,39 +653,7 @@ export function getAdjustedResourcePool(
   targetCurrency: string = "USD",
   userBudget: number = 0
 ): SeedResource[] {
-  const currencyUpper = targetCurrency.toUpperCase();
-  const rates: Record<string, number> = {
-    USD: 1,
-    INR: 80,
-    EUR: 0.92,
-  };
-
-  const rate = rates[currencyUpper] ?? 1;
-
-  return BASE_SEED_RESOURCES.map((res) => {
-    if (res.price === 0) {
-      return { ...res, currency: currencyUpper };
-    }
-
-    let price = Math.round(res.price * rate);
-
-    // Exact realistic pricing for Udemy courses
-    if (res.platform === "udemy" || res.url.includes("udemy.com")) {
-      if (currencyUpper === "INR") {
-        price = 486; // Exact real-time standard sale price on Udemy India (Rs. 486)
-      } else if (currencyUpper === "EUR") {
-        price = 13;
-      } else {
-        price = 13;
-      }
-    }
-
-    return {
-      ...res,
-      price,
-      currency: currencyUpper,
-    };
-  });
+  return BASE_SEED_RESOURCES.map(res => res.price === 0 ? { ...res, currency: targetCurrency.toUpperCase() } : { ...res });
 }
 
 function matchTopicHint(topic: string, hint: string): boolean {
@@ -717,151 +685,26 @@ export async function ensureSeedCandidates(
 
   const normalizedTopics = topics.map((t) => t.toLowerCase());
 
-  let matched = pool.filter((res) => {
+  const matched = pool.filter((res) => {
     return res.topic_hints.some((hint) =>
       normalizedTopics.some((t) => matchTopicHint(t, hint))
     );
   });
 
-  if (matched.length === 0 || (budgetTotal > 0 && !matched.some((m) => m.price > 0))) {
-    const topicName = topics[0] ? topics[0].charAt(0).toUpperCase() + topics[0].slice(1) : "Topic";
-    const slug = topics[0] ? topics[0].toLowerCase().replace(/[^a-z0-9]+/g, "-") : "topic";
-    
-    const currUpper = currency.toUpperCase();
-    let paidPriceFull = currUpper === "INR" ? 486 : 13;
-    let paidPriceMid = currUpper === "INR" ? 486 : 13;
-
-    const dynamicCandidates: SeedResource[] = [];
-    if (budgetTotal > 0) {
-      const udemyUrl = slug.includes("postgres")
-        ? "https://www.udemy.com/course/sql-and-postgresql-for-beginners/"
-        : `https://www.udemy.com/courses/search/?q=${encodeURIComponent(topicName)}`;
-      dynamicCandidates.push({
-        title: slug.includes("postgres")
-          ? "SQL and PostgreSQL: The Complete Developer's Guide — Udemy"
-          : `The Complete ${topicName} Masterclass — Udemy`,
-        url: udemyUrl,
-        platform: "udemy",
-        resource_type: "course",
-        price: paidPriceFull,
-        currency: currUpper,
-        topic_hints: [slug],
-        field_slug: fieldSlug,
-      });
-      dynamicCandidates.push({
-        title: `${topicName} Practical Essentials — Coursera`,
-        url: `https://www.coursera.org/learn/${slug}-essentials`,
-        platform: "coursera",
-        resource_type: "course",
-        price: paidPriceMid,
-        currency: currUpper,
-        topic_hints: [slug],
-        field_slug: fieldSlug,
-      });
-    }
-    dynamicCandidates.push({
-      title: `${topicName} Full Tutorial for Beginners — freeCodeCamp`,
-      url: `https://www.youtube.com/results?search_query=${encodeURIComponent(topics[0] || "tutorial")}`,
-      platform: "youtube",
-      resource_type: "video",
-      price: 0,
-      currency: currUpper,
-      topic_hints: [slug],
-      field_slug: fieldSlug,
-    });
-
-    matched = [...matched, ...dynamicCandidates];
-  }
-
   const service = createServiceClient();
-  if (matched.length === 0) return [];
-
-  const seedUrls = matched.map((s) => s.url);
-  const { data: existingRows } = await service
-    .from("resources")
-    .select("id, title, url, platform, resource_type, price, currency, rating")
-    .in("url", seedUrls);
-
-  const existingMap = new Map<string, any>((existingRows ?? []).map((r: any) => [r.url, r]));
-
-  const missingSeeds = matched.filter((s) => !existingMap.has(s.url));
-  if (missingSeeds.length > 0) {
-    const rowsToInsert = await Promise.all(
-      missingSeeds.map(async (seed) => {
-        const isFree =
-          seed.price === 0 ||
-          seed.platform === "docs" ||
-          seed.platform === "article" ||
-          seed.platform === "youtube" ||
-          seed.resource_type === "docs" ||
-          seed.resource_type === "article" ||
-          seed.resource_type === "video";
-
-        const livePrice = isFree
-          ? { price: 0, currency: currency.toUpperCase() }
-          : await fetchRealtimePrice(seed.url, currency);
-
-        return {
-          title: seed.title,
-          url: seed.url,
-          platform: seed.platform,
-          resource_type: seed.resource_type,
-          price: isFree ? 0 : livePrice.price,
-          currency: livePrice.currency,
-          trust_status: "allowlisted",
-          signals: {},
-        };
-      })
-    );
-
-    const { data: insertedRows } = await service
-      .from("resources")
-      .insert(rowsToInsert)
-      .select("id, title, url, platform, resource_type, price, currency, rating");
-
-    if (insertedRows) {
-      for (const r of (insertedRows as any[])) {
-        existingMap.set(r.url, r);
-      }
-    }
+  const results: DiscoveredResource[] = [];
+  for (const seed of matched) {
+    if (budgetTotal === 0 && seed.price > 0) continue;
+    const quote = seed.price === 0
+      ? { price: 0, currency: currency.toUpperCase(), isRealtime: false }
+      : await fetchRealtimePrice(seed.url, currency);
+    if (quote.price === null) continue;
+    const { data, error } = await service.from("resources").upsert({
+      title: seed.title, url: seed.url, platform: seed.platform, resource_type: seed.resource_type,
+      price: quote.price, currency: quote.currency, trust_status: "allowlisted", signals: {},
+    }, { onConflict: "url" }).select("*").single();
+    if (error) throw new Error(`Resource storage failed: ${error.message}`);
+    if (data) results.push({ ...data, link_status: data.link_status ?? "unchecked" } as DiscoveredResource);
   }
-
-  return Promise.all(
-    matched.map(async (seed) => {
-      const existing = existingMap.get(seed.url);
-      const isFree =
-        seed.price === 0 ||
-        seed.platform === "docs" ||
-        seed.platform === "article" ||
-        seed.platform === "youtube" ||
-        seed.resource_type === "docs" ||
-        seed.resource_type === "article" ||
-        seed.resource_type === "video";
-
-      const livePrice = isFree
-        ? { price: 0, currency: currency.toUpperCase() }
-        : await fetchRealtimePrice(seed.url, currency);
-
-      if (existing && existing.price !== livePrice.price) {
-        await service
-          .from("resources")
-          .update({ price: livePrice.price, currency: livePrice.currency })
-          .eq("id", existing.id);
-      }
-
-      return {
-        id: existing?.id ?? `seed-${Math.random().toString(36).slice(2, 9)}`,
-        title: existing?.title ?? seed.title,
-        url: seed.url,
-        platform: (existing?.platform ?? seed.platform) as any,
-        resource_type: (existing?.resource_type ?? seed.resource_type) as any,
-        price: isFree ? 0 : livePrice.price,
-        currency: livePrice.currency,
-        signals: {},
-        trust_status: "allowlisted",
-        rating: existing?.rating ?? null,
-        link_status: "ok",
-      };
-    })
-  );
+  return results;
 }

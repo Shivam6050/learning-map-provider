@@ -17,13 +17,13 @@ export default async function OnboardingPage({
       <div className="relative w-full max-w-2xl glass-card rounded-3xl p-6 sm:p-10 border-slate-800 shadow-2xl">
         <div className="text-center">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-500/10 text-3xl border border-indigo-500/20">
-            ✨
+            ↗
           </div>
           <h1 className="mt-4 font-serif text-3xl font-bold text-white sm:text-4xl">
             Let&apos;s map your path
           </h1>
           <p className="mt-2 text-sm text-slate-400 max-w-md mx-auto">
-            Configure your goal, time commitment, and budget. Our Gemini AI will build a personalized milestone roadmap for you.
+            Choose a direction, find your starting point, and make room for learning in your week.
           </p>
         </div>
 
@@ -40,7 +40,7 @@ export default async function OnboardingPage({
           <SubmitButton />
           
           <p className="text-center text-xs text-slate-400">
-            🤖 Calls Gemini 2.5 AI for skeleton creation & real resource matching (takes ~5-10s).
+            We check resources while building your options. This can take a minute.
           </p>
         </form>
       </div>

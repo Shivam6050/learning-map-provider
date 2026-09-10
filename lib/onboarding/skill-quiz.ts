@@ -1,7 +1,6 @@
 export type SkillLevel = "beginner" | "intermediate" | "advanced";
 
-const LEVEL_INDEX: Record<SkillLevel, number> = { beginner: 0, intermediate: 1, advanced: 2 };
-const INDEX_LEVEL: SkillLevel[] = ["beginner", "intermediate", "advanced"];
+
 
 export type QuizQuestion = {
   id: string;
@@ -228,7 +227,7 @@ export const FIELD_QUIZZES: Record<string, QuizQuestion[]> = {
 export const BACKEND_DEV_QUIZ = FIELD_QUIZZES["backend-development"];
 
 export function getQuizForField(slug: string): QuizQuestion[] {
-  return FIELD_QUIZZES[slug] ?? FIELD_QUIZZES["backend-development"];
+  return FIELD_QUIZZES[slug] ?? [];
 }
 
 export function blendSkillLevel(
@@ -237,15 +236,14 @@ export function blendSkillLevel(
   fieldSlug: string = "backend-development"
 ): { finalLevel: SkillLevel; quizScore: number; quizImpliedLevel: SkillLevel } {
   const quiz = getQuizForField(fieldSlug);
-  const quizScore = quizAnswers.reduce(
-    (score, answer, i) => score + (answer === quiz[i]?.correctIndex ? 1 : 0),
+  const quizScore = quiz.reduce(
+    (score, question, i) => score + (quizAnswers[i] === question.correctIndex ? 1 : 0),
     0
   );
 
   const quizImpliedLevel: SkillLevel = quizScore <= 1 ? "beginner" : quizScore <= 3 ? "intermediate" : "advanced";
 
-  const blendedIndex = Math.round((LEVEL_INDEX[selfReported] + LEVEL_INDEX[quizImpliedLevel]) / 2);
-  const finalLevel = INDEX_LEVEL[blendedIndex];
+  const finalLevel = quiz.length && quizAnswers.length === quiz.length ? quizImpliedLevel : selfReported;
 
   return { finalLevel, quizScore, quizImpliedLevel };
 }

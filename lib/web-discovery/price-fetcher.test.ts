@@ -22,14 +22,15 @@ describe("Udemy API & Realtime Price Fetcher", () => {
     expect(res).toBeNull();
   });
 
-  it("falls back to market rates for Udemy when credentials are missing", async () => {
+  it("keeps the price unknown when credentials and public offers are unavailable", async () => {
+    vi.spyOn(global, "fetch").mockRejectedValue(new Error("Provider unavailable"));
     delete process.env.UDEMY_CLIENT_ID;
     delete process.env.UDEMY_CLIENT_SECRET;
     delete process.env.UDEMY_API_KEY;
 
     const res = await fetchRealtimePrice("https://www.udemy.com/course/the-complete-nodejs-developer-course-2/", "INR");
     expect(res).toEqual({
-      price: 619,
+      price: null,
       currency: "INR",
       isRealtime: false,
     });
@@ -53,7 +54,7 @@ describe("Udemy API & Realtime Price Fetcher", () => {
       ],
     };
 
-    global.fetch = vi.fn().mockResolvedValue({
+    vi.spyOn(global, "fetch").mockResolvedValue({
       ok: true,
       json: async () => mockResponse,
     } as Response);
@@ -64,7 +65,7 @@ describe("Udemy API & Realtime Price Fetcher", () => {
     );
 
     expect(res).toEqual({
-      price: 15,
+      price: 14.99,
       currency: "USD",
       isRealtime: true,
       title: "The Complete Node.js Developer Course",

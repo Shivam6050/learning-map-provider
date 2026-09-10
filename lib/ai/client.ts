@@ -1,6 +1,5 @@
 export const GEMINI_MODEL_CANDIDATES = [
   "gemini-2.5-flash",
-  "gemini-2.5-pro",
   "gemini-1.5-flash",
 ];
 
@@ -36,7 +35,7 @@ async function callOneModel<T>(
   params: { system: string; user: string }
 ): Promise<T> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 4000);
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
 
   try {
     const res = await fetch(
@@ -128,7 +127,7 @@ export async function callWithGoogleSearch(params: {
   const failures: string[] = [];
   for (const model of GEMINI_MODEL_CANDIDATES) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 4000);
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
 
     try {
       const res = await fetch(

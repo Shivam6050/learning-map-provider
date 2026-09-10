@@ -12,11 +12,11 @@ describe("blendSkillLevel", () => {
     expect(result.quizScore).toBe(5);
   });
 
-  it("averages a mismatched self-report and quiz result rather than picking either extreme", () => {
+  it("uses the completed assessment when self-report disagrees", () => {
     // Self-reported advanced (index 2), quiz all wrong -> implies beginner (index 0).
     // Average of 2 and 0 rounds to 1 -> intermediate, not either extreme.
     const result = blendSkillLevel("advanced", allWrong);
-    expect(result.finalLevel).toBe("intermediate");
+    expect(result.finalLevel).toBe("beginner");
     expect(result.quizImpliedLevel).toBe("beginner");
   });
 

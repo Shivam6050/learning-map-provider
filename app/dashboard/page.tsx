@@ -1,314 +1,52 @@
-import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
-import { logout } from "@/app/auth/actions";
 import { redirect } from "next/navigation";
-import { PieChart, PieChartLegend } from "@/components/PieChart";
-import { DeletePathButton } from "@/components/DeletePathButton";
-import { getAvatarEmoji } from "@/lib/profile/avatars";
-import { LogoutButton } from "@/components/LogoutButton";
+import { createClient } from "@/lib/supabase/server";
+import { DashboardWorkspace, type DashboardPath } from "@/components/DashboardWorkspace";
 
-type ResumeTarget = {
-  pathId: string;
-  fieldName: string;
-  stageId: string;
-  stageTitle: string;
-  stageIndex: number;
-  hours: number;
-  status: string;
+type StoredStage = {
+  id: string;
+  title: string;
+  order_index: number;
+  estimated_hours: number;
+  stage_progress: { status: string }[] | null;
+};
+
+type StoredPath = {
+  id: string;
+  skill_level: string;
+  fields: { name: string } | { name: string }[] | null;
+  stages: StoredStage[] | null;
 };
 
 export default async function DashboardPage() {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login?redirectedFrom=/dashboard");
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const [profileResult, pathsResult] = await Promise.all([
+    supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle(),
+    supabase.from("learning_paths").select(`
+      id, skill_level, fields(name),
+      stages (id, title, order_index, estimated_hours, stage_progress (status))
+    `).eq("user_id", user.id).order("created_at", { ascending: false }),
+  ]);
 
-  if (!user) {
-    redirect("/login?redirectedFrom=/dashboard");
-  }
+  const paths: DashboardPath[] = ((pathsResult.data ?? []) as StoredPath[]).map(path => ({
+    id: path.id,
+    name: (Array.isArray(path.fields) ? path.fields[0] : path.fields)?.name ?? "Learning path",
+    level: path.skill_level,
+    stages: [...(path.stages ?? [])]
+      .sort((a, b) => a.order_index - b.order_index)
+      .map(stage => ({
+        id: stage.id,
+        title: stage.title,
+        hours: stage.estimated_hours,
+        status: stage.stage_progress?.[0]?.status ?? "not_started",
+      })),
+  }));
 
-  let profile: { display_name?: string; role?: string; created_at?: string; avatar_id?: string } | null = null;
-  const { data: pData, error: pErr } = await supabase
-    .from("profiles")
-    .select("display_name, role, created_at, avatar_id")
-    .eq("id", user?.id)
-    .maybeSingle();
-
-  if (pErr && pErr.message?.includes("avatar_id")) {
-    const { data: fallbackP } = await supabase
-      .from("profiles")
-      .select("display_name, role, created_at")
-      .eq("id", user?.id)
-      .maybeSingle();
-    profile = fallbackP;
-  } else {
-    profile = pData;
-  }
-
-  const { data: paths } = await supabase
-    .from("learning_paths")
-    .select(
-      `
-      id, skill_level, status, created_at, fields(name),
-      stages ( id, title, order_index, estimated_hours, stage_progress ( status, completed_at ) )
-    `
-    )
-    .order("created_at", { ascending: false });
-
-  const effectiveAvatarId = profile?.avatar_id ?? (user?.user_metadata?.avatar_id as string | undefined);
-  const avatarEmoji = getAvatarEmoji(effectiveAvatarId);
-
-  let totalCompleted = 0;
-  let totalInProgress = 0;
-  let totalNotStarted = 0;
-  let activeResumeTarget: ResumeTarget | null = null;
-
-  for (const path of (paths ?? []) as any[]) {
-    const fieldName = (Array.isArray(path.fields) ? path.fields[0] : path.fields)?.name ?? "Learning Path";
-    const sortedStages = (path.stages ?? []).sort((a: any, b: any) => a.order_index - b.order_index);
-
-    for (const stage of sortedStages) {
-      const status = stage.stage_progress?.[0]?.status ?? "not_started";
-      if (status === "completed") {
-        totalCompleted++;
-      } else if (status === "in_progress") {
-        totalInProgress++;
-        if (!activeResumeTarget) {
-          activeResumeTarget = {
-            pathId: path.id,
-            fieldName,
-            stageId: stage.id,
-            stageTitle: stage.title,
-            stageIndex: stage.order_index + 1,
-            hours: stage.estimated_hours,
-            status: "in_progress",
-          };
-        }
-      } else {
-        totalNotStarted++;
-        if (!activeResumeTarget) {
-          activeResumeTarget = {
-            pathId: path.id,
-            fieldName,
-            stageId: stage.id,
-            stageTitle: stage.title,
-            stageIndex: stage.order_index + 1,
-            hours: stage.estimated_hours,
-            status: "not_started",
-          };
-        }
-      }
-    }
-  }
-
-  const overallSegments = [
-    { label: "Completed", value: totalCompleted, colorClass: "text-emerald-400" },
-    { label: "In progress", value: totalInProgress, colorClass: "text-amber-400" },
-    { label: "Not started", value: totalNotStarted, colorClass: "text-slate-600" },
-  ];
-  const totalStagesEverywhere = totalCompleted + totalInProgress + totalNotStarted;
-  const overallPct =
-    totalStagesEverywhere > 0 ? Math.round((totalCompleted / totalStagesEverywhere) * 100) : 0;
-
-  return (
-    <div className="relative min-h-[calc(100vh-64px)] bg-slate-950 text-slate-100 bg-grid-pattern py-12">
-      <div className="glow-orb-indigo top-10 left-1/3" />
-      <div className="glow-orb-purple bottom-10 right-10" />
-
-      <div className="relative mx-auto max-w-4xl px-4 sm:px-6">
-        {/* User Profile Header Card */}
-        <div className="glass-card flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 rounded-3xl p-6 sm:p-8 border-slate-800 shadow-2xl">
-          <div className="flex items-center gap-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-3xl shadow-lg shadow-indigo-500/25 border border-indigo-400/30">
-              {avatarEmoji}
-            </div>
-            <div>
-              <h1 className="font-serif text-2xl sm:text-3xl font-bold text-white">
-                Welcome back, {profile?.display_name || user?.email?.split("@")[0]}!
-              </h1>
-              <p className="mt-1 text-xs text-slate-400">
-                {user?.email} · Companion {avatarEmoji} Ready to learn
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-            <Link
-              href="/settings"
-              className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-xs font-semibold text-slate-200 transition-all duration-200 hover:bg-slate-800 hover:border-slate-600 active:scale-95 cursor-pointer flex items-center gap-1.5"
-            >
-              ⚙️ Settings
-            </Link>
-            <form action={logout}>
-              <LogoutButton className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-xs font-semibold text-red-300 transition-all duration-200 hover:bg-red-500/20 active:scale-95 cursor-pointer flex items-center gap-1.5" />
-            </form>
-          </div>
-        </div>
-
-        {/* "Resume Learning" Callout Banner */}
-        {activeResumeTarget && (
-          <div className="glass-card mt-6 rounded-3xl p-6 border-indigo-500/40 bg-gradient-to-r from-indigo-950/40 via-purple-950/20 to-slate-950/80 shadow-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="flex h-2.5 w-2.5 rounded-full bg-amber-400 animate-ping" />
-                <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
-                  {activeResumeTarget.status === "in_progress" ? "In Progress Target" : "Next Milestone"}
-                </span>
-                <span className="rounded-md bg-slate-800 px-2 py-0.5 text-[10px] text-slate-300">
-                  {activeResumeTarget.fieldName}
-                </span>
-              </div>
-              <h3 className="font-serif text-xl font-bold text-white">
-                Stage {activeResumeTarget.stageIndex}: {activeResumeTarget.stageTitle}
-              </h3>
-              <p className="text-xs text-slate-400">
-                Estimated ~{activeResumeTarget.hours} hours. Pick up right where you left off!
-              </p>
-            </div>
-
-            <Link
-              href={`/paths/${activeResumeTarget.pathId}#stage-${activeResumeTarget.stageId}`}
-              className="btn-primary shrink-0 rounded-xl px-5 py-3 text-xs font-bold shadow-lg flex items-center justify-center gap-2"
-            >
-              <span>🚀</span> Resume Learning →
-            </Link>
-          </div>
-        )}
-
-        {/* Overall Progress & Quick Actions */}
-        {paths?.length ? (
-          <div className="mt-8 grid gap-6 sm:grid-cols-3">
-            <div className="glass-card col-span-2 flex flex-col sm:flex-row items-center gap-6 rounded-3xl p-6 border-slate-800">
-              <PieChart segments={overallSegments} centerLabel={`${overallPct}%`} size={110} strokeWidth={14} />
-              <div>
-                <span className="text-xs font-bold uppercase tracking-wider text-indigo-400">
-                  Global Progress
-                </span>
-                <h3 className="mt-1 text-lg font-bold text-white">
-                  {totalCompleted} of {totalStagesEverywhere} stages completed
-                </h3>
-                <p className="mt-1 text-xs text-slate-400">
-                  Across {paths.length} active learning path{paths.length === 1 ? "" : "s"}.
-                </p>
-                <div className="mt-3">
-                  <PieChartLegend segments={overallSegments} />
-                </div>
-              </div>
-            </div>
-
-            <div className="glass-card flex flex-col justify-center rounded-3xl p-6 border-slate-800 text-center sm:text-left">
-              <span className="text-xs font-bold uppercase tracking-wider text-purple-400">
-                Quick Action
-              </span>
-              <h3 className="mt-1 text-lg font-bold text-white">Need a new path?</h3>
-              <p className="mt-1 text-xs text-slate-400">
-                Generate a custom Gemini roadmap for a new field in 10 seconds.
-              </p>
-              <Link
-                href="/onboarding"
-                className="btn-primary mt-4 inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-semibold shadow-md"
-              >
-                <span>✨</span> New Roadmap
-              </Link>
-            </div>
-          </div>
-        ) : null}
-
-        {/* Learning Paths List */}
-        <div className="mt-10">
-          <div className="flex items-center justify-between">
-            <h2 className="font-serif text-xl font-bold text-white">
-              Your Learning Roadmaps ({paths?.length ?? 0})
-            </h2>
-            <Link
-              href="/onboarding"
-              className="btn-primary inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-semibold shadow-md"
-            >
-              <span>✨</span> Generate New Path
-            </Link>
-          </div>
-
-          {paths?.length ? (
-            <div className="mt-4 space-y-4">
-              {paths.map((path: any) => {
-                const field = Array.isArray(path.fields) ? path.fields[0] : path.fields;
-                const stages = path.stages ?? [];
-                const total = stages.length;
-                const completed = stages.filter(
-                  (s: any) => s.stage_progress?.[0]?.status === "completed"
-                ).length;
-                const inProgress = stages.filter(
-                  (s: any) => s.stage_progress?.[0]?.status === "in_progress"
-                ).length;
-                const notStarted = total - completed - inProgress;
-                const pathSegments = [
-                  { label: "Done", value: completed, colorClass: "text-emerald-400" },
-                  { label: "Active", value: inProgress, colorClass: "text-amber-400" },
-                  { label: "To do", value: notStarted, colorClass: "text-slate-600" },
-                ];
-                const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
-
-                return (
-                  <div
-                    key={path.id}
-                    className="glass-card glass-card-hover flex items-center justify-between gap-4 rounded-2xl p-5 border-slate-800"
-                  >
-                    <div className="flex items-center gap-4 min-w-0 flex-1">
-                      <PieChart segments={pathSegments} size={56} strokeWidth={8} />
-                      <Link href={`/paths/${path.id}`} className="min-w-0 flex-1 group">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-white text-base group-hover:text-indigo-400 transition truncate">
-                            {field?.name || "Learning Path"}
-                          </h3>
-                          <span className="rounded-md bg-indigo-500/10 px-2 py-0.5 text-[10px] font-semibold text-indigo-300 border border-indigo-500/20 capitalize">
-                            {path.skill_level}
-                          </span>
-                        </div>
-                        <p className="mt-1 text-xs text-slate-400">
-                          {total > 0 ? `${completed} of ${total} stages completed (${pct}%)` : "No stages loaded"}
-                        </p>
-                        {total > 0 && (
-                          <div className="mt-2.5 h-2 w-full overflow-hidden rounded-full bg-slate-900">
-                            <div
-                              className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-emerald-400 transition-all duration-500"
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
-                        )}
-                      </Link>
-                    </div>
-
-                    <div className="flex items-center gap-3 shrink-0">
-                      <Link
-                        href={`/paths/${path.id}`}
-                        className="rounded-xl border border-slate-700 bg-slate-900/80 px-3.5 py-2 text-xs font-semibold text-slate-200 transition hover:bg-slate-800 hover:border-slate-600"
-                      >
-                        View Path →
-                      </Link>
-                      <DeletePathButton pathId={path.id} pathName={field?.name ?? "this path"} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="glass-card mt-4 rounded-3xl p-12 text-center border-slate-800">
-              <span className="text-4xl">🗺️</span>
-              <h3 className="mt-3 text-lg font-bold text-white">No learning paths created yet</h3>
-              <p className="mt-1 text-xs text-slate-400 max-w-sm mx-auto">
-                Generate your first AI roadmap for Backend Engineering, Frontend, Cloud, or DevOps.
-              </p>
-              <Link
-                href="/onboarding"
-                className="btn-primary mt-6 inline-flex items-center gap-2 rounded-xl px-5 py-3 text-xs font-semibold shadow-lg"
-              >
-                <span>✨</span> Generate Your First Roadmap
-              </Link>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
+  return <DashboardWorkspace
+    name={profileResult.data?.display_name || user.email?.split("@")[0] || "learner"}
+    paths={paths}
+    loadError={Boolean(pathsResult.error)}
+  />;
 }

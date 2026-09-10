@@ -1,5 +1,7 @@
 "use client";
 
+import { Money } from "@/components/CurrencyProvider";
+import { providerName } from "@/lib/web-discovery/providers";
 import { useState, useTransition } from "react";
 import { StageFilterBar, type StageFilter } from "@/components/StageFilterBar";
 import { updateStageProgress, rateResource, savePracticeNote } from "@/app/paths/[id]/actions";
@@ -21,32 +23,17 @@ export function FilteredStageList({
   stages,
   stageTimeline,
   path,
-  usdToPathCurrency,
   myRatingByResource,
 }: {
   stages: any[];
   stageTimeline: Record<string, { startWeek: number; endWeek: number }>;
   path: any;
-  usdToPathCurrency: number | null;
   myRatingByResource: Record<string, number>;
 }) {
   const [activeFilter, setActiveFilter] = useState<StageFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [editingNoteStageId, setEditingNoteStageId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-
-  function convertedPrice(price: number, resCurrencyRaw?: string): { amount: number; currency: string } {
-    const resCurrency = (resCurrencyRaw || "USD").toUpperCase();
-    const targetCurrency = (path.currency || "USD").toUpperCase();
-
-    if (resCurrency === targetCurrency) {
-      return { amount: price, currency: targetCurrency };
-    } else if (resCurrency === "USD" && targetCurrency === "INR") {
-      const rate = usdToPathCurrency ?? 80;
-      return { amount: Math.round(price * rate), currency: targetCurrency };
-    }
-    return { amount: price, currency: resCurrency };
-  }
 
   const counts = {
     all: stages.length,
@@ -147,7 +134,7 @@ export function FilteredStageList({
                           if (p === "youtube" || t === "video") {
                             icon = "🎥"; label = "YouTube"; action = "Watch Video";
                           } else if (p === "udemy" || p === "coursera" || t === "course") {
-                            icon = "🎓"; label = p === "udemy" ? "Udemy" : p === "coursera" ? "Coursera" : "Course"; action = "Open Course";
+                            icon = "🎓"; label = p === "udemy" ? "Udemy" : providerName(resource.url); action = "Open Course";
                           } else if (p === "docs" || p === "mslearn" || t === "docs") {
                             icon = "📄"; label = "Docs"; action = "Read Docs";
                           }
@@ -180,7 +167,7 @@ export function FilteredStageList({
                                   <a
                                     href={safeUrl}
                                     target="_blank"
-                                    rel="noreferrer"
+                                    rel={resource.signals?.affiliate ? "sponsored noopener noreferrer" : "noopener noreferrer"}
                                     className="font-bold text-sm text-indigo-300 hover:text-white transition hover:underline truncate"
                                   >
                                     {resource.title}
@@ -189,21 +176,14 @@ export function FilteredStageList({
                               </div>
                               <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
                                 <span className="text-xs text-slate-400 font-medium">
-                                  {resource.price > 0 ? (
-                                    (() => {
-                                      const conv = convertedPrice(Number(resource.price), resource.currency);
-                                      return `${conv.amount} ${conv.currency}`;
-                                    })()
-                                  ) : (
-                                    <span className="text-emerald-400 font-semibold">Free</span>
-                                  )}
+                                  <Money amount={resource.price} currency={resource.currency ?? path.currency} freeLabel />
                                   {resource.rating ? ` · ★ ${Number(resource.rating).toFixed(1)}` : ""}
                                 </span>
                                 {isValidLink && !isBroken && (
                                   <a
                                     href={safeUrl}
                                     target="_blank"
-                                    rel="noreferrer"
+                                    rel={resource.signals?.affiliate ? "sponsored noopener noreferrer" : "noopener noreferrer"}
                                     className="rounded-lg bg-indigo-600/80 hover:bg-indigo-500 text-white text-xs font-semibold px-3 py-1.5 shadow-sm transition flex items-center gap-1 shrink-0"
                                   >
                                     <span>{action}</span>

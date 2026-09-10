@@ -24,7 +24,7 @@ const SAMPLE_DOMAINS: SampleDomain[] = [
     name: "Backend Development",
     emoji: "⚙️",
     hours: "5 hrs/week",
-    cost: "Free ($0)",
+    cost: "Free",
     stages: [
       {
         title: "HTTP Protocol & Web Architecture",
@@ -61,7 +61,7 @@ const SAMPLE_DOMAINS: SampleDomain[] = [
     name: "Frontend Development",
     emoji: "🎨",
     hours: "6 hrs/week",
-    cost: "Free ($0)",
+    cost: "Free",
     stages: [
       {
         title: "Semantic HTML5 & Modern CSS Layouts",
@@ -98,7 +98,7 @@ const SAMPLE_DOMAINS: SampleDomain[] = [
     name: "AI & Machine Learning",
     emoji: "🤖",
     hours: "8 hrs/week",
-    cost: "Free ($0)",
+    cost: "Free",
     stages: [
       {
         title: "Python for Data & Matrix Computations",
@@ -135,7 +135,7 @@ const SAMPLE_DOMAINS: SampleDomain[] = [
     name: "DevOps & Cloud Infrastructure",
     emoji: "☁️",
     hours: "5 hrs/week",
-    cost: "Free ($0)",
+    cost: "Free",
     stages: [
       {
         title: "Linux CLI & Bash Shell Scripting",

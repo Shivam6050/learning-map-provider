@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createServiceClient } from "@/lib/supabase/service";
 
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours — exchange rates don't need to be second-fresh
@@ -9,7 +10,7 @@ const CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours — exchange rates don't n
  * this codebase already learned that lesson once (see the deleted
  * lib/db/in-memory-paths.ts) — serverless instances don't share memory.
  */
-async function getRates(baseCurrency: string): Promise<Record<string, number>> {
+const getRates = cache(async (baseCurrency: string): Promise<Record<string, number>> => {
   const service = createServiceClient();
 
   const { data: cached } = await service
@@ -23,10 +24,11 @@ async function getRates(baseCurrency: string): Promise<Record<string, number>> {
   }
 
   try {
-    const res = await fetch(`https://api.frankfurter.app/latest?from=${baseCurrency}`);
+    const res = await fetch(`https://api.frankfurter.app/latest?from=${encodeURIComponent(baseCurrency)}`, { signal: AbortSignal.timeout(5000) });
     if (!res.ok) throw new Error(`frankfurter.app returned ${res.status}`);
     const data = await res.json();
     const rates = data.rates as Record<string, number>;
+    if (!rates || !Object.values(rates).every(rate => typeof rate === "number" && Number.isFinite(rate) && rate > 0)) throw new Error("Invalid exchange rates");
 
     await service.from("exchange_rates").upsert(
       { base_currency: baseCurrency, rates, fetched_at: new Date().toISOString() },
@@ -39,10 +41,10 @@ async function getRates(baseCurrency: string): Promise<Record<string, number>> {
     // Serve a stale cached value rather than nothing, if one exists —
     // a slightly-stale conversion is far less disruptive than the
     // price display breaking entirely.
-    if (cached) return cached.rates as Record<string, number>;
+    if (cached && Date.now() - new Date(cached.fetched_at).getTime() < 7 * 24 * 60 * 60 * 1000) return cached.rates as Record<string, number>;
     return {};
   }
-}
+});
 
 /**
  * Converts an amount between currencies. Returns null (not a
@@ -55,6 +57,8 @@ export async function convertPrice(
   fromCurrency: string,
   toCurrency: string
 ): Promise<number | null> {
+  if (!Number.isFinite(amount) || amount < 0) return null;
+  fromCurrency = fromCurrency.toUpperCase(); toCurrency = toCurrency.toUpperCase();
   if (fromCurrency === toCurrency) return amount;
   if (amount === 0) return 0;
 
@@ -76,5 +80,6 @@ export async function getConversionRate(
 ): Promise<number | null> {
   if (fromCurrency === toCurrency) return 1;
   const rates = await getRates(fromCurrency);
-  return rates[toCurrency] ?? null;
+  const rate = rates[toCurrency];
+  return typeof rate === "number" && Number.isFinite(rate) && rate > 0 ? rate : null;
 }

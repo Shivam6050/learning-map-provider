@@ -8,7 +8,11 @@ import { judgeStage } from "@/lib/ai/judge";
 import { generatePracticeChecks } from "@/lib/ai/practice-checks";
 import { buildPathOptions } from "@/lib/ai/build-options";
 import { discoverYoutubeForTopic } from "@/lib/youtube/discover";
+import { discoverUdemyCourses } from "@/lib/web-discovery/discover-udemy";
+import { impactConfigured } from "@/lib/web-discovery/impact-catalog";
 import { discoverWebForTopic } from "@/lib/web-discovery/discover";
+import { cookies } from "next/headers";
+import { CURRENCY_COOKIE } from "@/lib/currency/format";
 import { currencyToRegion } from "@/lib/youtube/region";
 import { ensureField, ensureGuestUser } from "@/lib/db/ensure-seed-data";
 import { getFieldBySlug } from "@/lib/fields/catalog";
@@ -16,6 +20,8 @@ import { getQuizForField, blendSkillLevel, type SkillLevel } from "@/lib/onboard
 import type { DiscoveredResource } from "@/lib/youtube/discover";
 import { ensureSeedCandidates } from "@/lib/ai/seed-resources";
 import { logError } from "@/lib/monitoring/log-error";
+
+import { prepareCandidates } from "@/lib/link-check/prepare-candidates";
 
 const VALID_SKILL_LEVELS: SkillLevel[] = ["beginner", "intermediate", "advanced"];
 const VALID_CURRENCIES = ["USD", "INR", "EUR"];
@@ -40,10 +46,10 @@ export async function generatePath(formData: FormData) {
   }
 
   const rawSkillLevel = String(formData.get("skillLevel"));
-  if (!VALID_SKILL_LEVELS.includes(rawSkillLevel as SkillLevel)) {
+  if (rawSkillLevel !== "unknown" && !VALID_SKILL_LEVELS.includes(rawSkillLevel as SkillLevel)) {
     redirect("/onboarding?error=Invalid skill level");
   }
-  const selfReportedLevel = rawSkillLevel as SkillLevel;
+  const selfReportedLevel: SkillLevel = rawSkillLevel === "unknown" ? "beginner" : rawSkillLevel as SkillLevel;
 
   const weeklyHours = Number(formData.get("weeklyHours"));
   if (!Number.isFinite(weeklyHours) || weeklyHours < 1 || weeklyHours > 80) {
@@ -57,6 +63,8 @@ export async function generatePath(formData: FormData) {
 
   const rawCurrency = String(formData.get("currency") ?? "USD");
   const currency = VALID_CURRENCIES.includes(rawCurrency) ? rawCurrency : "USD";
+
+  (await cookies()).set(CURRENCY_COOKIE, currency, { path: "/", maxAge: 31536000, sameSite: "lax", secure: process.env.NODE_ENV === "production" });
 
   // Rate limit check
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
@@ -83,7 +91,10 @@ export async function generatePath(formData: FormData) {
   });
 
   const answeredCount = quizAnswers.filter((a) => a >= 0).length;
-  if (answeredCount > 0) {
+  if ((answeredCount > 0 && answeredCount !== fieldQuiz.length) || (rawSkillLevel === "unknown" && answeredCount !== fieldQuiz.length) || quizAnswers.some((answer, i) => answer !== -1 && (!Number.isInteger(answer) || answer < 0 || answer >= fieldQuiz[i].options.length))) {
+    redirect("/onboarding?error=Complete every quiz question or choose your level and skip the quiz.");
+  }
+  if (answeredCount === fieldQuiz.length) {
     const blended = blendSkillLevel(selfReportedLevel, quizAnswers, field!.slug);
     skillLevel = blended.finalLevel;
     quizScore = blended.quizScore;
@@ -106,10 +117,17 @@ export async function generatePath(formData: FormData) {
     const resourcesByUrl = new Map<string, DiscoveredResource>();
     const candidatesByStage = new Map<number, DiscoveredResource[]>();
 
+    let paidCatalogFailed = false;
     const stageResults = await Promise.all(
       skeleton.map(async (stage) => {
         const stageCandidates: DiscoveredResource[] = [];
 
+        const catalogCandidates = await discoverUdemyCourses(stage.search_topics, currency, budgetTotal).catch(error => {
+          paidCatalogFailed = true;
+          console.warn("[Udemy catalog]", error instanceof Error ? error.message : "Unavailable");
+          return [];
+        });
+        stageCandidates.push(...catalogCandidates);
         const seedCandidates = await ensureSeedCandidates(stage.search_topics, currency, budgetTotal, field!.slug).catch(() => []);
         for (const s of seedCandidates) {
           if (!stageCandidates.some((c) => c.url === s.url)) stageCandidates.push(s);
@@ -119,7 +137,7 @@ export async function generatePath(formData: FormData) {
           try {
             const [youtubeResults, webResults] = await Promise.all([
               discoverYoutubeForTopic(topic, fieldId, currencyToRegion(currency)).catch(() => []),
-              discoverWebForTopic(topic, fieldId).catch(() => []),
+              discoverWebForTopic(topic, fieldId, currency, budgetTotal).catch(() => []),
             ]);
             return [...youtubeResults, ...webResults];
           } catch {
@@ -138,7 +156,12 @@ export async function generatePath(formData: FormData) {
       })
     );
 
+    const verified = await prepareCandidates(stageResults.flatMap(stage => stage.candidates), currency);
+    const verifiedByUrl = new Map(verified.map(resource => [resource.url, resource]));
     for (const res of stageResults) {
+      res.candidates = res.candidates.flatMap(resource => { const valid = verifiedByUrl.get(resource.url); return valid ? [valid] : []; });
+      if (!res.candidates.length) throw new Error("We could not verify learning resources for every stage. Please try again shortly or choose another field.");
+      if (!res.candidates.some(resource => resource.price === 0)) throw new Error("We could not verify free resources for every stage. Please try again to build all three complete options.");
       candidatesByStage.set(res.order_index, res.candidates);
       for (const r of res.candidates) {
         if (!resourcesByUrl.has(r.url)) {
@@ -163,9 +186,16 @@ export async function generatePath(formData: FormData) {
       candidatesByStage,
       resourcesByUrl,
       budgetTotal,
+      currency,
       practiceChecksByStage,
     });
 
+    if (budgetTotal > 0) for (const option of options.slice(0, 2)) {
+      if (option.total_cost === 0) option.availability_note = !impactConfigured()
+        ? "The paid course catalog is not connected yet. You can still use the free route."
+        : paidCatalogFailed ? "The paid course catalog could not be reached. Please try again shortly."
+        : "No verified paid courses matched this tier. Try another budget or use the free route.";
+    }
     // --- Persist the pending option set to the DATABASE ---
     const { data: pendingSet, error: pendingError } = await service
       .from("pending_path_sets")
@@ -186,7 +216,7 @@ export async function generatePath(formData: FormData) {
     }
 
     redirect(
-      `/onboarding/select?set=${pendingSet.id}&quizScore=${quizScore}&quizImplied=${quizImpliedLevel}&selfReported=${selfReportedLevel}&finalLevel=${skillLevel}`
+      `/onboarding/select?set=${pendingSet.id}&quizScore=${answeredCount ? quizScore : ""}&quizImplied=${quizImpliedLevel}&selfReported=${selfReportedLevel}&finalLevel=${skillLevel}`
     );
   } catch (err) {
     if (err && typeof err === "object" && "digest" in err) {
@@ -262,19 +292,6 @@ export async function confirmSelectedPath(formData: FormData) {
       if (stageError || !stageRow) throw new Error(`Failed to create stage: ${stageError?.message}`);
 
       if (stage.stage_resources?.length) {
-        // Sync candidate resource price and currency in the resources table to match previewed option values
-        for (const sr of stage.stage_resources) {
-          if (sr.resource_id && sr.resources) {
-            await service
-              .from("resources")
-              .update({
-                price: sr.resources.price ?? 0,
-                currency: sr.resources.currency || pathSet.currency,
-              })
-              .eq("id", sr.resource_id);
-          }
-        }
-
         const rows = stage.stage_resources.map((sr: any) => ({
           stage_id: stageRow.id,
           resource_id: sr.resource_id,

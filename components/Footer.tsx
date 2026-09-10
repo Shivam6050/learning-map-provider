@@ -13,7 +13,7 @@ export function Footer() {
               <span>Learning<span className="gradient-text">Map</span></span>
             </Link>
             <p className="mt-3 max-w-sm text-xs leading-relaxed text-slate-400">
-              Personalized, AI-curated learning paths tailored to your schedule, skill level, and budget. Built with Next.js 16 and Google Gemini 2.5.
+              Personalized, AI-curated learning paths tailored to your schedule, skill level, and budget.
             </p>
           </div>
 
@@ -62,7 +62,7 @@ export function Footer() {
         <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-slate-800/80 pt-6 text-xs text-slate-500 sm:flex-row">
           <p>&copy; 2026 Learning Map. All rights reserved.</p>
           <div className="flex items-center gap-4">
-            <span>Powered by Google Gemini AI ⚡</span>
+            <span>A clear path to your next chapter.</span>
           </div>
         </div>
       </div>

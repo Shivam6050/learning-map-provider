@@ -1,10 +1,12 @@
+import { Money, RememberCurrency } from "@/components/CurrencyProvider";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { PathBoard } from "@/components/PathBoard";
 import { FilteredStageList } from "@/components/FilteredStageList";
 import { getAvatarEmoji } from "@/lib/profile/avatars";
-import { getConversionRate } from "@/lib/currency/convert";
+import { prepareCandidates } from "@/lib/link-check/prepare-candidates";
+import type { DiscoveredResource } from "@/lib/youtube/discover";
 import { computeStageTimeline } from "@/lib/paths/timeline";
 import { getFieldBySlug } from "@/lib/fields/catalog";
 
@@ -33,7 +35,7 @@ export default async function PathPage({
       stage_resources (
         is_primary,
         order_index,
-        resources ( id, title, url, platform, resource_type, price, currency, rating, link_status )
+        resources ( id, title, url, platform, resource_type, price, currency, rating, link_status, signals )
       ),
       stage_progress ( status, completed_at, practice_check )
     `
@@ -50,7 +52,7 @@ export default async function PathPage({
         stage_resources (
           is_primary,
           order_index,
-          resources ( id, title, url, platform, resource_type, price, currency, rating )
+          resources ( id, title, url, platform, resource_type, price, currency, rating, signals )
         ),
         stage_progress ( status, completed_at, practice_check )
       `
@@ -81,31 +83,26 @@ export default async function PathPage({
     if (catalogMatch) fieldName = catalogMatch.name;
   }
 
-  const usdToPathCurrency = await getConversionRate("USD", path.currency);
-
+  const originalResources = (stages ?? []).flatMap((stage: any) => (stage.stage_resources ?? []).flatMap((sr: any) => {
+    const resource = Array.isArray(sr.resources) ? sr.resources[0] : sr.resources;
+    return resource ? [resource as DiscoveredResource] : [];
+  }));
+  const refreshed = await prepareCandidates(originalResources, path.currency);
+  const refreshedByUrl = new Map(refreshed.map(resource => [resource.url, resource]));
+  let hiddenResources = 0;
   let totalCost = 0;
   const processedResourceUrls = new Set<string>();
-
   (stages ?? []).forEach((stage: any) => {
-    stage.stage_resources?.forEach((sr: any) => {
-      const res = Array.isArray(sr.resources) ? sr.resources[0] : sr.resources;
-      if (res?.price && Number(res.price) > 0 && res.url && !processedResourceUrls.has(res.url)) {
-        processedResourceUrls.add(res.url);
-
-        const resCurrency = (res.currency || "USD").toUpperCase();
-        const targetCurrency = (path.currency || "USD").toUpperCase();
-
-        if (resCurrency === targetCurrency) {
-          totalCost += Number(res.price);
-        } else if (resCurrency === "USD" && targetCurrency === "INR") {
-          const rate = usdToPathCurrency ?? 80;
-          totalCost += Math.round(Number(res.price) * rate);
-        } else {
-          totalCost += Number(res.price);
-        }
-      }
+    stage.stage_resources = (stage.stage_resources ?? []).flatMap((sr: any) => {
+      const resource = Array.isArray(sr.resources) ? sr.resources[0] : sr.resources;
+      const valid = resource && refreshedByUrl.get(resource.url);
+      if (!valid) { hiddenResources++; return []; }
+      if (!processedResourceUrls.has(valid.url)) { totalCost += valid.price; processedResourceUrls.add(valid.url); }
+      return [{ ...sr, resources: valid }];
     });
   });
+  totalCost = Math.round(totalCost * 100) / 100;
+
 
   const totalStages = stages?.length ?? 0;
   const completedStages = (stages ?? []).filter(
@@ -160,6 +157,9 @@ export default async function PathPage({
 
   return (
     <div className="relative min-h-[calc(100vh-64px)] bg-slate-950 text-slate-100 bg-grid-pattern py-12">
+      <RememberCurrency value={path.currency} />
+      {refreshed.some(resource => resource.signals?.affiliate === true) && <p className="mx-auto max-w-6xl px-6 py-2 text-sm text-slate-400">Some course links are affiliate links. Learning Map may earn a commission if you buy through them. Selection is based on relevance and your budget.</p>}
+      <p className="mx-auto max-w-6xl px-6 py-3 text-sm text-slate-300">{hiddenResources > 0 ? `${hiddenResources} resource(s) are temporarily hidden because their link or price could not be verified. Your learning progress is preserved. ` : ""}Costs are current planning estimates; confirm the final price with the provider.</p>
       <div className="glow-orb-indigo top-10 left-1/3" />
       <div className="glow-orb-purple bottom-10 right-10" />
 
@@ -198,13 +198,13 @@ export default async function PathPage({
           <div>
             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Your Budget</p>
             <p className="mt-1 text-base font-bold text-white">
-              {path.budget_total} {path.currency}
+              <Money amount={path.budget_total} currency={path.currency} />
             </p>
           </div>
           <div>
             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Est. Cost</p>
             <p className="mt-1 text-base font-bold text-emerald-400">
-              {totalCost > 0 ? `${totalCost} ${path.currency}` : "Free ($0)"}
+              <Money amount={totalCost} currency={path.currency} freeLabel />
             </p>
           </div>
         </div>
@@ -240,7 +240,6 @@ export default async function PathPage({
           stages={stages ?? []}
           stageTimeline={stageTimelineRecord}
           path={path}
-          usdToPathCurrency={usdToPathCurrency}
           myRatingByResource={myRatingByResource}
         />
       </div>
