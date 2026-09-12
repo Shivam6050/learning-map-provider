@@ -34,7 +34,7 @@ export function RememberCurrency({ value }: { value: string }) {
 
 export function CurrencySwitcher() {
   const { currency, setCurrency } = useCurrency();
-  return <select aria-label="Display currency" value={currency ?? "USD"} onChange={e => setCurrency(e.target.value as Currency)} className="rounded-lg border border-slate-700 bg-transparent px-2 py-1 text-xs">
+  return <select aria-label="Display currency" value={currency ?? "USD"} onChange={e => setCurrency(e.target.value as Currency)} className="currency-select rounded-lg border border-slate-700 px-2 py-1 text-xs">
     {CURRENCIES.map(value => <option key={value} value={value}>{value}</option>)}
   </select>;
 }

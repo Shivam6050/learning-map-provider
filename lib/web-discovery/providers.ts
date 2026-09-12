@@ -2,7 +2,7 @@ export function providerName(url: string): string {
   let host = "";
   try { host = new URL(url).hostname.replace(/^www\./, ""); } catch { return "Course provider"; }
   const providers: Record<string, string> = {
-    "udemy.com": "Udemy", "coursera.org": "Coursera", "pwskills.com": "Physics Wallah",
+    "scrimba.com": "Scrimba", "udemy.com": "Udemy", "coursera.org": "Coursera", "pwskills.com": "Physics Wallah",
     "pw.live": "Physics Wallah", "geeksforgeeks.org": "GeeksforGeeks",
     "campus.w3schools.com": "W3Schools", "w3schools.com": "W3Schools",
     "youtube.com": "YouTube", "youtu.be": "YouTube", "freecodecamp.org": "freeCodeCamp",

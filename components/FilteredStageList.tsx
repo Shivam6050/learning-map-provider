@@ -1,4 +1,5 @@
 "use client";
+import { courseLink } from "@/lib/affiliates/links";
 
 import { Money } from "@/components/CurrencyProvider";
 import { providerName } from "@/lib/web-discovery/providers";
@@ -123,7 +124,8 @@ export function FilteredStageList({
                           const resource = Array.isArray(sr.resources) ? sr.resources[0] : sr.resources;
                           if (!resource) return null;
                           const isBroken = resource.link_status === "broken";
-                          const safeUrl = ensureHttpUrl(resource.url || "");
+                          const outgoing = courseLink(resource.url || "", resource.signals?.affiliate === true);
+                          const safeUrl = outgoing.href;
                           const isValidLink = safeUrl.length > 0 && isSafeHttpUrl(safeUrl);
                           
                           const p = (resource.platform || "").toLowerCase();
@@ -167,7 +169,7 @@ export function FilteredStageList({
                                   <a
                                     href={safeUrl}
                                     target="_blank"
-                                    rel={resource.signals?.affiliate ? "sponsored noopener noreferrer" : "noopener noreferrer"}
+                                    rel={outgoing.affiliate ? "sponsored noopener noreferrer" : "noopener noreferrer"}
                                     className="font-bold text-sm text-indigo-300 hover:text-white transition hover:underline truncate"
                                   >
                                     {resource.title}
@@ -183,7 +185,7 @@ export function FilteredStageList({
                                   <a
                                     href={safeUrl}
                                     target="_blank"
-                                    rel={resource.signals?.affiliate ? "sponsored noopener noreferrer" : "noopener noreferrer"}
+                                    rel={outgoing.affiliate ? "sponsored noopener noreferrer" : "noopener noreferrer"}
                                     className="rounded-lg bg-indigo-600/80 hover:bg-indigo-500 text-white text-xs font-semibold px-3 py-1.5 shadow-sm transition flex items-center gap-1 shrink-0"
                                   >
                                     <span>{action}</span>

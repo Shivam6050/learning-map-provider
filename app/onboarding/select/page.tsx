@@ -1,3 +1,4 @@
+import { courseLink } from "@/lib/affiliates/links";
 import { Money, RememberCurrency } from "@/components/CurrencyProvider";
 import { providerName } from "@/lib/web-discovery/providers";
 import Link from "next/link";
@@ -114,7 +115,7 @@ export default async function OnboardingSelectPage({
         </div>
 
         <p className="mt-6 rounded-xl border border-slate-700 p-4 text-sm text-slate-300">Course costs are planning estimates. Provider checkout prices can vary by region, account, tax and promotion. Courses without a verifiable price are excluded; subscription prices are not treated as one-time purchases.</p>
-        {pathSet.options.some(option => option.stages.some((stage: any) => stage.stage_resources.some((sr: any) => sr.resources?.affiliate))) && <p className="mt-3 text-sm text-slate-400">Some course links are affiliate links. Learning Map may earn a commission if you buy through them. Selection is based on relevance and your budget.</p>}
+        {pathSet.options.some(option => option.stages.some((stage: any) => stage.stage_resources.some((sr: any) => courseLink(sr.resources?.url || "", sr.resources?.affiliate === true).affiliate))) && <p className="mt-3 text-sm text-slate-400">Some course links are affiliate links. Learning Map may earn a commission if you buy through them. Selection is based on relevance and your budget.</p>}
         <div className="mt-10 grid grid-cols-1 gap-8 md:grid-cols-3">
           {pathSet.options.map((option, idx) => {
             const paidUnavailable = idx < 2 && pathSet.budget_total > 0 && option.total_cost === 0;
@@ -167,7 +168,8 @@ export default async function OnboardingSelectPage({
                           </p>
                           <div className="mt-2 space-y-1.5">
                             {stage.stage_resources.map((sr: any, rIdx: number) => {
-                              const safeUrl = ensureHttpUrl(sr.resources?.url || "");
+                              const outgoing = courseLink(sr.resources?.url || "", sr.resources?.affiliate === true);
+                              const safeUrl = outgoing.href;
                               const p = (sr.resources?.platform || "").toLowerCase();
                               const t = (sr.resources?.resource_type || "").toLowerCase();
                               let icon = "📰";
@@ -199,7 +201,7 @@ export default async function OnboardingSelectPage({
                                     <a
                                       href={safeUrl}
                                       target="_blank"
-                                      rel={sr.resources?.affiliate ? "sponsored noopener noreferrer" : "noopener noreferrer"}
+                                      rel={outgoing.affiliate ? "sponsored noopener noreferrer" : "noopener noreferrer"}
                                       className="font-bold text-xs text-indigo-400 hover:text-indigo-300 hover:underline flex items-center justify-between gap-2 group"
                                     >
                                       <span className="truncate">{sr.resources?.title || "Resource Link"}</span>

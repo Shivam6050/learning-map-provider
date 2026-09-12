@@ -224,3 +224,19 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 @media(prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } *,*::before,*::after { animation:none!important; transition:none!important; } }
 
 @media(max-width:480px) { header a { white-space:nowrap; } header > div { gap:12px; padding-inline:12px; } header a.font-serif { font-size:17px; gap:6px; } header a.font-serif > span:first-child { width:28px; height:28px; } header nav { gap:10px; } }
+
+/* Keep native currency popups readable against the forest theme. */
+.currency-select, select#currency {
+  color-scheme: dark;
+  background-color: #182923;
+  color: #edf2e9;
+  border-color: #41554a;
+}
+.currency-select option, select#currency option {
+  background-color: #182923;
+  color: #edf2e9;
+}
+.currency-select option:checked, select#currency option:checked {
+  background-color: #3b674e;
+  color: #ffffff;
+}

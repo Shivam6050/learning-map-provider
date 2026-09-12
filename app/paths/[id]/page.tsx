@@ -1,3 +1,4 @@
+import { courseLink } from "@/lib/affiliates/links";
 import { Money, RememberCurrency } from "@/components/CurrencyProvider";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -158,7 +159,7 @@ export default async function PathPage({
   return (
     <div className="relative min-h-[calc(100vh-64px)] bg-slate-950 text-slate-100 bg-grid-pattern py-12">
       <RememberCurrency value={path.currency} />
-      {refreshed.some(resource => resource.signals?.affiliate === true) && <p className="mx-auto max-w-6xl px-6 py-2 text-sm text-slate-400">Some course links are affiliate links. Learning Map may earn a commission if you buy through them. Selection is based on relevance and your budget.</p>}
+      {refreshed.some(resource => courseLink(resource.url, resource.signals?.affiliate === true).affiliate) && <p className="mx-auto max-w-6xl px-6 py-2 text-sm text-slate-400">Some course links are affiliate links. Learning Map may earn a commission if you buy through them. Selection is based on relevance and your budget.</p>}
       <p className="mx-auto max-w-6xl px-6 py-3 text-sm text-slate-300">{hiddenResources > 0 ? `${hiddenResources} resource(s) are temporarily hidden because their link or price could not be verified. Your learning progress is preserved. ` : ""}Costs are current planning estimates; confirm the final price with the provider.</p>
       <div className="glow-orb-indigo top-10 left-1/3" />
       <div className="glow-orb-purple bottom-10 right-10" />
