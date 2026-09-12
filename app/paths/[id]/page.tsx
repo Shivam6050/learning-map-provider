@@ -1,3 +1,4 @@
+import { pathCost } from "@/lib/pricing/path-cost";
 import { courseLink } from "@/lib/affiliates/links";
 import { Money, RememberCurrency } from "@/components/CurrencyProvider";
 import { notFound } from "next/navigation";
@@ -102,7 +103,8 @@ export default async function PathPage({
       return [{ ...sr, resources: valid }];
     });
   });
-  totalCost = Math.round(totalCost * 100) / 100;
+  const billing = pathCost((stages ?? []).map((stage: any) => ({ estimated_hours: stage.estimated_hours, resources: stage.stage_resources.map((sr: any) => sr.resources) })), path.weekly_hours);
+  totalCost = billing.total;
 
 
   const totalStages = stages?.length ?? 0;
@@ -159,6 +161,7 @@ export default async function PathPage({
   return (
     <div className="relative min-h-[calc(100vh-64px)] bg-slate-950 text-slate-100 bg-grid-pattern py-12">
       <RememberCurrency value={path.currency} />
+      {billing.subscriptions.map(plan => <p key={plan.provider} className="mx-auto max-w-6xl px-6 py-2 text-sm text-slate-300">Scrimba Pro: {plan.months} month(s) included in the estimated total, counted once across courses. Start at your first paid stage; cancel renewal when finished.</p>)}
       {refreshed.some(resource => courseLink(resource.url, resource.signals?.affiliate === true).affiliate) && <p className="mx-auto max-w-6xl px-6 py-2 text-sm text-slate-400">Some course links are affiliate links. Learning Map may earn a commission if you buy through them. Selection is based on relevance and your budget.</p>}
       <p className="mx-auto max-w-6xl px-6 py-3 text-sm text-slate-300">{hiddenResources > 0 ? `${hiddenResources} resource(s) are temporarily hidden because their link or price could not be verified. Your learning progress is preserved. ` : ""}Costs are current planning estimates; confirm the final price with the provider.</p>
       <div className="glow-orb-indigo top-10 left-1/3" />

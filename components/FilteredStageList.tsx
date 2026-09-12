@@ -178,7 +178,7 @@ export function FilteredStageList({
                               </div>
                               <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
                                 <span className="text-xs text-slate-400 font-medium">
-                                  <Money amount={resource.price} currency={resource.currency ?? path.currency} freeLabel />
+                                  <Money amount={resource.price} currency={resource.currency ?? path.currency} freeLabel />{resource.signals?.price_source === "scrimba_monthly" ? " / month · renews until cancelled" : ""}
                                   {resource.rating ? ` · ★ ${Number(resource.rating).toFixed(1)}` : ""}
                                 </span>
                                 {isValidLink && !isBroken && (

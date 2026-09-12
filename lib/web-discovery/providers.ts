@@ -17,7 +17,7 @@ export function isPaidCourseUrl(url: string): boolean {
       "coursera.org": /^\/(learn|specializations|professional-certificates)\/[^/]+\/?$/,
       "pwskills.com": /^\/course\/[^/]+\/?$/,
       "geeksforgeeks.org": /^\/courses\/(?!search(?:\/|$))[^/]+\/?$/,
-      "campus.w3schools.com": /^\/products\/[^/]+\/?$/,
+      "campus.w3schools.com": /^\/(?:[a-z]{2}-[a-z]{2}\/)?products\/[^/]+\/?$/,
     };
     return routes[host]?.test(u.pathname) ?? false;
   } catch { return false; }

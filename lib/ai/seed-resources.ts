@@ -1,3 +1,4 @@
+import { PAID_CATALOG, paidSubscriptionQuote } from "@/lib/web-discovery/paid-catalog";
 import { CURATED_LEARNING_RESOURCES } from "@/lib/web-discovery/curated-resources";
 import { createServiceClient } from "@/lib/supabase/service";
 import type { DiscoveredResource } from "@/lib/youtube/discover";
@@ -16,6 +17,7 @@ export type SeedResource = {
 
 export const BASE_SEED_RESOURCES: SeedResource[] = [
   ...CURATED_LEARNING_RESOURCES,
+  ...PAID_CATALOG.map(course => ({ title: course.title, url: course.url, platform: "article" as const, resource_type: "course" as const, price: 1, currency: "USD", topic_hints: course.topics })),
   // --- BACKEND DEVELOPMENT ---
   {
     title: "HTTP - MDN Web Docs",
@@ -697,13 +699,14 @@ export async function ensureSeedCandidates(
   const results: DiscoveredResource[] = [];
   for (const seed of matched) {
     if (budgetTotal === 0 && seed.price > 0) continue;
-    const quote = seed.price === 0
+    const subscription = await paidSubscriptionQuote(seed.url, currency);
+    const quote = subscription ?? (seed.price === 0
       ? { price: 0, currency: currency.toUpperCase(), isRealtime: false }
-      : await fetchRealtimePrice(seed.url, currency);
+      : await fetchRealtimePrice(seed.url, currency));
     if (quote.price === null) continue;
     const { data, error } = await service.from("resources").upsert({
       title: seed.title, url: seed.url, platform: seed.platform, resource_type: seed.resource_type,
-      price: quote.price, currency: quote.currency, trust_status: "allowlisted", signals: {},
+      price: quote.price, currency: quote.currency, trust_status: "allowlisted", signals: subscription?.signals ?? {},
     }, { onConflict: "url" }).select("*").single();
     if (error) throw new Error(`Resource storage failed: ${error.message}`);
     if (data) results.push({ ...data, link_status: data.link_status ?? "unchecked" } as DiscoveredResource);

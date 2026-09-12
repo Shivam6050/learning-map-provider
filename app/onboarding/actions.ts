@@ -187,14 +187,12 @@ export async function generatePath(formData: FormData) {
       resourcesByUrl,
       budgetTotal,
       currency,
+      weeklyHours,
       practiceChecksByStage,
     });
 
     if (budgetTotal > 0) for (const option of options.slice(0, 2)) {
-      if (option.total_cost === 0) option.availability_note = !impactConfigured()
-        ? "The paid course catalog is not connected yet. You can still use the free route."
-        : paidCatalogFailed ? "The paid course catalog could not be reached. Please try again shortly."
-        : "No verified paid courses matched this tier. Try another budget or use the free route.";
+      if (option.total_cost === 0) option.availability_note = "No relevant paid course or subscription with a verified cost fits this tier. Free resources remain available; a higher budget may unlock paid options.";
     }
     // --- Persist the pending option set to the DATABASE ---
     const { data: pendingSet, error: pendingError } = await service

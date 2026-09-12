@@ -1,3 +1,4 @@
+import { paidSubscriptionQuote } from "@/lib/web-discovery/paid-catalog";
 import { fetchImpactCourse } from "@/lib/web-discovery/impact-catalog";
 import type { DiscoveredResource } from "@/lib/youtube/discover";
 import { checkUrlAlive } from "./check-url";
@@ -12,6 +13,10 @@ export async function prepareCandidates(resources: DiscoveredResource[], currenc
   for (let i = 0; i < unique.length; i += 5) {
     const batch = await Promise.all(unique.slice(i, i + 5).map(async resource => {
       try {
+        if (resource.signals?.price_source === "scrimba_monthly") {
+          const quote = await paidSubscriptionQuote(resource.url, currency);
+          return quote ? { ...resource, ...quote, link_status: "ok" } : null;
+        }
         if (resource.signals?.price_source === "impact_catalog") {
           if (resource.signals.impact_catalog_id !== process.env.UDEMY_IMPACT_CATALOG_ID?.trim()) return null;
           const itemId = resource.signals.impact_item_id;

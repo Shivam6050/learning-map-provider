@@ -1,3 +1,4 @@
+import { pathCost } from "@/lib/pricing/path-cost";
 import type { SkeletonStage } from "@/lib/ai/skeleton";
 import type { JudgedStage } from "@/lib/ai/judge";
 import type { DiscoveredResource } from "@/lib/youtube/discover";
@@ -14,6 +15,7 @@ export type OptionStageResource = {
     price: number;
     currency: string;
     affiliate?: boolean;
+    billing_interval?: "month";
   };
 };
 
@@ -36,6 +38,8 @@ export type PathOption = {
   target_min?: number;
   target_met?: boolean;
   availability_note?: string;
+  subscriptions?: ReturnType<typeof pathCost>["subscriptions"];
+  paid_alternatives?: { title: string; url: string; cost: number; months?: number }[];
   stages: OptionStage[];
 };
 
@@ -45,19 +49,19 @@ function provider(resource: DiscoveredResource) { try { return new URL(resource.
 
 // Plan across all stages, charging a course once even when several stages use it.
 // Bounded beam search avoids exponential work while preserving different spending levels.
-function chooseBundle(pools: DiscoveredResource[][], cap: number): Bundle {
+function chooseBundle(pools: DiscoveredResource[][], cap: number, hours: number[], weeklyHours: number): Bundle {
   let beam: Bundle[] = [{ cents: 0, picks: [], urls: new Set(), providers: new Set() }];
   const score = (b: Bundle) => b.cents / Math.max(1, cap) + Math.min(5, b.providers.size) * 0.025;
   for (const pool of pools) {
     const next = new Map<string, Bundle>();
     const paid = pool.filter(r => r.price > 0);
     for (const state of beam) for (const item of [null, ...paid]) {
-      const cents = state.cents + (item && !state.urls.has(item.url) ? Math.round(item.price * 100) : 0);
+      const cents = Math.round(pathCost([...state.picks, item].map((pick, i) => ({ estimated_hours: hours[i], resources: pick ? [pick] : [] })), weeklyHours).total * 100);
       if (cents > cap) continue;
       const urls = new Set(state.urls), providers = new Set(state.providers);
       if (item) { urls.add(item.url); providers.add(provider(item)); }
       const candidate = { cents, picks: [...state.picks, item], urls, providers };
-      const key = cents + "|" + [...urls].sort().join("|");
+      const key = cents + "|" + candidate.picks.map(pick => pick?.url ?? "").join("|");
       const existing = next.get(key);
       if (!existing || candidate.picks.filter(Boolean).length > existing.picks.filter(Boolean).length) next.set(key, candidate);
     }
@@ -82,6 +86,7 @@ export function buildPathOptions(params: {
   resourcesByUrl: Map<string, DiscoveredResource>;
   budgetTotal: number;
   currency?: string;
+  weeklyHours?: number;
   practiceChecksByStage: Map<number, string>;
 }): PathOption[] {
   const { skeleton, judgedStages, candidatesByStage, resourcesByUrl, practiceChecksByStage } = params;
@@ -96,7 +101,9 @@ export function buildPathOptions(params: {
   });
   return ([1, 0.5, 0] as const).map((fraction, index) => {
     const cap = Math.floor(budget * fraction);
-    const bundle = chooseBundle(pools, cap);
+    const stageHours = skeleton.map(stage => Math.max(4, Math.round(stage.estimated_hours * [1.25,1,0.75][index])));
+    const bundle = chooseBundle(pools, cap, stageHours, params.weeklyHours ?? 10);
+    const billing = pathCost(bundle.picks.map((pick, i) => ({ estimated_hours: stageHours[i], resources: pick ? [pick] : [] })), params.weeklyHours ?? 10);
     const minimum = Math.floor(cap * 0.8);
     const seen = new Set<string>();
     const stages = skeleton.map((stage, stageIndex) => {
@@ -122,7 +129,7 @@ export function buildPathOptions(params: {
         estimated_hours: Math.max(4, Math.round(stage.estimated_hours * [1.25,1,0.75][index])),
         practice_check: practiceChecksByStage.get(stage.order_index) ?? "Practice what you learned: " + stage.title,
         stage_resources: picks.map((r,i) => ({ is_primary: i === 0, order_index: i, resource_id: r.id,
-          resources: { title:r.title, url:r.url, platform:r.platform, resource_type:r.resource_type, price:r.price, currency:r.currency, affiliate:r.signals?.affiliate === true } })),
+          resources: { title:r.title, url:r.url, platform:r.platform, resource_type:r.resource_type, price:r.price, currency:r.currency, affiliate:r.signals?.affiliate === true, billing_interval:r.signals?.price_source === "scrimba_monthly" ? "month" as const : undefined } })),
       };
     });
     const met = cap === 0 || bundle.cents >= minimum;
@@ -130,6 +137,11 @@ export function buildPathOptions(params: {
       id: "opt-" + (index + 1), name: ["Near your budget", "The balanced route", "The free route"][index],
       tagline: ["A broader course mix, targeting 80–100% of your budget.", "A focused course mix, targeting 40–50% of your budget.", "Free tutorials, videos and documentation. No course purchases."][index],
       total_cost: bundle.cents / 100, total_hours: stages.reduce((sum,stage) => sum + stage.estimated_hours,0), stages,
+      subscriptions: billing.subscriptions,
+      paid_alternatives: cap > 0 && bundle.cents === 0 ? [...new Map(pools.flatMap((pool, stageIndex) => pool.filter(r => r.price > 0).map(r => {
+        const estimate = pathCost([{ estimated_hours: stageHours[stageIndex], resources: [r] }], params.weeklyHours ?? 10);
+        return { title: r.title, url: r.url, cost: estimate.total, months: estimate.subscriptions[0]?.months };
+      })).filter(r => r.cost * 100 > cap).map(r => [r.url, r])).values()].sort((a,b) => a.cost - b.cost).slice(0,3) : [],
       budget_cap: cap / 100, target_min: minimum / 100, target_met: met,
       availability_note: met ? undefined : "Not enough suitable courses with verified prices fit this tier. This is the best available lower-cost mix; regenerate later for new offers.",
     };

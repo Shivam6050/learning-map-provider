@@ -1,3 +1,4 @@
+import { w3schoolsQuote } from "./w3schools-quote";
 import { curatedLearningResource } from "./curated-resources";
 import { inspectUrl } from "@/lib/link-check/check-url";
 import { isPaidCourseUrl } from "./providers";
@@ -126,6 +127,7 @@ export async function fetchRealtimePrice(url: string, targetCurrency = "INR"): P
   const parsed = new URL(url);
   const host = parsed.hostname.replace(/^www\./, "");
   if (curatedLearningResource(url)) return { price: 0, currency, isRealtime: false };
+  if (host === "campus.w3schools.com") return (await w3schoolsQuote(url, currency)) ?? unknown;
   // Paid discovery uses Impact; do not call the retired Udemy Affiliate API.
   if (isPaidCourseUrl(url)) {
     const page = await inspectUrl(url);

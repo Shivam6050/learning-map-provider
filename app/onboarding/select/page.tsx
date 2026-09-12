@@ -114,7 +114,7 @@ export default async function OnboardingSelectPage({
           )}
         </div>
 
-        <p className="mt-6 rounded-xl border border-slate-700 p-4 text-sm text-slate-300">Course costs are planning estimates. Provider checkout prices can vary by region, account, tax and promotion. Courses without a verifiable price are excluded; subscription prices are not treated as one-time purchases.</p>
+        <p className="mt-6 rounded-xl border border-slate-700 p-4 text-sm text-slate-300">Course costs are planning estimates. Provider checkout prices can vary by region, account, tax and promotion. Courses without a verifiable price are excluded; subscriptions show a monthly rate and the estimated number of months included in the total. Cancel renewal when you finish; regional discounts are not assumed.</p>
         {pathSet.options.some(option => option.stages.some((stage: any) => stage.stage_resources.some((sr: any) => courseLink(sr.resources?.url || "", sr.resources?.affiliate === true).affiliate))) && <p className="mt-3 text-sm text-slate-400">Some course links are affiliate links. Learning Map may earn a commission if you buy through them. Selection is based on relevance and your budget.</p>}
         <div className="mt-10 grid grid-cols-1 gap-8 md:grid-cols-3">
           {pathSet.options.map((option, idx) => {
@@ -140,6 +140,8 @@ export default async function OnboardingSelectPage({
                     {option.tagline}
                   </p>
 
+                  {option.paid_alternatives?.length > 0 && <div className="mt-4 rounded-xl border border-amber-500/30 p-3 text-xs text-slate-300"><p className="mb-2 font-semibold text-amber-300">Available paid options above this tier’s budget</p>{option.paid_alternatives.map((course: any) => { const link = courseLink(course.url); return <p key={course.url} className="mt-2"><a href={link.href} target="_blank" rel={link.affiliate ? "sponsored noopener noreferrer" : "noopener noreferrer"} className="underline">{course.title}</a> — <Money amount={course.cost} currency={pathSet.currency} />{course.months ? " for " + course.months + " month(s)" : ""}. Not included in the path total.</p>; })}</div>}
+                  {option.subscriptions?.map((plan: any) => <p key={plan.provider} className="mt-4 rounded-xl border border-slate-700 p-3 text-xs text-slate-300">Scrimba Pro: {plan.months} month(s) × <Money amount={plan.monthly_price} currency={pathSet.currency} />. Included once across selected courses, starting at the first paid stage. Renews monthly until cancelled.</p>)}
                   <div className="mt-5 flex items-baseline justify-between rounded-2xl bg-slate-900/80 p-4 border border-slate-800">
                     <div>
                       <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Est. Cost</p>
@@ -194,7 +196,7 @@ export default async function OnboardingSelectPage({
                                       <span>{t === "course" ? p === "udemy" ? "Udemy" : providerName(sr.resources?.url ?? "") : label}</span>
                                     </span>
                                     <span className="font-extrabold text-emerald-400">
-                                      <Money amount={sr.resources?.price ?? 0} currency={sr.resources?.currency ?? pathSet.currency} freeLabel />
+                                      <Money amount={sr.resources?.price ?? 0} currency={sr.resources?.currency ?? pathSet.currency} freeLabel />{sr.resources?.billing_interval === "month" ? " / month" : ""}
                                     </span>
                                   </div>
                                   {safeUrl ? (
