@@ -1,3 +1,4 @@
+import { curatedLearningResource } from "./curated-resources";
 import { isPaidCourseUrl } from "./providers";
 import { callWithGoogleSearch } from "@/lib/ai/client";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -9,7 +10,7 @@ import type { DiscoveredResource } from "@/lib/youtube/discover";
 import { fetchRealtimePrice } from "@/lib/web-discovery/price-fetcher";
 
 const PROMPT_TEMPLATE = (topic: string, currency: string, budget: number) =>
-  `Find relevant individual courses and free tutorials for "${topic}". For a total learning budget of ${budget} ${currency}, include course detail pages from several of Udemy, Coursera, pwskills.com (Physics Wallah), GeeksforGeeks and campus.w3schools.com when relevant. Include free official documentation and w3schools.com tutorials. Prioritize currently purchasable courses with explicit one-time total prices, not monthly fees or EMI. Do not include search listings, blog roundups, subscription landing pages or YouTube. Never invent a URL or price.`;
+  `Find relevant individual courses and free tutorials for "${topic}". For a total learning budget of ${budget} ${currency}, Prioritize relevant Scrimba interactive courses, GeeksforGeeks tutorials and courses, and W3Schools tutorials. Also find other relevant courses from freeCodeCamp, Microsoft Learn, Coursera and official learning platforms. Match the specific topic; do not force an unrelated provider into a stage. Include free official documentation and w3schools.com tutorials. Prioritize currently purchasable courses with explicit one-time total prices, not monthly fees or EMI. Do not include search listings, blog roundups, subscription landing pages or YouTube. Never invent a URL or price.`;
 
 // Best-effort classification from the URL alone. Deliberately simple:
 // this is a courtesy label for the UI, not something judgment logic
@@ -28,6 +29,8 @@ function classifyByDomain(url: string): {
     }
   })();
 
+  const curated = curatedLearningResource(url);
+  if (curated) return { platform: curated.resource_type === "course" ? "course" : "docs", resource_type: curated.resource_type === "course" ? "course" : "docs" };
   if (isPaidCourseUrl(url) && !["udemy.com", "coursera.org"].includes(host)) return { platform: "course", resource_type: "course" };
   if (host === "learn.microsoft.com") return { platform: "mslearn", resource_type: "docs" };
   if (host === "udemy.com") return { platform: "udemy", resource_type: "course" };
@@ -63,7 +66,7 @@ export async function discoverWebForTopic(
   currency = "USD",
   budget = 0
 ): Promise<DiscoveredResource[]> {
-  const cacheTopic = `${topic} [offers-v2 ${currency} ${budget > 0 ? "paid" : "free"}]`;
+  const cacheTopic = `${topic} [offers-v3 ${currency} ${budget > 0 ? "paid" : "free"}]`;
   const cached = await getCachedTopic(cacheTopic, "web");
   if (cached) return fetchResourcesByIds(cached);
 

@@ -1,3 +1,4 @@
+import { curatedLearningResource } from "./curated-resources";
 import { inspectUrl } from "@/lib/link-check/check-url";
 import { isPaidCourseUrl } from "./providers";
 import { parseCourseOffer } from "./offer-parser";
@@ -124,6 +125,7 @@ export async function fetchRealtimePrice(url: string, targetCurrency = "INR"): P
   if (!isSafeHttpUrl(url)) return unknown;
   const parsed = new URL(url);
   const host = parsed.hostname.replace(/^www\./, "");
+  if (curatedLearningResource(url)) return { price: 0, currency, isRealtime: false };
   // Paid discovery uses Impact; do not call the retired Udemy Affiliate API.
   if (isPaidCourseUrl(url)) {
     const page = await inspectUrl(url);

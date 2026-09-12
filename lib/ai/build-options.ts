@@ -106,10 +106,16 @@ export function buildPathOptions(params: {
         Number(b.trust_status === "allowlisted") - Number(a.trust_status === "allowlisted") ||
         (b.rating ?? 0) - (a.rating ?? 0));
       const picks = paid ? [paid] : [];
-      // Pair free video learning with written reference material when available.
+      // Include topic-matched learning providers alongside the selected course.
+      const course = free.find(r => r.resource_type === "course");
+      if (!paid && course) picks.push(course);
+      for (const host of ["scrimba.com", "geeksforgeeks.org", "w3schools.com"]) {
+        const reference = free.find(r => provider(r) === host && !picks.some(p => provider(p) === host));
+        if (reference && picks.length < 4) picks.push(reference);
+      }
       const preferred = free.find(r => index === 1 ? r.resource_type === "video" : r.resource_type === "docs");
-      if (preferred) picks.push(preferred);
-      for (const r of free) { if (picks.length >= 2) break; if (!picks.some(p => p.url === r.url)) picks.push(r); }
+      if (preferred && picks.length < 4 && !picks.some(p => p.url === preferred.url)) picks.push(preferred);
+      for (const r of free) { if (picks.length >= 3) break; if (!picks.some(p => p.url === r.url)) picks.push(r); }
       picks.forEach(r => seen.add(r.url));
       return {
         order_index: stage.order_index, title: stage.title, description: stage.description,

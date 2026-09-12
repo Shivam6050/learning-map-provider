@@ -1,3 +1,4 @@
+import { CURATED_LEARNING_RESOURCES } from "@/lib/web-discovery/curated-resources";
 import { createServiceClient } from "@/lib/supabase/service";
 import type { DiscoveredResource } from "@/lib/youtube/discover";
 import { fetchRealtimePrice } from "@/lib/web-discovery/price-fetcher";
@@ -14,6 +15,7 @@ export type SeedResource = {
 };
 
 export const BASE_SEED_RESOURCES: SeedResource[] = [
+  ...CURATED_LEARNING_RESOURCES,
   // --- BACKEND DEVELOPMENT ---
   {
     title: "HTTP - MDN Web Docs",
