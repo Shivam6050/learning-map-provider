@@ -28,6 +28,11 @@ export type OptionStage = {
   practice_check: string;
 };
 
+export type PaidAlternative = {
+  title: string; url: string; cost: number; months?: number; over_budget: boolean;
+  resource_id: string; stage_indices: number[]; resources: OptionStageResource["resources"];
+};
+
 export type PathOption = {
   id: string;
   name: string;
@@ -39,7 +44,7 @@ export type PathOption = {
   target_met?: boolean;
   availability_note?: string;
   subscriptions?: ReturnType<typeof pathCost>["subscriptions"];
-  paid_alternatives?: { title: string; url: string; cost: number; months?: number }[];
+  paid_alternatives?: PaidAlternative[];
   stages: OptionStage[];
 };
 
@@ -138,10 +143,16 @@ export function buildPathOptions(params: {
       tagline: ["A broader course mix, targeting 80–100% of your budget.", "A focused course mix, targeting 40–50% of your budget.", "Free tutorials, videos and documentation. No course purchases."][index],
       total_cost: bundle.cents / 100, total_hours: stages.reduce((sum,stage) => sum + stage.estimated_hours,0), stages,
       subscriptions: billing.subscriptions,
-      paid_alternatives: cap > 0 && bundle.cents === 0 ? [...new Map(pools.flatMap((pool, stageIndex) => pool.filter(r => r.price > 0).map(r => {
-        const estimate = pathCost([{ estimated_hours: stageHours[stageIndex], resources: [r] }], params.weeklyHours ?? 10);
-        return { title: r.title, url: r.url, cost: estimate.total, months: estimate.subscriptions[0]?.months };
-      })).filter(r => r.cost * 100 > cap).map(r => [r.url, r])).values()].sort((a,b) => a.cost - b.cost).slice(0,3) : [],
+      paid_alternatives: [...new Map(pools.flatMap((pool, stageIndex) => pool.filter(r => r.price > 0 && !bundle.urls.has(r.url)).map(r => {
+        const estimate = pathCost(pools.map((pool, i) => ({ estimated_hours: stageHours[i], resources: pool.some(candidate => candidate.url === r.url) ? [r] : [] })), params.weeklyHours ?? 10);
+        const withCourse = bundle.picks.map((pick, i) => ({ estimated_hours: stageHours[i], resources: [...(pick ? [pick] : []), ...(pools[i].some(candidate => candidate.url === r.url) ? [r] : [])] }));
+        return { title: r.title, url: r.url, cost: estimate.total, months: estimate.subscriptions[0]?.months,
+          over_budget: Math.round(pathCost(withCourse, params.weeklyHours ?? 10).total * 100) > cap,
+          resource_id: r.id, stage_indices: pools.flatMap((p,i) => p.some(c => c.url === r.url) ? [skeleton[i].order_index] : []),
+          resources: { title:r.title, url:r.url, platform:r.platform, resource_type:r.resource_type, price:r.price, currency:r.currency,
+            affiliate:r.signals?.affiliate === true, billing_interval:r.signals?.price_source === "scrimba_monthly" ? "month" as const : undefined },
+        };
+      })).map(r => [r.url, r])).values()].sort((a,b) => a.cost - b.cost),
       budget_cap: cap / 100, target_min: minimum / 100, target_met: met,
       availability_note: met ? undefined : "Not enough suitable courses with verified prices fit this tier. This is the best available lower-cost mix; regenerate later for new offers.",
     };

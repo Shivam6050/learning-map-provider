@@ -6,6 +6,8 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { generateSkeleton } from "@/lib/ai/skeleton";
 import { judgeStage } from "@/lib/ai/judge";
 import { generatePracticeChecks } from "@/lib/ai/practice-checks";
+import { includePurchased } from "@/lib/ai/include-purchased";
+import type { PathOption } from "@/lib/ai/build-options";
 import { buildPathOptions } from "@/lib/ai/build-options";
 import { discoverYoutubeForTopic } from "@/lib/youtube/discover";
 import { discoverUdemyCourses } from "@/lib/web-discovery/discover-udemy";
@@ -254,8 +256,10 @@ export async function confirmSelectedPath(formData: FormData) {
     if (fetchError) throw new Error(`Failed to load path options: ${fetchError.message}`);
     if (!pathSet) throw new Error("Path options not found or expired. Please generate a new path.");
 
-    const options = pathSet.options as { id: string; stages: any[] }[];
-    const selectedOption = options.find((opt) => opt.id === optionId) ?? options[0];
+    const options = pathSet.options as PathOption[];
+    const offeredOption = options.find((opt) => opt.id === optionId);
+    if (!offeredOption) throw new Error("Choose a valid path option.");
+    const selectedOption = includePurchased(offeredOption, formData.getAll("purchasedResourceId").map(String));
     if (!selectedOption) throw new Error("No path option available to confirm.");
 
     const { data: path, error: pathError } = await service

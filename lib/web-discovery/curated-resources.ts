@@ -3,6 +3,12 @@ import type { SeedResource } from "@/lib/ai/seed-resources";
 // Exact free learning pages; paid certificates, subscriptions and upgrades are excluded.
 // Availability is still checked by prepareCandidates before a path is offered.
 export const CURATED_LEARNING_RESOURCES: SeedResource[] = [
+{"title":"Learn Node.js — Scrimba","url":"https://scrimba.com/learn-nodejs-c00ho9qqh6","topic_hints":["node.js","nodejs","node","backend javascript","event loop"],"platform":"article","resource_type":"course","price":0,"currency":"USD"},
+{"title":"Learn Express.js — Scrimba","url":"https://scrimba.com/learn-expressjs-c062las154","topic_hints":["express","expressjs","express.js","node rest api"],"platform":"article","resource_type":"course","price":0,"currency":"USD"},
+{"title":"Learn SQL — Scrimba","url":"https://scrimba.com/learn-sql-c0aviq0aha","topic_hints":["sql","postgresql","database queries","joins"],"platform":"article","resource_type":"course","price":0,"currency":"USD"},
+{"title":"Learn TypeScript — Scrimba","url":"https://scrimba.com/learn-typescript-c03c","topic_hints":["typescript"],"platform":"article","resource_type":"course","price":0,"currency":"USD"},
+{"title":"Learn Next.js — Scrimba","url":"https://scrimba.com/learn-nextjs-c02moisq6a","topic_hints":["nextjs","next.js"],"platform":"article","resource_type":"course","price":0,"currency":"USD"},
+{"title":"Intro to Supabase — Scrimba","url":"https://scrimba.com/intro-to-supabase-c0abltfqed","topic_hints":["supabase"],"platform":"article","resource_type":"course","price":0,"currency":"USD"},
   {
     "title": "Learn HTML and CSS — Scrimba",
     "url": "https://scrimba.com/learn-html-and-css-c0p",

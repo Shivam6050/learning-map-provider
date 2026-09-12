@@ -1,3 +1,4 @@
+import { PathSelectionForm } from "@/components/PathSelectionForm";
 import { courseLink } from "@/lib/affiliates/links";
 import { Money, RememberCurrency } from "@/components/CurrencyProvider";
 import { providerName } from "@/lib/web-discovery/providers";
@@ -140,7 +141,7 @@ export default async function OnboardingSelectPage({
                     {option.tagline}
                   </p>
 
-                  {option.paid_alternatives?.length > 0 && <div className="mt-4 rounded-xl border border-amber-500/30 p-3 text-xs text-slate-300"><p className="mb-2 font-semibold text-amber-300">Available paid options above this tier’s budget</p>{option.paid_alternatives.map((course: any) => { const link = courseLink(course.url); return <p key={course.url} className="mt-2"><a href={link.href} target="_blank" rel={link.affiliate ? "sponsored noopener noreferrer" : "noopener noreferrer"} className="underline">{course.title}</a> — <Money amount={course.cost} currency={pathSet.currency} />{course.months ? " for " + course.months + " month(s)" : ""}. Not included in the path total.</p>; })}</div>}
+
                   {option.subscriptions?.map((plan: any) => <p key={plan.provider} className="mt-4 rounded-xl border border-slate-700 p-3 text-xs text-slate-300">Scrimba Pro: {plan.months} month(s) × <Money amount={plan.monthly_price} currency={pathSet.currency} />. Included once across selected courses, starting at the first paid stage. Renews monthly until cancelled.</p>)}
                   <div className="mt-5 flex items-baseline justify-between rounded-2xl bg-slate-900/80 p-4 border border-slate-800">
                     <div>
@@ -226,11 +227,7 @@ export default async function OnboardingSelectPage({
                   </div>
                 </div>
 
-                <form action={confirmSelectedPath} className="mt-8">
-                  <input type="hidden" name="setId" value={pathSet.setId} />
-                  <input type="hidden" name="optionId" value={option.id} />
-                  {paidUnavailable ? <p className="text-xs text-slate-400">Generate again when paid courses are available, or choose the free route.</p> : <ConfirmPathButton />}
-                </form>
+                <PathSelectionForm setId={pathSet.setId} optionId={option.id} alternatives={option.paid_alternatives ?? []} unavailable={paidUnavailable} signedIn={!!user} currency={pathSet.currency} />
               </div>
             );
           })}

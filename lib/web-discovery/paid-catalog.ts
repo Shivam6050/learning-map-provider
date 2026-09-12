@@ -4,6 +4,10 @@ import { getConversionRate } from "@/lib/currency/convert";
 
 export const SCRIMBA_PRICE_SOURCE = "https://scrimba.com/articles/scrimba-vs-udemy-for-learning-to-code-which-platform-is-right-for-you/";
 export const PAID_CATALOG = [
+  { title: "Placement 360 — GeeksforGeeks", url: "https://www.geeksforgeeks.org/courses/placement-360-cip-complete-tech-interview", topics: ["dsa", "data structures", "algorithms", "sql", "interview", "low level design"], subscription: false },
+  { title: "MERN Full Stack — GeeksforGeeks", url: "https://www.geeksforgeeks.org/courses/mern-full-stack-live-course-ibm-certifications", topics: ["node", "nodejs", "express", "react", "mongodb", "mern", "fullstack", "full stack", "javascript"], subscription: false },
+  { title: "Backend Developer Path — Scrimba Pro (stage-relevant modules)", url: "https://scrimba.com/the-backend-developer-path-c0tbi0l98f", topics: ["node", "nodejs", "node.js", "express", "nestjs", "sql", "postgresql", "backend architecture", "backend security", "backend deployment"], subscription: true },
+  { title: "Fullstack Developer Path — Scrimba Pro (stage-relevant modules)", url: "https://scrimba.com/fullstack-path-c0fullstack", topics: ["fullstack", "full stack", "full-stack"], subscription: true },
   { title: "Advanced React — Scrimba Pro", url: "https://scrimba.com/advanced-react-c02h", topics: ["react", "jsx"], subscription: true },
   ...["html", "css", "javascript", "python", "sql", "react", "typescript", "git"].map(topic => ({ title: topic.toUpperCase() + " Certification Course — W3Schools", url: "https://campus.w3schools.com/products/" + topic + "-course", topics: [topic], subscription: false })),
 ];

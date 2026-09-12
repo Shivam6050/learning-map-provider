@@ -708,7 +708,7 @@ export async function ensureSeedCandidates(
       title: seed.title, url: seed.url, platform: seed.platform, resource_type: seed.resource_type,
       price: quote.price, currency: quote.currency, trust_status: "allowlisted", signals: subscription?.signals ?? {},
     }, { onConflict: "url" }).select("*").single();
-    if (error) throw new Error(`Resource storage failed: ${error.message}`);
+    if (error) { console.warn("[seed resource storage]", seed.url, error.message); continue; }
     if (data) results.push({ ...data, link_status: data.link_status ?? "unchecked" } as DiscoveredResource);
   }
   return results;
