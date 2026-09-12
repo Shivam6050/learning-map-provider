@@ -1,4 +1,5 @@
 "use client";
+import { ProfileAvatar } from "@/components/ProfileAvatar";
 
 import React from "react";
 
@@ -31,10 +32,10 @@ function currentStageIndex(stages: BoardStage[]): number {
 
 export function PathBoard({
   stages,
-  avatarEmoji,
+  avatarId,
 }: {
   stages: BoardStage[];
-  avatarEmoji: string;
+  avatarId?: string;
 }) {
   const sorted = [...stages].sort((a, b) => a.order_index - b.order_index);
   const height = PADDING_TOP + (sorted.length - 1) * ROW_HEIGHT + PADDING_BOTTOM;
@@ -143,14 +144,14 @@ export function PathBoard({
       </svg>
 
       <div
-        className="pointer-events-none absolute animate-bounce text-3xl drop-shadow-md transition-[left,top] duration-700 ease-in-out"
+        className="pointer-events-none absolute text-3xl drop-shadow-md transition-[left,top] duration-700 ease-in-out"
         style={{
           left: `${(avatarX / VIEW_WIDTH) * 100}%`,
           top: `${avatarY - NODE_RADIUS - 34}px`,
           transform: "translateX(-50%)",
         }}
       >
-        {avatarEmoji}
+        <ProfileAvatar id={avatarId} size={36} />
       </div>
     </div>
   );

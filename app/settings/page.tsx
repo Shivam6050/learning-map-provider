@@ -85,7 +85,9 @@ export default async function SettingsPage({
 
           <AvatarSelectorWithPreview defaultAvatarId={effectiveAvatarId} key={effectiveAvatarId || "default"} />
 
-          <SaveProfileButton />
+          <div className="pt-3">
+            <SaveProfileButton />
+          </div>
         </form>
 
         <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-5 space-y-3">

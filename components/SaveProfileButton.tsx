@@ -18,7 +18,20 @@ export function SaveProfileButton() {
         </>
       ) : (
         <>
-          <span>⚙️</span>
+          <svg
+            aria-hidden="true"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.7"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z" />
+            <path d="M7 3v6h9V3M7 21v-8h10v8" />
+          </svg>
           <span>Save Profile Changes</span>
         </>
       )}

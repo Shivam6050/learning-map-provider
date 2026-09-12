@@ -1,0 +1,22 @@
+.account { display:flex; align-items:center; gap:16px; min-width:0; }
+.identity { display:flex; align-items:center; gap:9px; min-width:0; padding-left:16px; border-left:1px solid #354b40; }
+.displayName { max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; color:#f1eddf; }
+.dropdown { position:relative; }
+.trigger { display:flex; align-items:center; gap:8px; padding:9px 11px; border:1px solid #41554a; border-radius:10px; background:#182923; color:#d6e0d2; cursor:pointer; font-size:12px; }
+.trigger:hover,.trigger[aria-expanded="true"] { border-color:#b6c89d; background:#263d30; }
+.chevron { transition:transform .15s; }
+.panel { position:absolute; top:calc(100% + 13px); right:0; width:300px; max-width:calc(100vw - 32px); padding:8px; border:1px solid #41554a; border-radius:17px; background:#182923; box-shadow:0 20px 55px #0006; z-index:60; }
+.heading { display:flex; flex-direction:column; gap:5px; padding:13px 12px 17px; border-bottom:1px solid #34493c; }
+.heading>span { font-size:9px; letter-spacing:1.6px; color:#aebeac; }
+.heading strong { font-size:15px; font-weight:500; color:#f1eddf; overflow-wrap:anywhere; }
+.panel nav { padding:6px 0; }
+.panel nav a { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:11px 12px; color:#e5eadf; font-size:12px; border-radius:9px; text-decoration:none; }
+.panel nav a:hover,.panel nav a[aria-current="page"] { background:#2a4032; }
+.panel nav small { display:block; margin-top:4px; color:#a9b6ad; font-size:10px; }
+.legal { display:flex; gap:10px; padding:10px 12px; color:#a9b6ad; font-size:11px; border-top:1px solid #34493c; }
+.legal a:hover { color:#f1eddf; }
+.logout { padding-top:5px; }
+.logoutButton { width:100%; display:flex; align-items:center; gap:10px; padding:11px 12px; color:#e4b8a6; background:transparent; border:0; border-radius:9px; cursor:pointer; font-size:12px; text-align:left; }
+.logoutButton:hover { background:#513a322e; color:#ffd2bd; }
+.logoutButton:disabled { opacity:.6; cursor:wait; }
+@media(max-width:640px) { .account { gap:10px; margin-left:auto; } .identity { padding-left:0; border-left:0; } .displayName { max-width:110px; } }

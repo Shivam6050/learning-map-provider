@@ -121,7 +121,7 @@ export default async function PathPage({
   const { data: profile } = user
     ? await supabase.from("profiles").select("avatar_id").eq("id", user.id).maybeSingle()
     : { data: null };
-  const avatarEmoji = getAvatarEmoji(profile?.avatar_id);
+  const avatarId = profile?.avatar_id ?? user?.user_metadata?.avatar_id;
 
   const boardStages = (stages ?? []).map((stage: any) => ({
     id: stage.id,
@@ -232,7 +232,7 @@ export default async function PathPage({
             <p className="mb-3 text-center text-xs font-bold uppercase tracking-wider text-indigo-400">
               Interactive Path Map
             </p>
-            <PathBoard stages={boardStages} avatarEmoji={avatarEmoji} />
+            <PathBoard stages={boardStages} avatarId={avatarId} />
           </div>
         )}
 

@@ -1,3 +1,4 @@
+import { ProfileAvatar } from "@/components/ProfileAvatar";
 import Link from "next/link";
 import { signup } from "@/app/auth/actions";
 import { AVATAR_OPTIONS } from "@/lib/profile/avatars";
@@ -76,8 +77,8 @@ export default async function SignupPage({
                     required
                     className="peer sr-only"
                   />
-                  <span className="flex flex-col items-center justify-center gap-1 rounded-xl border border-slate-800 bg-slate-900/90 p-2.5 text-2xl transition peer-checked:border-indigo-500 peer-checked:bg-indigo-500/10 peer-checked:ring-2 peer-checked:ring-indigo-500/30 hover:border-slate-700">
-                    {avatar.emoji}
+                  <span className="flex flex-col items-center justify-center gap-1 rounded-xl border border-slate-800 bg-slate-900/90 p-2.5 text-2xl transition peer-checked:border-indigo-500 peer-checked:bg-indigo-500/10 peer-checked:ring-2 peer-checked:ring-indigo-500/30 hover:border-slate-700 peer-focus-visible:outline-2 peer-focus-visible:outline-amber-300">
+                    <ProfileAvatar id={avatar.id} size={48} />
                     <span className="text-[10px] font-semibold text-slate-400">{avatar.label}</span>
                   </span>
                 </label>

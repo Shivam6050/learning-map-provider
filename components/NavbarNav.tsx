@@ -1,18 +1,22 @@
 "use client";
 
+import { GeneratePathIcon } from "@/components/GeneratePathIcon";
+
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useTransition, useEffect } from "react";
-import { logout } from "@/app/auth/actions";
-import { LogoutButton } from "@/components/LogoutButton";
-import { getAvatarEmoji } from "@/lib/profile/avatars";
+
+
+import { AccountMenu } from "@/components/AccountMenu";
 
 export function NavbarNav({
   user,
-  avatarEmoji,
+  avatarId,
+  displayName = "Learner",
 }: {
   user: any;
-  avatarEmoji: string;
+  avatarId?: string;
+  displayName?: string;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -34,7 +38,7 @@ export function NavbarNav({
   }
 
   return (
-    <nav className="flex items-center gap-2 sm:gap-4 text-sm font-medium">
+    <nav aria-label="Main navigation" className="flex w-full sm:w-auto items-center gap-2 sm:gap-4 text-sm font-medium">
       <Link
         href="/onboarding"
         onClick={(e) => handleNavClick(e, "/onboarding")}
@@ -51,7 +55,7 @@ export function NavbarNav({
           </>
         ) : (
           <>
-            <span>✨</span> Generate Path
+            <GeneratePathIcon /> Generate Path
           </>
         )}
       </Link>
@@ -77,32 +81,7 @@ export function NavbarNav({
             )}
           </Link>
 
-          <Link
-            href="/settings"
-            onClick={(e) => handleNavClick(e, "/settings")}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-slate-200 transition-all duration-200 active:scale-95 cursor-pointer ${
-              navigatingPath === "/settings"
-                ? "border-indigo-500/80 bg-indigo-500/20 text-indigo-300 ring-1 ring-indigo-500/40"
-                : "border-slate-700/60 bg-slate-900/60 hover:border-indigo-500/50 hover:bg-slate-800"
-            }`}
-            title="Account Settings"
-          >
-            {navigatingPath === "/settings" ? (
-              <>
-                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-indigo-400 border-t-transparent" />
-                <span>Settings...</span>
-              </>
-            ) : (
-              <>
-                <span className="text-lg leading-none">{avatarEmoji}</span>
-                <span className="hidden sm:inline">Settings</span>
-              </>
-            )}
-          </Link>
-
-          <form action={logout}>
-            <LogoutButton />
-          </form>
+          <AccountMenu avatarId={avatarId} displayName={displayName} />
         </>
       ) : (
         <>

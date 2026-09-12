@@ -1,5 +1,7 @@
 "use client";
 
+import { GeneratePathIcon } from "@/components/GeneratePathIcon";
+
 import { useFormStatus } from "react-dom";
 
 export function SubmitButton() {
@@ -18,7 +20,7 @@ export function SubmitButton() {
         </>
       ) : (
         <>
-          <span>✨</span>
+          <GeneratePathIcon />
           <span>Generate My Personal Roadmap</span>
         </>
       )}

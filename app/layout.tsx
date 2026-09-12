@@ -34,11 +34,11 @@ export default async function RootLayout({
     data: { user },
   } = await supabase.auth.getUser();
 
-  let profile: { avatar_id?: string } | null = null;
+  let profile: { avatar_id?: string; display_name?: string } | null = null;
   if (user) {
     const { data: pData, error: pErr } = await supabase
       .from("profiles")
-      .select("avatar_id")
+      .select("avatar_id, display_name")
       .eq("id", user.id)
       .maybeSingle();
     if (!pErr) profile = pData;
@@ -60,13 +60,13 @@ export default async function RootLayout({
           Skip to content
         </a>
         <header className="sticky top-0 z-40 glass-header">
-          <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
+          <div className="mx-auto flex min-h-16 flex-wrap gap-y-3 max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
             <Link href="/" aria-label="LearningMap home" className="inline-flex shrink-0 items-center rounded-md">
               <BrandLogo />
             </Link>
 
             <CurrencySwitcher />
-            <NavbarNav user={user} avatarEmoji={getAvatarEmoji(effectiveAvatarId)} />
+            <NavbarNav user={user} avatarId={effectiveAvatarId} displayName={profile?.display_name?.trim() || user?.user_metadata?.display_name?.trim() || "Learner"} />
           </div>
         </header>
 

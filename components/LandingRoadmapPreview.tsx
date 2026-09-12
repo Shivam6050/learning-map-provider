@@ -1,5 +1,7 @@
 "use client";
 
+import { GeneratePathIcon } from "@/components/GeneratePathIcon";
+
 import { useState } from "react";
 import Link from "next/link";
 
@@ -260,7 +262,7 @@ export function LandingRoadmapPreview() {
               href={`/onboarding?field=${fieldSlug}`}
               className="btn-primary inline-flex items-center gap-2 rounded-xl px-7 py-3.5 text-sm font-semibold shadow-xl"
             >
-              <span>✨</span> Generate Your Custom {selectedDomain.name} Roadmap
+              <GeneratePathIcon /> Generate Your Custom {selectedDomain.name} Roadmap
             </Link>
           );
         })()}
