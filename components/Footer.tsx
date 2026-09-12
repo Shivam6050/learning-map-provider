@@ -1,3 +1,4 @@
+import { BrandLogo } from "@/components/BrandLogo";
 import Link from "next/link";
 
 export function Footer() {
@@ -6,11 +7,8 @@ export function Footer() {
       <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
         <div className="grid gap-8 sm:grid-cols-2 md:grid-cols-4">
           <div className="sm:col-span-2">
-            <Link href="/" className="flex items-center gap-2.5 font-serif text-lg font-bold text-white">
-              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-sm shadow-md">
-                🗺️
-              </span>
-              <span>Learning<span className="gradient-text">Map</span></span>
+            <Link href="/" aria-label="LearningMap home" className="inline-flex shrink-0 items-center rounded-md">
+              <BrandLogo />
             </Link>
             <p className="mt-3 max-w-sm text-xs leading-relaxed text-slate-400">
               Personalized, AI-curated learning paths tailored to your schedule, skill level, and budget.

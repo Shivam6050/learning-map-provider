@@ -1,3 +1,4 @@
+import { BrandLogo } from "@/components/BrandLogo";
 import { cookies } from "next/headers";
 import { CurrencyProvider, CurrencySwitcher } from "@/components/CurrencyProvider";
 import { CURRENCIES, CURRENCY_COOKIE, isCurrency } from "@/lib/currency/format";
@@ -60,13 +61,8 @@ export default async function RootLayout({
         </a>
         <header className="sticky top-0 z-40 glass-header">
           <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-            <Link href="/" className="group flex items-center gap-2.5 font-serif text-xl font-bold tracking-tight">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 text-lg shadow-lg shadow-indigo-500/25 transition group-hover:scale-105">
-                🗺️
-              </span>
-              <span className="text-white transition group-hover:text-indigo-300">
-                Learning<span className="gradient-text">Map</span>
-              </span>
+            <Link href="/" aria-label="LearningMap home" className="inline-flex shrink-0 items-center rounded-md">
+              <BrandLogo />
             </Link>
 
             <CurrencySwitcher />
