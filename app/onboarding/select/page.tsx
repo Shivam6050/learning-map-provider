@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { PathSelectionForm } from "@/components/PathSelectionForm";
 import { courseLink } from "@/lib/affiliates/links";
 import { Money, RememberCurrency } from "@/components/CurrencyProvider";
@@ -13,15 +14,17 @@ import { ConfirmPathButton } from "@/components/ConfirmPathButton";
 export default async function OnboardingSelectPage({
   searchParams,
 }: {
-  searchParams: Promise<{ set?: string; optionId?: string; autoConfirm?: string; field?: string; quizScore?: string; quizImplied?: string; selfReported?: string; finalLevel?: string }>;
+  searchParams: Promise<{ error?: string; purchased?: string; set?: string; optionId?: string; autoConfirm?: string; field?: string; quizScore?: string; quizImplied?: string; selfReported?: string; finalLevel?: string }>;
 }) {
-  const { set, optionId, autoConfirm, field: fieldParam, quizScore, selfReported, finalLevel } = await searchParams;
+  const { error, purchased, set, optionId, autoConfirm, field: fieldParam, quizScore, selfReported, finalLevel } = await searchParams;
   const service = createServiceClient();
 
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  if (!user) redirect("/login?next=" + encodeURIComponent("/onboarding/select?set=" + (set ?? "")));
 
   if (autoConfirm === "1" && set && optionId && user) {
     const formData = new FormData();
@@ -35,6 +38,8 @@ export default async function OnboardingSelectPage({
         .from("pending_path_sets")
         .select("id, field_id, skill_level, weekly_hours, budget_total, currency, options, fields(name, slug)")
         .eq("id", set)
+        .eq("user_id", user.id)
+        .gt("expires_at", new Date().toISOString())
         .maybeSingle()
     : { data: null };
 
@@ -91,6 +96,7 @@ export default async function OnboardingSelectPage({
   return (
     <div className="relative min-h-[calc(100vh-64px)] bg-slate-950 text-slate-100 bg-grid-pattern py-12">
       <RememberCurrency value={pathSet.currency} />
+      {error && <p role="alert" className="mx-auto max-w-4xl rounded-xl border border-amber-500/40 p-4 text-sm text-amber-200">{error}</p>}
       <div className="glow-orb-indigo top-10 left-1/3" />
       <div className="glow-orb-purple bottom-10 right-10" />
 
@@ -227,7 +233,7 @@ export default async function OnboardingSelectPage({
                   </div>
                 </div>
 
-                <PathSelectionForm setId={pathSet.setId} optionId={option.id} alternatives={option.paid_alternatives ?? []} unavailable={paidUnavailable} signedIn={!!user} currency={pathSet.currency} />
+                <PathSelectionForm setId={pathSet.setId} optionId={option.id} initialPurchased={option.id === optionId ? (purchased ?? "").split(",") : []} alternatives={option.paid_alternatives ?? []} unavailable={paidUnavailable} signedIn={!!user} currency={pathSet.currency} />
               </div>
             );
           })}

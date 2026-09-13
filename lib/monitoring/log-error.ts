@@ -24,6 +24,7 @@ export async function logError(context: string, error: unknown): Promise<void> {
   try {
     await fetch(webhookUrl, {
       method: "POST",
+      signal: AbortSignal.timeout(3000),
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         context,

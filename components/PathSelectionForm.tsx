@@ -7,8 +7,8 @@ import { courseLink } from "@/lib/affiliates/links";
 import { providerName } from "@/lib/web-discovery/providers";
 import type { PaidAlternative } from "@/lib/ai/build-options";
 
-export function PathSelectionForm({setId, optionId, alternatives, unavailable, signedIn, currency}: {setId: string; optionId: string; alternatives: PaidAlternative[]; unavailable: boolean; signedIn: boolean; currency: string}) {
-  const [purchased, setPurchased] = useState<string[]>([]);
+export function PathSelectionForm({setId, optionId, alternatives, unavailable, signedIn, currency, initialPurchased = []}: {setId: string; optionId: string; alternatives: PaidAlternative[]; unavailable: boolean; signedIn: boolean; currency: string; initialPurchased?: string[]}) {
+  const [purchased, setPurchased] = useState<string[]>(initialPurchased.filter(id => alternatives.some(course => course.resource_id === id)));
   return <form action={confirmSelectedPath} className="mt-8 space-y-4">
     <input type="hidden" name="setId" value={setId} /><input type="hidden" name="optionId" value={optionId} />
     {alternatives.length > 0 && <fieldset className="rounded-xl border border-slate-700 p-4 space-y-4">

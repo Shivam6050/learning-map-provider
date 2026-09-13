@@ -32,7 +32,7 @@ export function StageFilterBar({
   };
 
   return (
-    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 backdrop-blur-md">
+    <div className="flex flex-col xl:flex-row items-stretch sm:items-center justify-between gap-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 backdrop-blur-md">
       {/* Filter Tabs */}
       <div className="flex flex-wrap items-center gap-1.5">
         <button
@@ -55,7 +55,7 @@ export function StageFilterBar({
               : "bg-slate-950/80 text-slate-400 border-slate-800 hover:text-amber-300 hover:border-slate-700"
           }`}
         >
-          ⚡ In Progress ({counts.in_progress})
+          In progress ({counts.in_progress})
         </button>
         <button
           type="button"
@@ -66,7 +66,7 @@ export function StageFilterBar({
               : "bg-slate-950/80 text-slate-400 border-slate-800 hover:text-emerald-300 hover:border-slate-700"
           }`}
         >
-          ✓ Completed ({counts.completed})
+          Completed ({counts.completed})
         </button>
         <button
           type="button"
@@ -87,7 +87,7 @@ export function StageFilterBar({
           type="text"
           value={searchQuery}
           onChange={(e) => handleSearch(e.target.value)}
-          placeholder="Search stage topics..."
+          aria-label="Search learning stages" placeholder="Search stage topics..."
           className="w-full rounded-xl border border-slate-800 bg-slate-950/90 pl-9 pr-4 py-1.5 text-xs text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
         />
         <svg

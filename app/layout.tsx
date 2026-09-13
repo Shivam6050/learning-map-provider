@@ -27,8 +27,8 @@ export default async function RootLayout({
 }>) {
   const savedCurrency = (await cookies()).get(CURRENCY_COOKIE)?.value;
   const initialCurrency = isCurrency(savedCurrency) ? savedCurrency : null;
-  const rateEntries = await Promise.all(CURRENCIES.flatMap(from => CURRENCIES.map(async to => [`${from}:${to}`, await getConversionRate(from, to).catch(() => null)] as const)));
-  const rates = Object.fromEntries(rateEntries);
+  const rateEntriesPromise = Promise.all(CURRENCIES.flatMap(from => CURRENCIES.map(async to => [`${from}:${to}`, await getConversionRate(from, to).catch(() => null)] as const)));
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -45,6 +45,8 @@ export default async function RootLayout({
   }
 
   const effectiveAvatarId = profile?.avatar_id ?? (user?.user_metadata?.avatar_id as string | undefined);
+
+  const rates = Object.fromEntries(await rateEntriesPromise);
 
   return (
     <html lang="en" className={`${inter.variable} ${outfit.variable} h-full antialiased dark`}>

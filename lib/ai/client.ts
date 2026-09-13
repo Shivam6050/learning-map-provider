@@ -1,3 +1,4 @@
+import { launchLimits } from "@/lib/config/launch";
 export const GEMINI_MODEL_CANDIDATES = [
   "gemini-2.5-flash",
   "gemini-1.5-flash",
@@ -122,6 +123,7 @@ export type GroundingChunk = { url: string; title: string };
 export async function callWithGoogleSearch(params: {
   prompt: string;
 }): Promise<{ text: string; chunks: GroundingChunk[] }> {
+  if (!launchLimits().searchEnabled) return { text: "", chunks: [] };
   const geminiKey = requireKey();
 
   const failures: string[] = [];

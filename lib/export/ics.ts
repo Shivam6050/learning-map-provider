@@ -5,7 +5,18 @@ function toIcsDate(date: Date): string {
 }
 
 function escapeIcsText(text: string): string {
-  return text.replace(/\\/g, "\\\\").replace(/,/g, "\\,").replace(/;/g, "\\;").replace(/\n/g, "\\n");
+  return text.replace(/\r\n|\r/g, "\n").replace(/\\/g, "\\\\").replace(/,/g, "\\,").replace(/;/g, "\\;").replace(/\n/g, "\\n");
+}
+
+// iCalendar content lines are limited to 75 UTF-8 octets.
+function foldLine(line: string): string {
+  let result = "", bytes = 0;
+  for (const char of line) {
+    const size = new TextEncoder().encode(char).length;
+    if (bytes + size > 75) { result += "\r\n "; bytes = 1; }
+    result += char; bytes += size;
+  }
+  return result;
 }
 
 export function generatePathIcs(params: {
@@ -33,12 +44,13 @@ export function generatePathIcs(params: {
 
       return [
         "BEGIN:VEVENT",
-        `UID:${stage.id}@learning-map`,
+        `UID:${params.pathId}-${stage.id}@learning-map`,
         `DTSTAMP:${now}`,
         `DTSTART;VALUE=DATE:${dtStart}`,
         `DTEND;VALUE=DATE:${dtEnd}`,
         `SUMMARY:${escapeIcsText(`${params.fieldName}: ${stage.title}`)}`,
         `DESCRIPTION:${escapeIcsText(stage.description)}`,
+        "TRANSP:TRANSPARENT",
         "END:VEVENT",
       ].join("\r\n");
     })
@@ -52,5 +64,5 @@ export function generatePathIcs(params: {
     "CALSCALE:GREGORIAN",
     events,
     "END:VCALENDAR",
-  ].join("\r\n");
+  ].join("\r\n").split("\r\n").map(foldLine).join("\r\n") + "\r\n";
 }

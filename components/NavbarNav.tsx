@@ -29,7 +29,7 @@ export function NavbarNav({
   }, [pathname]);
 
   function handleNavClick(e: React.MouseEvent<HTMLAnchorElement>, href: string) {
-    if (pathname === href) return;
+    if (pathname === href || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
     setNavigatingPath(href);
     e.preventDefault();
     startTransition(() => {

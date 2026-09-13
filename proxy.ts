@@ -18,6 +18,7 @@ function isValidUrl(urlString?: string) {
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
+  if (request.nextUrl.pathname === "/api/health") return response;
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const key =

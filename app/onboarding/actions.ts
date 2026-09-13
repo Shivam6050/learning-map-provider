@@ -1,11 +1,13 @@
 "use server";
 
+import { launchLimits } from "@/lib/config/launch";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { generateSkeleton } from "@/lib/ai/skeleton";
 import { judgeStage } from "@/lib/ai/judge";
 import { generatePracticeChecks } from "@/lib/ai/practice-checks";
+import { savePath } from "@/lib/db/save-path";
 import { includePurchased } from "@/lib/ai/include-purchased";
 import type { PathOption } from "@/lib/ai/build-options";
 import { buildPathOptions } from "@/lib/ai/build-options";
@@ -16,7 +18,7 @@ import { discoverWebForTopic } from "@/lib/web-discovery/discover";
 import { cookies } from "next/headers";
 import { CURRENCY_COOKIE } from "@/lib/currency/format";
 import { currencyToRegion } from "@/lib/youtube/region";
-import { ensureField, ensureGuestUser } from "@/lib/db/ensure-seed-data";
+import { ensureField } from "@/lib/db/ensure-seed-data";
 import { getFieldBySlug } from "@/lib/fields/catalog";
 import { getQuizForField, blendSkillLevel, type SkillLevel } from "@/lib/onboarding/skill-quiz";
 import type { DiscoveredResource } from "@/lib/youtube/discover";
@@ -27,17 +29,16 @@ import { prepareCandidates } from "@/lib/link-check/prepare-candidates";
 
 const VALID_SKILL_LEVELS: SkillLevel[] = ["beginner", "intermediate", "advanced"];
 const VALID_CURRENCIES = ["USD", "INR", "EUR"];
-const MAX_GENERATIONS_PER_DAY = process.env.MAX_GENERATIONS_PER_DAY
-  ? Number(process.env.MAX_GENERATIONS_PER_DAY)
-  : 100;
-
 export async function generatePath(formData: FormData) {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const effectiveUserId = user?.id ?? (await ensureGuestUser());
+  if (!user) redirect("/login?next=/onboarding");
+  const effectiveUserId = user.id;
+  const limits = launchLimits();
+  if (limits.paused) redirect("/onboarding?error=New roadmap generation is temporarily paused. Your saved paths are still available.");
 
   // Every field is attacker-controllable regardless of what the <select>/
   // <input> HTML enforces — a direct POST to this action skips all of
@@ -68,18 +69,7 @@ export async function generatePath(formData: FormData) {
 
   (await cookies()).set(CURRENCY_COOKIE, currency, { path: "/", maxAge: 31536000, sameSite: "lax", secure: process.env.NODE_ENV === "production" });
 
-  // Rate limit check
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const service = createServiceClient();
-  const { count: recentGenerations } = await service
-    .from("pending_path_sets")
-    .select("*", { count: "exact", head: true })
-    .eq("user_id", effectiveUserId)
-    .gte("created_at", since);
-
-  if ((recentGenerations ?? 0) >= MAX_GENERATIONS_PER_DAY) {
-    redirect("/onboarding?error=You've reached today's limit of path generations. Please try again later.");
-  }
 
   // Blend the self-reported level with the quiz — only for fields that
   let skillLevel: SkillLevel = selfReportedLevel;
@@ -102,6 +92,12 @@ export async function generatePath(formData: FormData) {
     quizScore = blended.quizScore;
     quizImpliedLevel = blended.quizImpliedLevel;
   }
+
+  // Validate the entire form before reserving capacity. Fail closed if quotas are unavailable.
+  const { data: quota, error: quotaError } = await service.rpc("reserve_launch_generation", { p_user_id: user.id, p_user_limit: limits.userDaily, p_global_limit: limits.globalDaily });
+  if (quotaError || !["allowed", "user_limit", "global_limit"].includes(quota)) redirect("/onboarding?error=Generation is temporarily unavailable. Your saved paths remain available.");
+  if (quota === "user_limit") redirect("/onboarding?error=You have used today's generation allowance. Please return after midnight UTC; your saved paths remain available.");
+  if (quota === "global_limit") redirect("/onboarding?error=Today's shared generation capacity is full. Please return after midnight UTC; your saved paths remain available.");
 
   try {
     // --- Field row needed before discovery now, since discovered
@@ -227,7 +223,7 @@ export async function generatePath(formData: FormData) {
     }
     const message = err instanceof Error ? err.message : "Failed to generate learning path.";
     await logError("generatePath", err);
-    redirect(`/onboarding?error=${encodeURIComponent(message)}`);
+    redirect(`/onboarding?error=${encodeURIComponent("We could not complete generation. Please try again shortly.")}`);
   }
 }
 
@@ -251,6 +247,8 @@ export async function confirmSelectedPath(formData: FormData) {
       .from("pending_path_sets")
       .select("*")
       .eq("id", setId)
+      .eq("user_id", user.id)
+      .gt("expires_at", new Date().toISOString())
       .maybeSingle();
 
     if (fetchError) throw new Error(`Failed to load path options: ${fetchError.message}`);
@@ -262,69 +260,14 @@ export async function confirmSelectedPath(formData: FormData) {
     const selectedOption = includePurchased(offeredOption, formData.getAll("purchasedResourceId").map(String));
     if (!selectedOption) throw new Error("No path option available to confirm.");
 
-    const { data: path, error: pathError } = await service
-      .from("learning_paths")
-      .insert({
-        user_id: user.id,
-        field_id: pathSet.field_id,
-        skill_level: pathSet.skill_level,
-        weekly_hours: pathSet.weekly_hours,
-        budget_total: pathSet.budget_total,
-        currency: pathSet.currency,
-        status: "active",
-      })
-      .select("id")
-      .single();
-
-    if (pathError || !path) throw new Error(`Failed to create learning path: ${pathError?.message}`);
-
-    for (const stage of selectedOption.stages) {
-      const { data: stageRow, error: stageError } = await service
-        .from("stages")
-        .insert({
-          path_id: path.id,
-          title: stage.title,
-          order_index: stage.order_index,
-          description: stage.description,
-          estimated_hours: stage.estimated_hours,
-        })
-        .select("id")
-        .single();
-
-      if (stageError || !stageRow) throw new Error(`Failed to create stage: ${stageError?.message}`);
-
-      if (stage.stage_resources?.length) {
-        const rows = stage.stage_resources.map((sr: any) => ({
-          stage_id: stageRow.id,
-          resource_id: sr.resource_id,
-          order_index: sr.order_index,
-          is_primary: sr.is_primary,
-        }));
-        const { error: linkError } = await service.from("stage_resources").insert(rows);
-        if (linkError) throw new Error(`Failed to link resources: ${linkError.message}`);
-      }
-
-      if (stage.practice_check) {
-        const { error: progressError } = await service.from("stage_progress").insert({
-          stage_id: stageRow.id,
-          user_id: user.id,
-          status: "not_started",
-          practice_check: { description: stage.practice_check },
-        });
-        if (progressError) {
-          throw new Error(`Failed to save practice check: ${progressError.message}`);
-        }
-      }
-    }
-
-    // Clean up — this pending set has been confirmed, no need to keep it.
-    await service.from("pending_path_sets").delete().eq("id", setId);
-
-    redirect(`/paths/${path.id}`);
+    const pathId = await savePath(service, user.id, setId, pathSet, selectedOption);
+    // Keep the pending set until its normal expiry so an interrupted response can retry safely.
+    redirect(`/paths/${pathId}`);
   } catch (err) {
     if (err && typeof err === "object" && "digest" in err) throw err;
     const message = err instanceof Error ? err.message : "Failed to confirm path.";
     await logError("confirmSelectedPath", err);
-    redirect(`/onboarding?error=${encodeURIComponent(message)}`);
+    const purchased = formData.getAll("purchasedResourceId").map(String).join(",");
+    redirect(`/onboarding/select?set=${encodeURIComponent(setId)}&optionId=${encodeURIComponent(optionId)}&purchased=${encodeURIComponent(purchased)}&error=${encodeURIComponent("Saving was interrupted. Please retry or generate a new path if your options expired.")}`);
   }
 }

@@ -1,9 +1,11 @@
 "use client";
+import { ActionButton } from "@/components/ActionButton";
+import styles from "./Roadmap.module.css";
 import { courseLink } from "@/lib/affiliates/links";
 
 import { Money } from "@/components/CurrencyProvider";
 import { providerName } from "@/lib/web-discovery/providers";
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { StageFilterBar, type StageFilter } from "@/components/StageFilterBar";
 import { updateStageProgress, rateResource, savePracticeNote } from "@/app/paths/[id]/actions";
 import { isSafeHttpUrl, ensureHttpUrl } from "@/lib/link-check/url-safety";
@@ -36,6 +38,22 @@ export function FilteredStageList({
   const [editingNoteStageId, setEditingNoteStageId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
+  const [filterVersion, setFilterVersion] = useState(0);
+  useEffect(() => {
+    const navigate = (event: Event) => {
+      const stageId = (event as CustomEvent<string>).detail;
+      if (!stages.some(stage => stage.id === stageId)) return;
+      setActiveFilter("all"); setSearchQuery(""); setFilterVersion(value => value + 1);
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        const target = document.getElementById("stage-" + stageId);
+        target?.scrollIntoView({behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block:"start"});
+        target?.focus({preventScroll:true});
+      }));
+    };
+    window.addEventListener("roadmap-navigate", navigate);
+    return () => window.removeEventListener("roadmap-navigate", navigate);
+  }, [stages]);
+
   const counts = {
     all: stages.length,
     in_progress: stages.filter((s) => (s.stage_progress?.[0]?.status ?? "not_started") === "in_progress").length,
@@ -61,8 +79,8 @@ export function FilteredStageList({
   });
 
   return (
-    <div className="mt-8 space-y-6">
-      <StageFilterBar
+    <div className={styles.stageList + " space-y-6"}>
+      <StageFilterBar key={filterVersion}
         onFilterChange={setActiveFilter}
         onSearchChange={setSearchQuery}
         counts={counts}
@@ -86,11 +104,12 @@ export function FilteredStageList({
               <li
                 key={stage.id}
                 id={`stage-${stage.id}`}
-                className="glass-card scroll-mt-20 rounded-2xl p-6 border-slate-800/80 transition-all hover:border-indigo-500/30"
+                tabIndex={-1}
+                className={styles.stage + " rounded-2xl p-6"}
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <h2 className="font-serif text-lg font-bold text-white">
-                    {stage.order_index + 1}. {stage.title}
+                    <span className={styles.stageNumber}>Stage {String(stage.order_index + 1).padStart(2, "0")}</span>{stage.title}
                   </h2>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${STATUS_STYLE[status]}`}>
@@ -144,7 +163,7 @@ export function FilteredStageList({
                           return (
                             <li
                               key={i}
-                              className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/80 p-3.5 text-sm hover:border-indigo-500/30 transition"
+                              className={styles.course + " flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border text-sm"}
                             >
                               <div className="flex flex-col gap-1 min-w-0">
                                 <div className="flex items-center gap-2">
@@ -154,7 +173,7 @@ export function FilteredStageList({
                                     </span>
                                   )}
                                   <span className="text-[10px] font-semibold text-slate-400 flex items-center gap-1">
-                                    <span>{icon}</span>
+                                    <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
                                     <span className="capitalize">{label}</span>
                                   </span>
                                 </div>
@@ -242,67 +261,30 @@ export function FilteredStageList({
                   </div>
                 ) : null}
 
-                {/* Practice Check & Learner Task Submission Card */}
                 {practiceCheck?.description && (
-                  <div className="mt-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 p-4 text-xs text-amber-200 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-amber-400 uppercase tracking-wider">
-                        ⚡ Practice Check Task
-                      </span>
-                      {practiceCheck.user_submission && (
-                        <span className="rounded-md bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-300 border border-emerald-500/30">
-                          ✓ Notes Saved
-                        </span>
-                      )}
+                  <section className={styles.practice} aria-labelledby={`practice-${stage.id}`}>
+                    <div className={styles.practiceHeader}>
+                      <span className={styles.practiceIcon} aria-hidden="true"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3 9 5-9 5-9-5 9-5ZM3 12l9 5 9-5M3 16l9 5 9-5"/></svg></span>
+                      <div><span className={styles.practiceEyebrow}>THE WORKSHOP · {String(stage.order_index + 1).padStart(2, "0")}</span><h3 id={`practice-${stage.id}`}>Put it into practice</h3></div>
+                      {practiceCheck.user_submission && <span className={styles.savedNote}>✓ Notes saved</span>}
                     </div>
-                    <p className="leading-relaxed font-medium">{practiceCheck.description}</p>
-
-                    {/* Learner Submission Note Display / Edit */}
+                    <div className={styles.practiceBrief}><span className={styles.practiceLabel}>Your challenge</span><p>{practiceCheck.description}</p></div>
                     {practiceCheck.user_submission && editingNoteStageId !== stage.id ? (
-                      <div className="rounded-xl border border-amber-500/20 bg-slate-950/80 p-3 text-slate-300">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">
-                            Your Notes / Submission Proof:
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => setEditingNoteStageId(stage.id)}
-                            className="text-[10px] text-indigo-300 hover:underline"
-                          >
-                            ✏️ Edit Notes
-                          </button>
-                        </div>
-                        <p className="text-xs whitespace-pre-wrap font-mono">{practiceCheck.user_submission}</p>
+                      <div className={styles.practiceNotes}>
+                        <div className={styles.notesHeading}><span className={styles.practiceLabel}>Your project notes</span><button type="button" onClick={() => setEditingNoteStageId(stage.id)}>Edit notes ↗</button></div>
+                        <p className={styles.savedText}>{practiceCheck.user_submission}</p>
                       </div>
                     ) : (
-                      <form
-                        action={(formData) => {
-                          startTransition(async () => {
-                            await savePracticeNote(formData);
-                            setEditingNoteStageId(null);
-                          });
-                        }}
-                        className="space-y-2 mt-2"
-                      >
+                      <form action={(formData) => { startTransition(async () => { await savePracticeNote(formData); setEditingNoteStageId(null); }); }} className={styles.practiceNotes}>
                         <input type="hidden" name="stageId" value={stage.id} />
                         <input type="hidden" name="pathId" value={path.id} />
-                        <textarea
-                          name="submissionNote"
-                          rows={2}
-                          defaultValue={practiceCheck.user_submission ?? ""}
-                          placeholder="Paste github repo URL or write your project notes here..."
-                          className="w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-white placeholder-slate-500 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500/30"
-                        />
-                        <button
-                          type="submit"
-                          disabled={isPending}
-                          className="rounded-lg bg-amber-600 px-3 py-1.5 text-[11px] font-bold text-white transition hover:bg-amber-500 shadow-md"
-                        >
-                          {isPending ? "Saving..." : "Save My Notes / Submission"}
-                        </button>
+                        <label className={styles.practiceLabel} htmlFor={`project-note-${stage.id}`}>Your project notes</label>
+                        <p className={styles.notesHint} id={`note-hint-${stage.id}`}>Capture what you built, what you learned, or a link to your work.</p>
+                        <textarea id={`project-note-${stage.id}`} aria-describedby={`note-hint-${stage.id}`} name="submissionNote" rows={4} defaultValue={practiceCheck.user_submission ?? ""} placeholder="What did you try? What would you improve next?" className={styles.practiceInput} />
+                        <div className={styles.notesFooter}><span>A small step. Something you can show.</span><button type="submit" disabled={isPending} className={styles.saveNote}><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M6 3h12v18l-6-4-6 4V3Z"/></svg>{isPending ? "Saving…" : "Save project notes"}</button></div>
                       </form>
                     )}
-                  </div>
+                  </section>
                 )}
 
                 {/* Stage Progress Action */}
@@ -316,12 +298,12 @@ export function FilteredStageList({
                         name="status"
                         value={status === "not_started" ? "in_progress" : "completed"}
                       />
-                      <button
+                      <ActionButton
                         type="submit"
                         className="btn-primary rounded-xl px-4 py-2 text-xs font-semibold shadow-md"
                       >
                         {status === "not_started" ? "Start This Stage" : "Mark Complete ✓"}
-                      </button>
+                      </ActionButton>
                     </form>
                   )}
                   {status !== "not_started" && (
@@ -329,12 +311,12 @@ export function FilteredStageList({
                       <input type="hidden" name="stageId" value={stage.id} />
                       <input type="hidden" name="pathId" value={path.id} />
                       <input type="hidden" name="status" value="not_started" />
-                      <button
+                      <ActionButton
                         type="submit"
                         className="rounded-xl border border-slate-700 bg-slate-900 px-3.5 py-2 text-xs font-semibold text-slate-300 transition hover:bg-slate-800"
                       >
                         Reset Progress
-                      </button>
+                      </ActionButton>
                     </form>
                   )}
                 </div>

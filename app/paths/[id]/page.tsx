@@ -1,3 +1,5 @@
+import { AddToCalendar } from "@/components/AddToCalendar";
+import styles from "@/components/Roadmap.module.css";
 import { pathCost } from "@/lib/pricing/path-cost";
 import { courseLink } from "@/lib/affiliates/links";
 import { Money, RememberCurrency } from "@/components/CurrencyProvider";
@@ -6,8 +8,9 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { PathBoard } from "@/components/PathBoard";
 import { FilteredStageList } from "@/components/FilteredStageList";
-import { getAvatarEmoji } from "@/lib/profile/avatars";
-import { prepareCandidates } from "@/lib/link-check/prepare-candidates";
+
+import { convertPrice } from "@/lib/currency/convert";
+import { isSafeHttpUrl } from "@/lib/link-check/url-safety";
 import type { DiscoveredResource } from "@/lib/youtube/discover";
 import { computeStageTimeline } from "@/lib/paths/timeline";
 import { getFieldBySlug } from "@/lib/fields/catalog";
@@ -85,11 +88,19 @@ export default async function PathPage({
     if (catalogMatch) fieldName = catalogMatch.name;
   }
 
-  const originalResources = (stages ?? []).flatMap((stage: any) => (stage.stage_resources ?? []).flatMap((sr: any) => {
+  const originalResources: DiscoveredResource[] = (stages ?? []).flatMap((stage: any) => (stage.stage_resources ?? []).flatMap((sr: any) => {
     const resource = Array.isArray(sr.resources) ? sr.resources[0] : sr.resources;
     return resource ? [resource as DiscoveredResource] : [];
   }));
-  const refreshed = await prepareCandidates(originalResources, path.currency);
+  // Saved roadmaps render from their last verified resource data. External
+  // availability/price checks belong to selection, not every view or note save.
+  const uniqueResources = [...new Map(originalResources.map(resource => [resource.url, resource])).values()];
+  const savedResources = await Promise.all(uniqueResources.map(async resource => {
+    if (resource.link_status === "broken" || !isSafeHttpUrl(resource.url)) return null;
+    const price = await convertPrice(resource.price, resource.currency, path.currency);
+    return price === null ? null : { ...resource, price, currency: path.currency };
+  }));
+  const refreshed = savedResources.filter((resource): resource is DiscoveredResource => resource !== null);
   const refreshedByUrl = new Map(refreshed.map(resource => [resource.url, resource]));
   let hiddenResources = 0;
   let totalCost = 0;
@@ -119,11 +130,6 @@ export default async function PathPage({
   );
 
   const { data: { user } } = await supabase.auth.getUser();
-
-  const { data: profile } = user
-    ? await supabase.from("profiles").select("avatar_id").eq("id", user.id).maybeSingle()
-    : { data: null };
-  const avatarId = profile?.avatar_id ?? user?.user_metadata?.avatar_id;
 
   const boardStages = (stages ?? []).map((stage: any) => ({
     id: stage.id,
@@ -158,95 +164,18 @@ export default async function PathPage({
   const stageTimelineRecord: Record<string, { startWeek: number; endWeek: number }> =
     Object.fromEntries(stageTimeline);
 
-  return (
-    <div className="relative min-h-[calc(100vh-64px)] bg-slate-950 text-slate-100 bg-grid-pattern py-12">
-      <RememberCurrency value={path.currency} />
-      {billing.subscriptions.map(plan => <p key={plan.provider} className="mx-auto max-w-6xl px-6 py-2 text-sm text-slate-300">Scrimba Pro: {plan.months} month(s) included in the estimated total, counted once across courses. Start at your first paid stage; cancel renewal when finished.</p>)}
-      {refreshed.some(resource => courseLink(resource.url, resource.signals?.affiliate === true).affiliate) && <p className="mx-auto max-w-6xl px-6 py-2 text-sm text-slate-400">Some course links are affiliate links. Learning Map may earn a commission if you buy through them. Selection is based on relevance and your budget.</p>}
-      <p className="mx-auto max-w-6xl px-6 py-3 text-sm text-slate-300">{hiddenResources > 0 ? `${hiddenResources} resource(s) are temporarily hidden because their link or price could not be verified. Your learning progress is preserved. ` : ""}Costs are current planning estimates; confirm the final price with the provider.</p>
-      <div className="glow-orb-indigo top-10 left-1/3" />
-      <div className="glow-orb-purple bottom-10 right-10" />
-
-      <div className="relative mx-auto max-w-3xl px-4 sm:px-6">
-        <div className="flex items-center justify-between">
-          <p className="text-xs font-bold uppercase tracking-wider text-indigo-400">{fieldName}</p>
-          <span className="rounded-full bg-indigo-500/10 px-3 py-1 text-xs font-semibold text-indigo-300 border border-indigo-500/20 capitalize">
-            {path.skill_level} level
-          </span>
-        </div>
-
-        <div className="mt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <h1 className="font-serif text-3xl font-extrabold text-white sm:text-4xl">Your Learning Roadmap</h1>
-          <a
-            href={`/paths/${path.id}/ics`}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/80 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:bg-slate-800 hover:border-slate-600 shadow-md"
-            download
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 text-indigo-400">
-              <path d="M5.75 2a.75.75 0 0 1 .75.75V4h7V2.75a.75.75 0 0 1 1.5 0V4h.25A2.75 2.75 0 0 1 18 6.75v8.5A2.75 2.75 0 0 1 15.25 18H4.75A2.75 2.75 0 0 1 2 15.25v-8.5A2.75 2.75 0 0 1 4.75 4H5V2.75A.75.75 0 0 1 5.75 2Zm-1 3.5c-.69 0-1.25.56-1.25 1.25v8.5c0 .69.56 1.25 1.25 1.25h10.5c.69 0 1.25-.56 1.25-1.25v-8.5c0-.69-.56-1.25-1.25-1.25H4.75Z" />
-            </svg>
-            Export to Calendar (.ics)
-          </a>
-        </div>
-
-        {/* Path Metrics Bar */}
-        <div className="glass-card mt-6 grid grid-cols-2 gap-4 rounded-2xl p-5 text-center border-slate-800 sm:grid-cols-4">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Timeline</p>
-            <p className="mt-1 text-base font-bold text-white">~{totalWeeks} weeks</p>
-          </div>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Weekly Hours</p>
-            <p className="mt-1 text-base font-bold text-white">{path.weekly_hours} hrs/week</p>
-          </div>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Your Budget</p>
-            <p className="mt-1 text-base font-bold text-white">
-              <Money amount={path.budget_total} currency={path.currency} />
-            </p>
-          </div>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Est. Cost</p>
-            <p className="mt-1 text-base font-bold text-emerald-400">
-              <Money amount={totalCost} currency={path.currency} freeLabel />
-            </p>
-          </div>
-        </div>
-
-        {/* Progress Bar */}
-        <div className="mt-6">
-          <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
-            <span>Overall Path Progress</span>
-            <span className="text-indigo-400">
-              {completedStages} of {totalStages} stages complete ({progressPct}%)
-            </span>
-          </div>
-          <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-slate-900 border border-slate-800">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-400 transition-all duration-500 shadow-md"
-              style={{ width: `${progressPct}%` }}
-            />
-          </div>
-        </div>
-
-        {/* Interactive Board View */}
-        {boardStages.length > 0 && (
-          <div className="glass-card mt-8 rounded-3xl p-6 border-slate-800">
-            <p className="mb-3 text-center text-xs font-bold uppercase tracking-wider text-indigo-400">
-              Interactive Path Map
-            </p>
-            <PathBoard stages={boardStages} avatarId={avatarId} />
-          </div>
-        )}
-
-        {/* Stage List with Search & Filtering */}
-        <FilteredStageList
-          stages={stages ?? []}
-          stageTimeline={stageTimelineRecord}
-          path={path}
-          myRatingByResource={myRatingByResource}
-        />
-      </div>
+  const nextStage = boardStages.find((stage: { status: string }) => stage.status === "in_progress") ?? boardStages.find((stage: { status: string }) => stage.status !== "completed");
+  return <main className={styles.page}>
+    <RememberCurrency value={path.currency} />
+    <div className={styles.shell}>
+      <a href="/dashboard" className={styles.breadcrumb}>← My learning paths <span>/</span> Your roadmap</a>
+      <header className={styles.hero}>
+        <div><p className={styles.eyebrow}>Your personal curriculum · {path.skill_level === "advanced" ? "Expert" : path.skill_level}</p><h1 className={styles.title}>{fieldName || "Your learning roadmap"}</h1><p className={styles.intro}>A clear route from knowledge to practice. Work through each stage, build something real, and keep your progress in one place.</p><div className={styles.heroActions}>{nextStage && <a href={"#stage-"+nextStage.id} className={styles.continue}>{completedStages ? "Continue learning" : "Start your first stage"} ↗</a>}<AddToCalendar pathId={path.id} /></div></div>
+        <div className={styles.progress}><div className={styles.progressNumber}>{progressPct}<span>%</span></div><p>{completedStages} of {totalStages} stages completed<br/>{nextStage ? "One focused session at a time." : "Every stage completed. Well done."}</p><div className={styles.track} role="progressbar" aria-label="Roadmap completion" aria-valuenow={progressPct} aria-valuemin={0} aria-valuemax={100}><div style={{width:progressPct+"%"}}/></div></div>
+      </header>
+      <dl className={styles.stats}><div className={styles.stat}><dt>Learning pace</dt><dd>{path.weekly_hours} <small>hrs / week</small></dd></div><div className={styles.stat}><dt>Estimated timeline</dt><dd>{totalWeeks} <small>weeks</small></dd></div><div className={styles.stat}><dt>Your budget</dt><dd><Money amount={path.budget_total} currency={path.currency}/></dd></div><div className={styles.stat}><dt>Course cost estimate</dt><dd><Money amount={totalCost} currency={path.currency} freeLabel/></dd></div></dl>
+      <div className={styles.layout}><aside className={styles.sidebar}><h2 className={styles.sideHeading}>The route <span>{String(totalStages).padStart(2,"0")} stages</span></h2><PathBoard stages={boardStages}/></aside><section className={styles.content} aria-label="Learning stages"><h2 className={styles.contentHeading}>Your next steps, laid out.</h2><p className={styles.contentIntro}>Learn the concepts. Apply them in the practice task. Mark the stage complete when you’re ready.</p><FilteredStageList stages={stages ?? []} stageTimeline={stageTimelineRecord} path={path} myRatingByResource={myRatingByResource}/></section></div>
+      <footer className={styles.disclosures}>{hiddenResources > 0 && <p>{hiddenResources} resources are temporarily hidden while their links or prices cannot be verified. Your progress is preserved.</p>}<p>Costs use the last verified course prices and are planning estimates. Availability and prices may change; confirm with the provider before purchasing.</p>{billing.subscriptions.map(plan=><p key={plan.provider}>Scrimba Pro: {plan.months} month(s) included, counted once across courses. Start access at the first paid stage; cancel renewal when finished.</p>)}{refreshed.some(resource=>courseLink(resource.url,resource.signals?.affiliate===true).affiliate)&&<p>Some course links are affiliate links. LearningMap may earn a commission if you purchase through them.</p>}</footer>
     </div>
-  );
+  </main>;
 }
