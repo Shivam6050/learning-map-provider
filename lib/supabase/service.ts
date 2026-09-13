@@ -68,7 +68,7 @@ export function createServiceClient() {
     key.includes("your-service-role") ||
     key.includes("placeholder")
   ) {
-    return createFallbackServiceClient() as any;
+    throw new Error("Server database configuration is unavailable");
   }
 
   return createSupabaseClient(url!, key, {

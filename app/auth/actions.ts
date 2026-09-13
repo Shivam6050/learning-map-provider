@@ -19,8 +19,8 @@ export async function signup(formData: FormData) {
     redirect("/signup?error=You must accept the Terms and Privacy Policy");
   }
 
-  if (password.length < 8) {
-    redirect("/signup?error=Password must be at least 8 characters");
+  if (password.length < 8 || password.length > 128) {
+    redirect("/signup?error=Password must be between 8 and 128 characters");
   }
   if (!displayName || displayName.length > 100) {
     redirect("/signup?error=Name must be between 1 and 100 characters");
@@ -83,7 +83,7 @@ export async function login(formData: FormData) {
     if (error) {
       const msg = error.message || String(error);
       if (msg.toLowerCase().includes("captcha")) {
-        errorMessage = "CAPTCHA protection is enabled on your Supabase project. Please disable CAPTCHA in Supabase Dashboard (Authentication -> Security) or use Google Sign-In.";
+        errorMessage = "CAPTCHA protection is enabled on your Supabase project. Please complete verification or use Google Sign-In.";
       } else {
         errorMessage = (!msg || msg === "{}" || msg === "[object Object]")
           ? "Supabase service error (502 Bad Gateway). Please check your Supabase project status."
@@ -96,7 +96,7 @@ export async function login(formData: FormData) {
     }
     const rawMsg = typeof err === "string" ? err : err?.message || String(err);
     if (rawMsg.toLowerCase().includes("captcha")) {
-      errorMessage = "CAPTCHA protection is enabled on your Supabase project. Please disable CAPTCHA in Supabase Dashboard (Authentication -> Security) or use Google Sign-In.";
+      errorMessage = "CAPTCHA protection is enabled on your Supabase project. Please complete verification or use Google Sign-In.";
     } else if (!rawMsg || rawMsg === "{}" || rawMsg === "[object Object]" || rawMsg.includes("502")) {
       errorMessage = "Supabase service error (502 Bad Gateway). Please check your Supabase project status.";
     } else if (rawMsg.includes("fetch failed") || rawMsg.includes("ENOTFOUND")) {
@@ -142,8 +142,8 @@ export async function updatePasswordAfterReset(formData: FormData) {
   const supabase = await createClient();
   const password = String(formData.get("password"));
 
-  if (password.length < 8) {
-    redirect("/reset-password?error=Password must be at least 8 characters");
+  if (password.length < 8 || password.length > 128) {
+    redirect("/reset-password?error=Password must be between 8 and 128 characters");
   }
 
   // Requires the recovery session established by /auth/callback after

@@ -24,3 +24,7 @@ Run node scripts/load-test.mjs for a tiny local liveness baseline. It does not e
 Set LOAD_BASE_URL, LOAD_ALLOW_REMOTE (exact staging origin), LOAD_PATHS, LOAD_CONCURRENCY and LOAD_REQUESTS for authorized staging runs. LOAD_COOKIE can hold a test-account session cookie in the environment; do not commit or print it. Redirects are failures so login redirects cannot masquerade as successful authenticated traffic. Default p95 gate is 2000 ms; adjust LOAD_P95_MS for an agreed SLO.
 
 The probe downloads HTML only: it does not emulate client JavaScript, database mutations or AI generation. Use browser journey tests and a job/provider test environment to cover those separately. Never stress a production database or paid generation API as a capacity experiment.
+
+
+## Verification — 2026-09-14
+User applied migrations 008 and 009. Live REST checks confirmed reserve_launch_generation is installed, rejects invalid inputs, and denies anonymous execution. Both quota tables are readable by the service role and block anonymous access. No quota was consumed. Concurrency, authenticated cross-user isolation, and end-to-end generation tests remain outstanding.

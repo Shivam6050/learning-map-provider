@@ -15,3 +15,7 @@ Keep Gemini on its free billing tier and verify every provider account separatel
 Vercel Hobby is for non-commercial personal use. Obtain eligibility confirmation or use a suitable host/plan before launching the affiliate business: https://vercel.com/docs/limits/fair-use-guidelines
 
 Release remains blocked on database verification, production build and journey tests, provider allowance checks, and deployment monitoring. Generation is still synchronous; this is a small pilot, not a large-scale service.
+
+
+## Verification — 2026-09-14
+User applied migrations 008 and 009. Live REST checks confirmed reserve_launch_generation is installed, rejects invalid inputs, and denies anonymous execution. Both quota tables are readable by the service role and block anonymous access. No quota was consumed. Concurrency, authenticated cross-user isolation, and end-to-end generation tests remain outstanding.

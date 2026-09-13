@@ -1,5 +1,6 @@
 "use server";
 
+import { requireUuid } from "@/lib/security/validation";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -16,8 +17,9 @@ export async function updateStageProgress(formData: FormData) {
 
   if (!user) redirect("/login");
 
-  const stageId = String(formData.get("stageId"));
-  const pathId = String(formData.get("pathId"));
+  const stageId = requireUuid(String(formData.get("stageId")));
+  const pathId = requireUuid(String(formData.get("pathId")));
+  await assertOwnedStage(supabase, stageId, pathId);
   const status = String(formData.get("status")) as Status;
 
   if (!VALID_STATUSES.includes(status)) {
@@ -85,9 +87,12 @@ export async function savePracticeNote(formData: FormData) {
 
   if (!user) redirect("/login");
 
-  const stageId = String(formData.get("stageId"));
-  const pathId = String(formData.get("pathId"));
+  const stageId = requireUuid(String(formData.get("stageId")));
+  const pathId = requireUuid(String(formData.get("pathId")));
   const userSubmission = String(formData.get("submissionNote") ?? "").trim();
+
+  if (userSubmission.length > 10000) throw new Error("Project notes must be at most 10,000 characters");
+  await assertOwnedStage(supabase, stageId, pathId);
 
   // Fetch current progress row to merge with existing practice_check JSON
   const { data: existingProgress } = await supabase
@@ -126,7 +131,7 @@ export async function rateResource(formData: FormData) {
   if (!user) redirect("/login");
 
   const resourceId = String(formData.get("resourceId"));
-  const pathId = String(formData.get("pathId"));
+  const pathId = requireUuid(String(formData.get("pathId")));
   const rating = Number(formData.get("rating"));
 
   if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
@@ -157,4 +162,10 @@ export async function rateResource(formData: FormData) {
   }
 
   revalidatePath(`/paths/${pathId}`);
+}
+
+async function assertOwnedStage(supabase: Awaited<ReturnType<typeof createClient>>, stageId: string, pathId: string) {
+ // User-session RLS enforces parent ownership; also bind the submitted path.
+ const { data, error } = await supabase.from("stages").select("id").eq("id", stageId).eq("path_id", pathId).maybeSingle();
+ if (error || !data) throw new Error("Stage unavailable");
 }

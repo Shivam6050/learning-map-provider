@@ -14,13 +14,6 @@ export function getSiteUrl() {
 }
 
 export function getRequestOrigin(request: Request) {
-  const requestUrl = new URL(request.url);
-  const forwardedHost = request.headers.get("x-forwarded-host");
-  const forwardedProto = request.headers.get("x-forwarded-proto");
-
-  if (forwardedHost) {
-    return `${forwardedProto ?? "https"}://${forwardedHost}`;
-  }
-
-  return requestUrl.origin;
+ // Never trust caller-supplied forwarding headers for authentication redirects.
+ return process.env.NODE_ENV === "production" ? new URL(getSiteUrl()).origin : new URL(request.url).origin;
 }
