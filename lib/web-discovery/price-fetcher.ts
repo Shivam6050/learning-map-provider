@@ -1,3 +1,4 @@
+import { parseGfgOffer } from "./gfg-offer";
 import { w3schoolsQuote } from "./w3schools-quote";
 import { curatedLearningResource } from "./curated-resources";
 import { inspectUrl } from "@/lib/link-check/check-url";
@@ -132,7 +133,7 @@ export async function fetchRealtimePrice(url: string, targetCurrency = "INR"): P
   if (isPaidCourseUrl(url)) {
     const page = await inspectUrl(url);
     if (page.status !== "ok" || !page.html || !isPaidCourseUrl(page.url)) return unknown;
-    const offer = parseCourseOffer(page.html, page.url);
+    const offer = host === "geeksforgeeks.org" ? parseGfgOffer(page.html, page.url) : parseCourseOffer(page.html, page.url);
     if (!offer) return unknown;
     const rate = await getConversionRate(offer.currency, currency);
     if (!rate || !Number.isFinite(rate)) return unknown;
