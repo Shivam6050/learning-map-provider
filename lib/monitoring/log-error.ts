@@ -13,8 +13,8 @@
  * write a thin adapter here if their format needs translation.
  */
 export async function logError(context: string, error: unknown): Promise<void> {
-  const message = error instanceof Error ? error.message : String(error);
-  const stack = error instanceof Error ? error.stack : undefined;
+  const message = redact(error instanceof Error ? error.message : String(error));
+  const stack = undefined; // Do not forward stack traces or request context to external webhooks.
 
   console.error(`[${context}]`, message);
 
@@ -39,4 +39,12 @@ export async function logError(context: string, error: unknown): Promise<void> {
     // request it's reporting on — swallow, the console.error above
     // already happened.
   }
+}
+
+function redact(text: string): string {
+ let safe = text;
+ for (const [name, value] of Object.entries(process.env)) {
+  if (/KEY|SECRET|TOKEN|PASSWORD/.test(name) && value && value.length > 7) safe = safe.split(value).join("[redacted]");
+ }
+ return safe.replace(/Bearer\s+[^\s]+/gi, "Bearer [redacted]").replace(/([?&](?:key|token|code|password)=)[^&\s]+/gi, "$1[redacted]").slice(0,1000);
 }

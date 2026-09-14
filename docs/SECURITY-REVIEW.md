@@ -23,3 +23,6 @@ TypeScript passed; 67 tests passed, one live-provider test skipped. Anonymous re
 - Configure and test CAPTCHA, email verification, auth rate limits and session revocation in Supabase. Application quotas are not a substitute for edge abuse/DDoS controls.
 - Review CSP with nonces in a production browser, dependency advisories, all authentication recovery flows, provider webhook redaction, secret rotation procedures, and backup restore.
 - No active attacks, account deletions, or changes to real learners' data were performed. No assurance of zero vulnerabilities is made.
+
+## Dependency and logging follow-up
+Upgraded Next.js and eslint-config-next to 16.3.5 and applied compatible npm audit fixes. npm reported zero known dependency vulnerabilities after the update (2026-09-14). This is advisory coverage, not proof of exploit immunity. Error reporting now redacts configured secret values and sensitive URL parameters and omits stack traces from webhook payloads.
