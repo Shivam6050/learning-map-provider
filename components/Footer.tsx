@@ -16,9 +16,9 @@ export function Footer() {
           </div>
 
           <div>
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-200">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-200">
               Navigation
-            </h4>
+            </h2>
             <ul className="mt-3 space-y-2 text-xs">
               <li>
                 <Link href="/onboarding" className="transition hover:text-white">
@@ -39,9 +39,9 @@ export function Footer() {
           </div>
 
           <div>
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-200">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-200">
               Legal & Safety
-            </h4>
+            </h2>
             <ul className="mt-3 space-y-2 text-xs">
               <li>
                 <Link href="/terms" className="transition hover:text-white">

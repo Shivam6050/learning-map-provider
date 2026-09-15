@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/service";
 
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours — exchange rates don't need to be second-fresh
@@ -10,7 +11,7 @@ const CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours — exchange rates don't n
  * this codebase already learned that lesson once (see the deleted
  * lib/db/in-memory-paths.ts) — serverless instances don't share memory.
  */
-const getRates = cache(async (baseCurrency: string): Promise<Record<string, number>> => {
+const getRates = cache(unstable_cache(async (baseCurrency: string): Promise<Record<string, number>> => {
   const service = createServiceClient();
 
   const { data: cached } = await service
@@ -44,7 +45,7 @@ const getRates = cache(async (baseCurrency: string): Promise<Record<string, numb
     if (cached && Date.now() - new Date(cached.fetched_at).getTime() < 7 * 24 * 60 * 60 * 1000) return cached.rates as Record<string, number>;
     return {};
   }
-});
+}, ["public-exchange-rates-v1"], { revalidate: 300 }));
 
 /**
  * Converts an amount between currencies. Returns null (not a

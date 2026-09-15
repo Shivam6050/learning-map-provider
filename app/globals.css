@@ -240,3 +240,8 @@ button:disabled { cursor: not-allowed; opacity: .45; }
   background-color: #3b674e;
   color: #ffffff;
 }
+
+/* Readable secondary text within the existing sage and cream palette. */
+.atlas-footnote,.atlas-map-meta,.atlas-route small,.atlas-route p,.atlas-map-footer,.atlas-principles article>span,.atlas-principles p,.atlas-field-number,.atlas-fields a>p,.atlas-note p{color:#526348}
+
+.atlas-section-heading>p{color:#526348}
