@@ -80,8 +80,8 @@ export function DashboardWorkspace({ name, paths, loadError }: { name: string; p
         <section className={styles.topGrid} aria-label="Learning overview">
           {resume ? <div className={styles.focusCard}>
             <p className={styles.eyebrow}>YOUR NEXT CHAPTER <span>{resume.status === "in_progress" ? "In progress" : "Ready to start"}</span></p>
-            <span className={styles.focusField}>{resume.path.name}</span>
-            <h2>{resume.title}</h2><p>Milestone {resume.index + 1} of {resume.path.stages.length} <span>·</span> {resume.hours} hours estimated</p>
+            <span className={styles.focusField}>YOUR PERSONAL LEARNING PATH</span>
+            <h2>{resume.path.name}</h2><p className={styles.currentMilestone}><span>Up next</span>{resume.title}</p><p>Milestone {resume.index + 1} of {resume.path.stages.length} <span>·</span> {resume.hours} hours estimated</p>
             <div className={styles.focusFooter}><Link href={`/paths/${resume.path.id}#stage-${resume.id}`} className={styles.primary}>{resume.status === "in_progress" ? "Continue learning" : "Start this milestone"}<Arrow/></Link><span>One step closer.</span></div>
             <div className={styles.stageTrack} aria-label={`${resume.path.stages.filter(stage => stage.status === "completed").length} of ${resume.path.stages.length} milestones completed`}>{resume.path.stages.map(stage => <span key={stage.id} data-complete={stage.status === "completed"} data-current={stage.id === resume.id}/>)}</div>
           </div> : <div className={styles.startCard}>
