@@ -5,7 +5,7 @@ import { courseLink } from "@/lib/affiliates/links";
 
 import { Money } from "@/components/CurrencyProvider";
 import { providerName } from "@/lib/web-discovery/providers";
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition, useEffect, useRef } from "react";
 import { StageFilterBar, type StageFilter } from "@/components/StageFilterBar";
 import { updateStageProgress, rateResource, savePracticeNote } from "@/app/paths/[id]/actions";
 import { isSafeHttpUrl, ensureHttpUrl } from "@/lib/link-check/url-safety";
@@ -33,6 +33,22 @@ export function FilteredStageList({
   path: any;
   myRatingByResource: Record<string, number>;
 }) {
+  const [openStage, setOpenStage] = useState<string | null>(() => stages.find(s => s.stage_progress?.[0]?.status === "in_progress")?.id ?? stages.find(s => s.stage_progress?.[0]?.status !== "completed")?.id ?? stages[0]?.id ?? null);
+  const previousStatuses = useRef(new Map(stages.map(s => [s.id, s.stage_progress?.[0]?.status])));
+  useEffect(() => {
+    const completed = stages.find(s => s.id === openStage && s.stage_progress?.[0]?.status === "completed" && previousStatuses.current.get(s.id) !== "completed");
+    previousStatuses.current = new Map(stages.map(s => [s.id, s.stage_progress?.[0]?.status]));
+    if (completed) {
+      const index = stages.findIndex(s => s.id === completed.id);
+      const next = stages.slice(index + 1).find(s => s.stage_progress?.[0]?.status !== "completed");
+      setOpenStage(next?.id ?? null);
+      if (next) { setActiveFilter("all"); setSearchQuery(""); setFilterVersion(v => v + 1); requestAnimationFrame(() => document.getElementById("stage-toggle-" + next.id)?.focus()); }
+    }
+  }, [stages, openStage]);
+  useEffect(() => {
+    const showHash = () => { const id = window.location.hash.replace(/^#stage-/, ""); if(stages.some(s => s.id === id)) setOpenStage(id); };
+    showHash(); window.addEventListener("hashchange", showHash); return () => window.removeEventListener("hashchange", showHash);
+  }, []);
   const [activeFilter, setActiveFilter] = useState<StageFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [editingNoteStageId, setEditingNoteStageId] = useState<string | null>(null);
@@ -43,6 +59,7 @@ export function FilteredStageList({
     const navigate = (event: Event) => {
       const stageId = (event as CustomEvent<string>).detail;
       if (!stages.some(stage => stage.id === stageId)) return;
+      setOpenStage(stageId);
       setActiveFilter("all"); setSearchQuery(""); setFilterVersion(value => value + 1);
       requestAnimationFrame(() => requestAnimationFrame(() => {
         const target = document.getElementById("stage-" + stageId);
@@ -107,27 +124,13 @@ export function FilteredStageList({
                 tabIndex={-1}
                 className={styles.stage + " rounded-2xl p-6"}
               >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <h2 className="font-serif text-lg font-bold text-white">
-                    <span className={styles.stageNumber}>Stage {String(stage.order_index + 1).padStart(2, "0")}</span>{stage.title}
-                  </h2>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${STATUS_STYLE[status]}`}>
-                      {STATUS_LABEL[status]}
-                    </span>
-                    {timeline && (
-                      <span className="rounded-lg bg-indigo-500/10 px-2.5 py-1 text-xs text-indigo-300 font-semibold border border-indigo-500/20">
-                        {timeline.startWeek === timeline.endWeek
-                          ? `Week ${timeline.startWeek}`
-                          : `Weeks ${timeline.startWeek}\u2013${timeline.endWeek}`}
-                      </span>
-                    )}
-                    <span className="rounded-lg bg-slate-800 px-2.5 py-1 text-xs text-slate-300 font-semibold border border-slate-700">
-                      ~{stage.estimated_hours}h
-                    </span>
-                  </div>
-                </div>
-
+                <h2 className={styles.accordionHeading}>
+                  <button type="button" id={`stage-toggle-${stage.id}`} className={styles.stageToggle} aria-expanded={openStage === stage.id} aria-controls={`stage-panel-${stage.id}`} onClick={() => setOpenStage(openStage === stage.id ? null : stage.id)}>
+                    <span className={styles.stageToggleTitle}><span className={styles.stageNumber}>Stage {String(stage.order_index + 1).padStart(2,"0")}</span>{stage.title}<span className={styles.stageMeta}>{timeline ? `Weeks ${timeline.startWeek}–${timeline.endWeek} · ` : ""}{stage.estimated_hours} hours · {STATUS_LABEL[status]}</span></span>
+                    <span aria-hidden="true" className={styles.stageChevron}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="m6 9 6 6 6-6"/></svg></span>
+                  </button>
+                </h2>
+                <div id={`stage-panel-${stage.id}`} hidden={openStage !== stage.id} role="region" aria-labelledby={`stage-toggle-${stage.id}`}>
                 <p className="mt-3 text-sm text-slate-300 leading-relaxed">{stage.description}</p>
 
                 {/* Stage Resources */}
@@ -319,6 +322,7 @@ export function FilteredStageList({
                       </ActionButton>
                     </form>
                   )}
+                </div>
                 </div>
               </li>
             );
