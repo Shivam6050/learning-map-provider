@@ -150,3 +150,7 @@
 .focusCard .currentMilestone {display:flex;align-items:baseline;flex-wrap:wrap;gap:8px 12px;max-width:560px;margin:0 0 18px;font-size:16px;line-height:1.6;color:#e1e8d3}
 .focusCard .currentMilestone span {margin:0;font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#b8c99c}
 .focusCard h2 {overflow-wrap:anywhere}
+
+/* Legible sage text on the dashboard's light surfaces. */
+.workspaceMark small,.sidebarNote>span,.sidebarNote small,.sidebarNote em,.eyebrow,.pageHeader p:last-child,.sectionHeading>div>span,.sectionHeading h2>span,.sectionAside,.fieldCard p,.bottomNote,.progressNumber small,.notebook dl>div,.filters button,.filters button span,.pathIndex,.pathLevel,.pathDetails p,.pathProgress>span,.emptyPath p,.noResults{color:#53634a}
+@media(max-width:600px){.exploreSection{content-visibility:auto;contain-intrinsic-size:auto 600px}}

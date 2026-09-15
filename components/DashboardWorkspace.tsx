@@ -1,8 +1,8 @@
-"use client";
+
 
 import Link from "next/link";
-import { useState } from "react";
-import { DeletePathButton } from "@/components/DeletePathButton";
+
+import { DashboardPathList } from "./DashboardPathList";
 import { FIELD_CATALOG } from "@/lib/fields/catalog";
 import styles from "./DashboardWorkspace.module.css";
 
@@ -32,7 +32,7 @@ function FieldIcon({ index }: { index: number }) {
 }
 
 function JourneyIllustration() {
-  return <div className={styles.illustration} aria-label="Three steps: choose your field, find your level, set your pace">
+  return <div className={styles.illustration} role="img" aria-label="Three steps: choose your field, find your level, set your pace">
     <div className={styles.mapLabel}>YOUR PERSONAL LEARNING MAP <span>01 — 03</span></div>
     <svg className={styles.mapLines} viewBox="0 0 400 240" fill="none" aria-hidden="true">
       <path d="M30 205C30 90 290 240 290 112S370 38 375 30" stroke="#aab79c" strokeWidth="1" strokeDasharray="4 6"/>
@@ -48,8 +48,6 @@ function JourneyIllustration() {
 }
 
 export function DashboardWorkspace({ name, paths, loadError }: { name: string; paths: DashboardPath[]; loadError: boolean }) {
-  const [filter, setFilter] = useState("all");
-  const [query, setQuery] = useState("");
   const allStages = paths.flatMap(path => path.stages.map((stage, index) => ({ ...stage, path, index })));
   const completed = allStages.filter(stage => stage.status === "completed").length;
   const inProgress = allStages.filter(stage => stage.status === "in_progress").length;
@@ -57,7 +55,6 @@ export function DashboardWorkspace({ name, paths, loadError }: { name: string; p
   const resume = allStages.find(stage => stage.status === "in_progress") ?? allStages.find(stage => stage.status !== "completed");
   const finished = (path: DashboardPath) => path.stages.length > 0 && path.stages.every(stage => stage.status === "completed");
   const finishedCount = paths.filter(finished).length;
-  const visiblePaths = paths.filter(path => (filter === "all" || (filter === "completed" ? finished(path) : !finished(path))) && path.name.toLowerCase().includes(query.trim().toLowerCase()));
 
   return <div className={styles.workspace}>
     <div className={styles.shell}>
@@ -83,7 +80,7 @@ export function DashboardWorkspace({ name, paths, loadError }: { name: string; p
             <span className={styles.focusField}>YOUR PERSONAL LEARNING PATH</span>
             <h2>{resume.path.name}</h2><p className={styles.currentMilestone}><span>Up next</span>{resume.title}</p><p>Milestone {resume.index + 1} of {resume.path.stages.length} <span>·</span> {resume.hours} hours estimated</p>
             <div className={styles.focusFooter}><Link href={`/paths/${resume.path.id}#stage-${resume.id}`} className={styles.primary}>{resume.status === "in_progress" ? "Continue learning" : "Start this milestone"}<Arrow/></Link><span>One step closer.</span></div>
-            <div className={styles.stageTrack} aria-label={`${resume.path.stages.filter(stage => stage.status === "completed").length} of ${resume.path.stages.length} milestones completed`}>{resume.path.stages.map(stage => <span key={stage.id} data-complete={stage.status === "completed"} data-current={stage.id === resume.id}/>)}</div>
+            <div className={styles.stageTrack} role="img" aria-label={`${resume.path.stages.filter(stage => stage.status === "completed").length} of ${resume.path.stages.length} milestones completed`}>{resume.path.stages.map(stage => <span key={stage.id} data-complete={stage.status === "completed"} data-current={stage.id === resume.id}/>)}</div>
           </div> : <div className={styles.startCard}>
             <div className={styles.startCopy}><p className={styles.eyebrow}>{paths.length ? "ROOM FOR WHAT’S NEXT" : "YOUR FIRST CHAPTER"}</p><h2>{paths.length ? <>A finish line.<br/><em>A new beginning.</em></> : <>Big ambitions.<br/><em>Small first steps.</em></>}</h2><p>{paths.length ? "You’ve completed your milestones. Choose a new field or go deeper into the skills you love." : "Choose what you want to learn. We’ll help you find the right starting point and a path that fits your life."}</p><Link href="/onboarding" className={styles.primary}>{paths.length ? "Explore my next path" : "Build my first path"}<Arrow/></Link><small>No perfect plan needed. Just a little curiosity.</small></div>
             <JourneyIllustration/>
@@ -94,17 +91,7 @@ export function DashboardWorkspace({ name, paths, loadError }: { name: string; p
           </aside>
         </section>
 
-        <section id="learning-paths" className={styles.pathsSection}>
-          <div className={styles.sectionHeading}><div><span className={styles.eyebrow}>THE WORK IN PROGRESS</span><h2>My learning paths <span>{paths.length.toString().padStart(2, "0")}</span></h2></div>{paths.length > 0 && <label className={styles.search}><span aria-hidden="true">⌕</span><input id="dashboard-path-search" name="pathSearch" type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Find a path" aria-label="Search your learning paths"/></label>}</div>
-          {paths.length > 0 ? <><div className={styles.filters} aria-label="Filter learning paths">{[["all", "All paths", paths.length], ["active", "Active", paths.length - finishedCount], ["completed", "Completed", finishedCount]].map(([value, label, count]) => <button key={value} type="button" aria-pressed={filter === value} onClick={() => setFilter(String(value))}>{label}<span>{count}</span></button>)}</div>
-            <div className={styles.pathList}>{visiblePaths.map((path, index) => {
-              const done = path.stages.filter(stage => stage.status === "completed").length;
-              const next = path.stages.find(stage => stage.status === "in_progress") ?? path.stages.find(stage => stage.status !== "completed");
-              const percent = path.stages.length ? Math.round(done / path.stages.length * 100) : 0;
-              return <article key={path.id} className={styles.pathRow}><span className={styles.pathIndex}>{String(index + 1).padStart(2, "0")}</span><div className={styles.pathDetails}><span className={styles.pathLevel}>{path.level === "advanced" ? "Expert / Advanced" : path.level}</span><h3><Link href={`/paths/${path.id}`}>{path.name}</Link></h3><p>{next ? `Up next: ${next.title}` : path.stages.length ? "Every milestone completed. Well done." : "No milestones available yet."}</p></div><div className={styles.pathProgress}><span>{done} / {path.stages.length} milestones <b>{percent}%</b></span><progress value={done} max={path.stages.length || 1} aria-label={`${path.name} completion`}/></div><div className={styles.pathActions}><Link href={`/paths/${path.id}${next ? `#stage-${next.id}` : ""}`} aria-label={`Open ${path.name}`}><Arrow/></Link><DeletePathButton pathId={path.id} pathName={path.name}/></div></article>;
-            })}{visiblePaths.length === 0 && <p className={styles.noResults}>No paths match this view. <button type="button" onClick={() => { setFilter("all"); setQuery(""); }}>Clear filters</button></p>}</div>
-          </> : <div className={styles.emptyPath}><span className={styles.emptySymbol} aria-hidden="true">⌁</span><div><h3>{loadError ? "Your paths are temporarily unavailable" : "Your journey is still unwritten."}</h3><p>{loadError ? "Please retry before creating a new path." : "Start with one field below. Your personal roadmap will appear here."}</p></div><a href={loadError ? "/dashboard" : "#explore-fields"}>{loadError ? "Try again" : "Find my direction"}<Arrow/></a></div>}
-        </section>
+        <DashboardPathList paths={paths} loadError={loadError}/>
 
         <section id="explore-fields" className={styles.exploreSection}>
           <div className={styles.sectionHeading}><div><span className={styles.eyebrow}>FOLLOW YOUR CURIOSITY</span><h2>Where do you want to go?</h2></div><span className={styles.sectionAside}>Six fields. Plenty of possibilities.</span></div>

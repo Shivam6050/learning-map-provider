@@ -245,3 +245,5 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .atlas-footnote,.atlas-map-meta,.atlas-route small,.atlas-route p,.atlas-map-footer,.atlas-principles article>span,.atlas-principles p,.atlas-field-number,.atlas-fields a>p,.atlas-note p{color:#526348}
 
 .atlas-section-heading>p{color:#526348}
+
+@media(max-width:600px){.glass-header{background:#101e1b;backdrop-filter:none;-webkit-backdrop-filter:none}}

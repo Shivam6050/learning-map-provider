@@ -9,3 +9,5 @@ node_modules
 npm-debug.log*
 .DS_Store
 *.tsbuildinfo
+
+.next-mobile-audit/
