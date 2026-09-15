@@ -18,7 +18,17 @@ function isValidUrl(urlString?: string) {
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
-  if (request.nextUrl.pathname === "/api/health") return response;
+  if (request.nextUrl.pathname === "/api/health" || request.nextUrl.pathname === "/auth/callback") return response;
+  // Recover a PKCE response sent to the Site URL instead of the callback.
+  if (request.nextUrl.pathname === "/" && request.nextUrl.searchParams.has("code")) {
+    const callback = new URL("/auth/callback", request.url);
+    callback.searchParams.set("code", request.nextUrl.searchParams.get("code")!);
+    callback.searchParams.set("next", "/dashboard");
+    const redirect = NextResponse.redirect(callback);
+    redirect.headers.set("Cache-Control", "private, no-store");
+    redirect.headers.set("Referrer-Policy", "no-referrer");
+    return redirect;
+  }
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const key =
@@ -39,7 +49,7 @@ export async function proxy(request: NextRequest) {
   try {
     const fetchWithTimeout = (input: RequestInfo | URL, init?: RequestInit) => {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 1500);
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
       return fetch(input, {
         ...init,
         signal: init?.signal ?? controller.signal,
@@ -64,14 +74,9 @@ export async function proxy(request: NextRequest) {
       },
     });
 
-    const userPromise = supabase.auth.getUser();
-    const timeoutPromise = new Promise<{ data: { user: null }; error: any }>((resolve) =>
-      setTimeout(() => resolve({ data: { user: null }, error: new Error("Timeout") }), 1500)
-    );
-
-    const {
-      data: { user },
-    } = await Promise.race([userPromise, timeoutPromise]);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    // Let protected server pages validate the session on transient failures.
+    if (authError && (authError.status === 0 || (authError.status ?? 0) >= 500 || authError.name === "AuthRetryableFetchError")) return response;
 
     const isProtected = PROTECTED_PREFIXES.some((p) =>
       request.nextUrl.pathname.startsWith(p)
@@ -79,8 +84,10 @@ export async function proxy(request: NextRequest) {
 
     if (isProtected && !user) {
       const redirectUrl = new URL("/login", request.url);
-      redirectUrl.searchParams.set("redirectedFrom", request.nextUrl.pathname);
-      return NextResponse.redirect(redirectUrl);
+      redirectUrl.searchParams.set("next", request.nextUrl.pathname);
+      const loginResponse = NextResponse.redirect(redirectUrl);
+      response.cookies.getAll().forEach(cookie => loginResponse.cookies.set(cookie));
+      return loginResponse;
     }
   } catch {
     // If Supabase network call fails or times out, pass through safely

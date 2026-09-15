@@ -71,7 +71,8 @@ function createFallbackClient() {
 
 const fetchWithTimeout = (input: RequestInfo | URL, init?: RequestInit) => {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 3000);
+  const isAuthRequest = String(input instanceof Request ? input.url : input).includes("/auth/v1/");
+  const timeoutId = setTimeout(() => controller.abort(), isAuthRequest ? 15000 : 3000);
   return fetch(input, {
     ...init,
     signal: init?.signal ?? controller.signal,
