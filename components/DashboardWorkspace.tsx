@@ -95,7 +95,7 @@ export function DashboardWorkspace({ name, paths, loadError }: { name: string; p
         </section>
 
         <section id="learning-paths" className={styles.pathsSection}>
-          <div className={styles.sectionHeading}><div><span className={styles.eyebrow}>THE WORK IN PROGRESS</span><h2>My learning paths <span>{paths.length.toString().padStart(2, "0")}</span></h2></div>{paths.length > 0 && <label className={styles.search}><span aria-hidden="true">⌕</span><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Find a path" aria-label="Search your learning paths"/></label>}</div>
+          <div className={styles.sectionHeading}><div><span className={styles.eyebrow}>THE WORK IN PROGRESS</span><h2>My learning paths <span>{paths.length.toString().padStart(2, "0")}</span></h2></div>{paths.length > 0 && <label className={styles.search}><span aria-hidden="true">⌕</span><input id="dashboard-path-search" name="pathSearch" type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Find a path" aria-label="Search your learning paths"/></label>}</div>
           {paths.length > 0 ? <><div className={styles.filters} aria-label="Filter learning paths">{[["all", "All paths", paths.length], ["active", "Active", paths.length - finishedCount], ["completed", "Completed", finishedCount]].map(([value, label, count]) => <button key={value} type="button" aria-pressed={filter === value} onClick={() => setFilter(String(value))}>{label}<span>{count}</span></button>)}</div>
             <div className={styles.pathList}>{visiblePaths.map((path, index) => {
               const done = path.stages.filter(stage => stage.status === "completed").length;
