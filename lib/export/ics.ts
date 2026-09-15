@@ -1,4 +1,4 @@
-import { computeStageTimeline, type TimelineStage } from "@/lib/paths/timeline";
+import { studySessions, type StudyStage } from "./study-sessions";
 
 function toIcsDate(date: Date): string {
   return date.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
@@ -24,38 +24,20 @@ export function generatePathIcs(params: {
   fieldName: string;
   startDate: Date;
   weeklyHours: number;
-  stages: (TimelineStage & { title: string; description: string })[];
+  stages: StudyStage[];
+  date?: string; time?: string; days?: number[];
 }): string {
-  const { timeline } = computeStageTimeline(params.stages, params.weeklyHours);
   const now = toIcsDate(new Date());
-
-  const events = params.stages
-    .map((stage) => {
-      const range = timeline.get(stage.id);
-      if (!range) return "";
-
-      const eventStart = new Date(params.startDate);
-      eventStart.setDate(eventStart.getDate() + (range.startWeek - 1) * 7);
-      const eventEnd = new Date(params.startDate);
-      eventEnd.setDate(eventEnd.getDate() + range.endWeek * 7);
-
-      const dtStart = eventStart.toISOString().split("T")[0].replace(/-/g, "");
-      const dtEnd = eventEnd.toISOString().split("T")[0].replace(/-/g, "");
-
-      return [
-        "BEGIN:VEVENT",
-        `UID:${params.pathId}-${stage.id}@learning-map`,
-        `DTSTAMP:${now}`,
-        `DTSTART;VALUE=DATE:${dtStart}`,
-        `DTEND;VALUE=DATE:${dtEnd}`,
-        `SUMMARY:${escapeIcsText(`${params.fieldName}: ${stage.title}`)}`,
-        `DESCRIPTION:${escapeIcsText(stage.description)}`,
-        "TRANSP:TRANSPARENT",
-        "END:VEVENT",
-      ].join("\r\n");
-    })
-    .filter(Boolean)
-    .join("\r\n");
+  const sessions=studySessions(params.stages,params.weeklyHours,params.date??params.startDate.toISOString().slice(0,10),params.time??"09:00",params.days??[1,2,3,4,5]);
+  const events=sessions.map((session,index)=>[
+    "BEGIN:VEVENT",
+    `UID:${params.pathId}-${session.stage.id}-${index}-${session.start}@learning-map`,
+    `DTSTAMP:${now}`,
+    `DTSTART:${session.start}`,`DTEND:${session.end}`,
+    `SUMMARY:${escapeIcsText(params.fieldName+": "+session.stage.title)}`,
+    `DESCRIPTION:${escapeIcsText(session.stage.description+'\nStudy session: '+session.minutes+' minutes.')}`,
+    "TRANSP:OPAQUE","END:VEVENT"
+  ].join("\r\n")).join("\r\n");
 
   return [
     "BEGIN:VCALENDAR",

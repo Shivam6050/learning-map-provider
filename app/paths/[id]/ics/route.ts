@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { generatePathIcs } from "@/lib/export/ics";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
@@ -30,17 +30,25 @@ export async function GET(
 
   const field = Array.isArray(path.fields) ? path.fields[0] : path.fields;
 
-  const ics = generatePathIcs({
+  const query = new URL(request.url).searchParams;
+  let ics: string;
+  try { ics = generatePathIcs({
     pathId: path.id,
     fieldName: field?.name ?? "Learning Path",
     startDate: new Date(path.created_at),
     weeklyHours: path.weekly_hours,
     stages: stages ?? [],
+    date: query.get("date") ?? new Date().toISOString().slice(0,10),
+    time: query.get("time") ?? "09:00",
+    days: (query.get("days") ?? "1,2,3,4,5").split(",").map(Number),
   });
+
+  } catch (error) { return NextResponse.json({error: error instanceof Error ? error.message : "Invalid schedule"}, {status:400}); }
 
   return new NextResponse(ics, {
     headers: {
       "Content-Type": "text/calendar; charset=utf-8",
+      "Cache-Control": "private, no-store",
       "Content-Disposition": `attachment; filename="learning-path.ics"`,
     },
   });
