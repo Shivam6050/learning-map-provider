@@ -5,7 +5,7 @@ import { courseLink } from "@/lib/affiliates/links";
 
 import { Money } from "@/components/CurrencyProvider";
 import { providerName } from "@/lib/web-discovery/providers";
-import { useState, useTransition, useEffect, useRef } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { StageFilterBar, type StageFilter } from "@/components/StageFilterBar";
 import { updateStageProgress, rateResource, savePracticeNote } from "@/app/paths/[id]/actions";
 import { isSafeHttpUrl, ensureHttpUrl } from "@/lib/link-check/url-safety";
@@ -34,21 +34,6 @@ export function FilteredStageList({
   myRatingByResource: Record<string, number>;
 }) {
   const [openStage, setOpenStage] = useState<string | null>(() => stages.find(s => s.stage_progress?.[0]?.status === "in_progress")?.id ?? stages.find(s => s.stage_progress?.[0]?.status !== "completed")?.id ?? stages[0]?.id ?? null);
-  const previousStatuses = useRef(new Map(stages.map(s => [s.id, s.stage_progress?.[0]?.status])));
-  useEffect(() => {
-    const completed = stages.find(s => s.id === openStage && s.stage_progress?.[0]?.status === "completed" && previousStatuses.current.get(s.id) !== "completed");
-    previousStatuses.current = new Map(stages.map(s => [s.id, s.stage_progress?.[0]?.status]));
-    if (completed) {
-      const index = stages.findIndex(s => s.id === completed.id);
-      const next = stages.slice(index + 1).find(s => s.stage_progress?.[0]?.status !== "completed");
-      setOpenStage(next?.id ?? null);
-      if (next) { setActiveFilter("all"); setSearchQuery(""); setFilterVersion(v => v + 1); requestAnimationFrame(() => document.getElementById("stage-toggle-" + next.id)?.focus()); }
-    }
-  }, [stages, openStage]);
-  useEffect(() => {
-    const showHash = () => { const id = window.location.hash.replace(/^#stage-/, ""); if(stages.some(s => s.id === id)) setOpenStage(id); };
-    showHash(); window.addEventListener("hashchange", showHash); return () => window.removeEventListener("hashchange", showHash);
-  }, []);
   const [activeFilter, setActiveFilter] = useState<StageFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [editingNoteStageId, setEditingNoteStageId] = useState<string | null>(null);
@@ -67,10 +52,30 @@ export function FilteredStageList({
         target?.focus({preventScroll:true});
       }));
     };
+    const followHash = () => { const id = window.location.hash.replace(/^#stage-/, ""); if (id) navigate(new CustomEvent("roadmap-navigate", {detail:id})); };
     window.addEventListener("roadmap-navigate", navigate);
-    return () => window.removeEventListener("roadmap-navigate", navigate);
+    window.addEventListener("hashchange", followHash);
+    return () => { window.removeEventListener("roadmap-navigate", navigate); window.removeEventListener("hashchange", followHash); };
   }, [stages]);
 
+  const [progressError, setProgressError] = useState("");
+  async function saveProgress(formData: FormData) {
+    setProgressError("");
+    try {
+      await updateStageProgress(formData);
+      if (formData.get("status") === "completed") {
+        const index = stages.findIndex(stage => stage.id === formData.get("stageId"));
+        const next = stages.slice(index + 1).find(stage => stage.stage_progress?.[0]?.status !== "completed");
+        setOpenStage(next?.id ?? null);
+        setActiveFilter("all"); setSearchQuery(""); setFilterVersion(v => v + 1);
+        if (next) requestAnimationFrame(() => requestAnimationFrame(() => {
+          const target = document.getElementById("stage-toggle-" + next.id);
+          target?.focus({preventScroll:true});
+          document.getElementById("stage-" + next.id)?.scrollIntoView({block:"start",behavior:"auto"});
+        }));
+      }
+    } catch { setProgressError("Progress could not be saved. Please try again; your stage is still open."); }
+  }
   const counts = {
     all: stages.length,
     in_progress: stages.filter((s) => (s.stage_progress?.[0]?.status ?? "not_started") === "in_progress").length,
@@ -97,6 +102,7 @@ export function FilteredStageList({
 
   return (
     <div className={styles.stageList + " space-y-6"}>
+      {progressError && <p role="alert" className="rounded-xl border border-amber-500/40 p-3 text-sm text-amber-200">{progressError}</p>}
       <StageFilterBar key={filterVersion}
         onFilterChange={setActiveFilter}
         onSearchChange={setSearchQuery}
@@ -125,12 +131,12 @@ export function FilteredStageList({
                 className={styles.stage + " rounded-2xl p-6"}
               >
                 <h2 className={styles.accordionHeading}>
-                  <button type="button" id={`stage-toggle-${stage.id}`} className={styles.stageToggle} aria-expanded={openStage === stage.id} aria-controls={`stage-panel-${stage.id}`} onClick={() => setOpenStage(openStage === stage.id ? null : stage.id)}>
+                  <button type="button" id={`stage-toggle-${stage.id}`} className={styles.stageToggle} aria-expanded={openStage === stage.id} aria-controls={`stage-panel-${stage.id}`} onClick={() => setOpenStage(current => current === stage.id ? null : stage.id)}>
                     <span className={styles.stageToggleTitle}><span className={styles.stageNumber}>Stage {String(stage.order_index + 1).padStart(2,"0")}</span>{stage.title}<span className={styles.stageMeta}>{timeline ? `Weeks ${timeline.startWeek}–${timeline.endWeek} · ` : ""}{stage.estimated_hours} hours · {STATUS_LABEL[status]}</span></span>
                     <span aria-hidden="true" className={styles.stageChevron}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="m6 9 6 6 6-6"/></svg></span>
                   </button>
                 </h2>
-                <div id={`stage-panel-${stage.id}`} hidden={openStage !== stage.id} role="region" aria-labelledby={`stage-toggle-${stage.id}`}>
+                <div id={`stage-panel-${stage.id}`} hidden={openStage !== stage.id} className={styles.stagePanel} role="region" aria-labelledby={`stage-toggle-${stage.id}`}>
                 <p className="mt-3 text-sm text-slate-300 leading-relaxed">{stage.description}</p>
 
                 {/* Stage Resources */}
@@ -293,7 +299,7 @@ export function FilteredStageList({
                 {/* Stage Progress Action */}
                 <div className="mt-5 flex items-center gap-3 border-t border-slate-800/80 pt-4">
                   {status !== "completed" && (
-                    <form action={updateStageProgress}>
+                    <form action={saveProgress}>
                       <input type="hidden" name="stageId" value={stage.id} />
                       <input type="hidden" name="pathId" value={path.id} />
                       <input
@@ -310,7 +316,7 @@ export function FilteredStageList({
                     </form>
                   )}
                   {status !== "not_started" && (
-                    <form action={updateStageProgress}>
+                    <form action={saveProgress}>
                       <input type="hidden" name="stageId" value={stage.id} />
                       <input type="hidden" name="pathId" value={path.id} />
                       <input type="hidden" name="status" value="not_started" />
