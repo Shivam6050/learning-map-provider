@@ -120,16 +120,12 @@ export async function generatePath(formData: FormData) {
       skeleton.map(async (stage) => {
         const stageCandidates: DiscoveredResource[] = [];
 
-        const catalogCandidates = await discoverUdemyCourses(stage.search_topics, currency, budgetTotal).catch(error => {
+        const catalogPromise = discoverUdemyCourses(stage.search_topics, currency, budgetTotal).catch(error => {
           paidCatalogFailed = true;
           console.warn("[Udemy catalog]", error instanceof Error ? error.message : "Unavailable");
           return [];
         });
-        stageCandidates.push(...catalogCandidates);
-        const seedCandidates = await ensureSeedCandidates(stage.search_topics, currency, budgetTotal, field!.slug).catch(() => []);
-        for (const s of seedCandidates) {
-          if (!stageCandidates.some((c) => c.url === s.url)) stageCandidates.push(s);
-        }
+        const seedPromise = ensureSeedCandidates(stage.search_topics, currency, budgetTotal, field!.slug).catch(() => []);
 
         const topicPromises = stage.search_topics.map(async (topic) => {
           try {
@@ -143,7 +139,14 @@ export async function generatePath(formData: FormData) {
           }
         });
 
-        const topicResults = await Promise.all(topicPromises);
+        const [catalogCandidates, seedCandidates, topicResults] = await Promise.all([
+          catalogPromise, seedPromise, Promise.all(topicPromises),
+        ]);
+        // Preserve catalog-first ordering and existing URL deduplication.
+        stageCandidates.push(...catalogCandidates);
+        for (const resource of seedCandidates) {
+          if (!stageCandidates.some(candidate => candidate.url === resource.url)) stageCandidates.push(resource);
+        }
         for (const list of topicResults) {
           for (const r of list) {
             if (!stageCandidates.some((c) => c.url === r.url)) stageCandidates.push(r);
@@ -169,12 +172,10 @@ export async function generatePath(formData: FormData) {
     }
 
     // --- Stage 3: real judgment per stage, grounded in real candidates ---
-    const judgedStages = await Promise.all(
-      skeleton.map((stage) => judgeStage(stage, candidatesByStage.get(stage.order_index) ?? []))
-    );
-
-    // --- Practice checks, one Gemini call shared across all 3 options ---
-    const practiceChecksByStage = await generatePracticeChecks(skeleton);
+    const [judgedStages, practiceChecksByStage] = await Promise.all([
+      Promise.all(skeleton.map((stage) => judgeStage(stage, candidatesByStage.get(stage.order_index) ?? []))),
+      generatePracticeChecks(skeleton),
+    ]);
 
     // --- Deterministic option-building (no LLM call) over the REAL,
     // already-vetted candidates — see lib/ai/build-options.ts ---
