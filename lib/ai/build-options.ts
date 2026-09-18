@@ -15,7 +15,7 @@ export type OptionStageResource = {
     price: number;
     currency: string;
     affiliate?: boolean;
-    billing_interval?: "month";
+    billing_interval?: "month" | "year";
   };
 };
 
@@ -134,7 +134,7 @@ export function buildPathOptions(params: {
         estimated_hours: Math.max(4, Math.round(stage.estimated_hours * [1.25,1,0.75][index])),
         practice_check: practiceChecksByStage.get(stage.order_index) ?? "Practice what you learned: " + stage.title,
         stage_resources: picks.map((r,i) => ({ is_primary: i === 0, order_index: i, resource_id: r.id,
-          resources: { title:r.title, url:r.url, platform:r.platform, resource_type:r.resource_type, price:r.price, currency:r.currency, affiliate:r.signals?.affiliate === true, billing_interval:r.signals?.price_source === "scrimba_monthly" ? "month" as const : undefined } })),
+          resources: { title:r.title, url:r.url, platform:r.platform, resource_type:r.resource_type, price:r.price, currency:r.currency, affiliate:r.signals?.affiliate === true, billing_interval:r.signals?.billing_interval === "year" ? "year" as const : r.signals?.price_source === "scrimba_monthly" ? "month" as const : undefined } })),
       };
     });
     const met = cap === 0 || bundle.cents >= minimum;
@@ -150,7 +150,7 @@ export function buildPathOptions(params: {
           over_budget: Math.round(pathCost(withCourse, params.weeklyHours ?? 10).total * 100) > cap,
           resource_id: r.id, stage_indices: pools.flatMap((p,i) => p.some(c => c.url === r.url) ? [skeleton[i].order_index] : []),
           resources: { title:r.title, url:r.url, platform:r.platform, resource_type:r.resource_type, price:r.price, currency:r.currency,
-            affiliate:r.signals?.affiliate === true, billing_interval:r.signals?.price_source === "scrimba_monthly" ? "month" as const : undefined },
+            affiliate:r.signals?.affiliate === true, billing_interval:r.signals?.billing_interval === "year" ? "year" as const : r.signals?.price_source === "scrimba_monthly" ? "month" as const : undefined },
         };
       })).map(r => [r.url, r])).values()].sort((a,b) => a.cost - b.cost),
       budget_cap: cap / 100, target_min: minimum / 100, target_met: met,

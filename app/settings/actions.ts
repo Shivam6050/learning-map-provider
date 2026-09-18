@@ -1,5 +1,8 @@
 "use server";
 
+import { cookies } from "next/headers";
+import { validCountry, residenceCurrency } from "@/lib/profile/residence";
+import { CURRENCY_COOKIE } from "@/lib/currency/format";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -99,4 +102,13 @@ export async function deleteAccount(formData: FormData) {
 
   await supabase.auth.signOut();
   redirect("/login?message=Your account has been deleted.");
+}
+
+export async function updateResidence(form:FormData) {
+ const client=await createClient();const {data:{user}}=await client.auth.getUser();if(!user) redirect("/login");
+ const country=String(form.get("country")||"");if(!validCountry(country))redirect("/settings?error=Choose a valid country of residence");
+ const {error}=await client.auth.updateUser({data:{country_of_residence:country}}).catch(()=>({error:true}));
+ if(error)redirect("/settings?error=Could not save your residence. Please try again.");
+ (await cookies()).set(CURRENCY_COOKIE,residenceCurrency(country),{path:"/",maxAge:31536000,sameSite:"lax",secure:process.env.NODE_ENV==="production"});
+ revalidatePath("/","layout");redirect("/settings?saved=1");
 }

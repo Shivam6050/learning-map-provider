@@ -1,4 +1,5 @@
 "use server";
+import { getLearningUser } from "@/lib/auth/learning-user";
 
 import { requireUuid } from "@/lib/security/validation";
 import { revalidatePath } from "next/cache";
@@ -13,7 +14,7 @@ export async function updateStageProgress(formData: FormData) {
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getLearningUser(supabase);
 
   if (!user) redirect("/login");
 
@@ -82,7 +83,7 @@ export async function updateStageProgress(formData: FormData) {
 export async function savePracticeNote(formData: FormData): Promise<{ ok: boolean; error?: string }> {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await getLearningUser(supabase);
     if (!user) return { ok: false, error: "Your session expired. Sign in again before saving. Your draft is still here." };
     const stageId = requireUuid(String(formData.get("stageId")));
     const pathId = requireUuid(String(formData.get("pathId")));
@@ -109,7 +110,7 @@ export async function rateResource(formData: FormData) {
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getLearningUser(supabase);
 
   if (!user) redirect("/login");
 

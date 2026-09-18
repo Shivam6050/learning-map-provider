@@ -1,3 +1,4 @@
+import { getLearningUser } from "@/lib/auth/learning-user";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { approveTrustedSource, rejectTrustedSource } from "@/app/admin/trusted-sources/actions";
@@ -7,7 +8,7 @@ export default async function TrustedSourcesAdminPage() {
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getLearningUser(supabase);
 
   if (!user) redirect("/login");
 

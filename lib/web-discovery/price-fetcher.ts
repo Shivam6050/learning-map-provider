@@ -121,7 +121,7 @@ export async function fetchUdemyApiPrice(
 }
 
 /** Unknown prices stay unknown. Converted prices are estimates, not regional checkout quotes. */
-export async function fetchRealtimePrice(url: string, targetCurrency = "INR"): Promise<LivePriceResult> {
+export async function fetchRealtimePrice(url: string, targetCurrency = "INR", country?: string): Promise<LivePriceResult> {
   const currency = targetCurrency.toUpperCase();
   const unknown: LivePriceResult = { price: null, currency, isRealtime: false };
   if (!isSafeHttpUrl(url)) return unknown;
@@ -133,11 +133,11 @@ export async function fetchRealtimePrice(url: string, targetCurrency = "INR"): P
   if (isPaidCourseUrl(url)) {
     const page = await inspectUrl(url);
     if (page.status !== "ok" || !page.html || !isPaidCourseUrl(page.url)) return unknown;
-    const offer = host === "geeksforgeeks.org" ? parseGfgOffer(page.html, page.url) : parseCourseOffer(page.html, page.url);
+    const offer = host === "geeksforgeeks.org" ? parseGfgOffer(page.html, page.url, country) : parseCourseOffer(page.html, page.url);
     if (!offer) return unknown;
     const rate = await getConversionRate(offer.currency, currency);
     if (!rate || !Number.isFinite(rate)) return unknown;
-    return { price: Math.round(offer.amount * rate * 100) / 100, currency, isRealtime: offer.currency === currency, title: offer.title };
+    return { price: Math.round(offer.amount * rate * 100) / 100, currency, isRealtime: host === "geeksforgeeks.org" && Boolean(country) && offer.currency === currency, title: offer.title };
   }
   // Free tutorial access is separate from paid certificates.
   const freeHosts = ["youtube.com", "youtu.be", "freecodecamp.org", "developer.mozilla.org", "react.dev", "nextjs.org", "nodejs.org", "expressjs.com", "postgresql.org", "docs.python.org", "learn.microsoft.com", "pandas.pydata.org", "scikit-learn.org", "kubernetes.io", "testing-library.com", "w3schools.com"];

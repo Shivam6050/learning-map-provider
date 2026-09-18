@@ -1,5 +1,5 @@
 /** Read the exact course's regional batch quote, not SEO currency metadata. */
-export function parseGfgOffer(html: string, page: string): { amount: number; currency: string; title?: string } | null {
+export function parseGfgOffer(html: string, page: string, country?: string): { amount: number; currency: string; title?: string } | null {
  try {
  const url=new URL(page); if(url.hostname.replace(/^www\./,'')!=='geeksforgeeks.org')return null;
  const slug=url.pathname.split('/').filter(Boolean)[1];
@@ -8,7 +8,7 @@ export function parseGfgOffer(html: string, page: string): { amount: number; cur
  const quotes=[];
  for(const [key,value] of Object.entries(queries??{})) {
   if(!key.startsWith('getLandingPageCourseDetails('))continue;
-  const args=JSON.parse(key.slice(key.indexOf('(')+1,-1));if(args.slug!==slug)continue;
+  const args=JSON.parse(key.slice(key.indexOf('(')+1,-1));if(args.slug!==slug || (country && args.cdnCountryCode !== country))continue;
   const data=(value as {data?:any}).data;const amount=data?.first_upcoming_batch?.batch_fee;
   const currency=({'₹':'INR','$':'USD','€':'EUR','£':'GBP'} as Record<string,string>)[data?.currency_symbol];
   if(typeof amount!=='number'||!Number.isFinite(amount)||amount<=0||!currency)continue;

@@ -7,14 +7,14 @@ import { fetchRealtimePrice } from "@/lib/web-discovery/price-fetcher";
 import { BASE_SEED_RESOURCES } from "@/lib/ai/seed-resources";
 
 /** Revalidate cached and seeded candidates too; compare every price in the learner's currency. */
-export async function prepareCandidates(resources: DiscoveredResource[], currency: string): Promise<DiscoveredResource[]> {
+export async function prepareCandidates(resources: DiscoveredResource[], currency: string, country?: string): Promise<DiscoveredResource[]> {
   const result: DiscoveredResource[] = [];
   const unique = [...new Map(resources.map(r => [r.url, r])).values()];
   for (let i = 0; i < unique.length; i += 5) {
     const batch = await Promise.all(unique.slice(i, i + 5).map(async resource => {
       try {
-        if (resource.signals?.price_source === "scrimba_monthly") {
-          const quote = await paidSubscriptionQuote(resource.url, currency);
+        if (resource.signals?.price_source === "scrimba_monthly" || resource.signals?.price_source === "scrimba_regional_plan") {
+          const quote = await paidSubscriptionQuote(resource.url, currency, country);
           return quote ? { ...resource, ...quote, link_status: "ok" } : null;
         }
         if (resource.signals?.price_source === "impact_catalog") {
@@ -35,7 +35,7 @@ export async function prepareCandidates(resources: DiscoveredResource[], currenc
         }
         if (!(await checkUrlAlive(resource.url))) return null;
         const curatedFree = BASE_SEED_RESOURCES.some(seed => seed.url === resource.url && seed.price === 0);
-        const quote = curatedFree ? { price: 0, currency } : await fetchRealtimePrice(resource.url, currency);
+        const quote = curatedFree ? { price: 0, currency } : await fetchRealtimePrice(resource.url, currency, country);
         if (quote.price === null || !Number.isFinite(quote.price) || quote.price < 0) return null;
         return { ...resource, price: quote.price, currency: quote.currency, link_status: "ok" };
       } catch { return null; }

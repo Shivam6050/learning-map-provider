@@ -1,145 +1,25 @@
-import { ProfileAvatar } from "@/components/ProfileAvatar";
 import Link from "next/link";
-import { signup } from "@/app/auth/actions";
-import { AVATAR_OPTIONS } from "@/lib/profile/avatars";
-import { GoogleSignInButton } from "@/components/GoogleSignInButton";
-
-export default async function SignupPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ error?: string; next?: string }>;
-}) {
-  const params = await searchParams;
-
-  return (
-    <div className="relative flex min-h-[calc(100vh-64px)] items-center justify-center px-4 py-12 bg-slate-950 text-slate-100 bg-grid-pattern">
-      <div className="glow-orb-purple top-10 left-1/2 -translate-x-1/2" />
-
-      <div className="relative w-full max-w-md glass-card rounded-2xl p-8 border-slate-800 shadow-2xl">
-        <div className="text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-purple-500/10 text-2xl border border-purple-500/20">
-            ✨
-          </div>
-          <h1 className="mt-4 font-serif text-2xl font-bold text-white sm:text-3xl">
-            Create your account
-          </h1>
-          <p className="mt-1.5 text-sm text-slate-400">
-            Tell us what you want to learn, we&apos;ll map your path.
-          </p>
-        </div>
-
-        {params.error && (
-          <div className="mt-6 rounded-xl border border-red-500/30 bg-red-500/10 p-3.5 text-sm text-red-300 backdrop-blur-md" role="alert">
-            ⚠️ {params.error}
-          </div>
-        )}
-
-        <div className="mt-6">
-          <GoogleSignInButton nextParam={params.next} />
-        </div>
-
-        <div className="my-6 flex items-center gap-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
-          <div className="h-px flex-1 bg-slate-800" />
-          or register with email
-          <div className="h-px flex-1 bg-slate-800" />
-        </div>
-
-        <form action={signup} className="space-y-5">
-          <div>
-            <label htmlFor="displayName" className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
-              Full Name
-            </label>
-            <input
-              id="displayName"
-              name="displayName"
-              type="text"
-              required
-              placeholder="e.g. Alex Dev"
-              className="mt-1.5 block w-full rounded-xl border border-slate-800 bg-slate-900/80 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-            />
-          </div>
-
-          <div>
-            <span className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
-              Pick Your Companion Avatar
-            </span>
-            <p className="mt-1 text-xs text-slate-400">
-              Your avatar walks your learning roadmap with you as you complete stages.
-            </p>
-            <div className="mt-3 grid grid-cols-4 gap-2.5">
-              {AVATAR_OPTIONS.map((avatar, i) => (
-                <label key={avatar.id} className="cursor-pointer">
-                  <input
-                    type="radio"
-                    name="avatarId"
-                    value={avatar.id}
-                    defaultChecked={i === 0}
-                    required
-                    className="peer sr-only"
-                  />
-                  <span className="flex flex-col items-center justify-center gap-1 rounded-xl border border-slate-800 bg-slate-900/90 p-2.5 text-2xl transition peer-checked:border-indigo-500 peer-checked:bg-indigo-500/10 peer-checked:ring-2 peer-checked:ring-indigo-500/30 hover:border-slate-700 peer-focus-visible:outline-2 peer-focus-visible:outline-amber-300">
-                    <ProfileAvatar id={avatar.id} size={48} />
-                    <span className="text-[10px] font-semibold text-slate-400">{avatar.label}</span>
-                  </span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="email" className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
-              Email Address
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              required
-              placeholder="you@example.com"
-              className="mt-1.5 block w-full rounded-xl border border-slate-800 bg-slate-900/80 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="password" className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
-              Password
-            </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              required
-              minLength={8}
-              placeholder="••••••••"
-              className="mt-1.5 block w-full rounded-xl border border-slate-800 bg-slate-900/80 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-            />
-            <p className="mt-1 text-xs text-slate-500">At least 8 characters.</p>
-          </div>
-
-          <label className="flex items-start gap-2.5 text-xs text-slate-400 cursor-pointer">
-            <input type="checkbox" name="acceptTerms" required className="mt-0.5 rounded border-slate-800 bg-slate-900 text-indigo-600 focus:ring-indigo-500" />
-            <span>
-              I agree to the{" "}
-              <Link href="/terms" className="text-indigo-400 hover:underline">Terms of Service</Link> and{" "}
-              <Link href="/privacy" className="text-indigo-400 hover:underline">Privacy Policy</Link>.
-            </span>
-          </label>
-
-          <button
-            type="submit"
-            className="btn-primary w-full rounded-xl px-4 py-3 text-sm font-semibold shadow-lg"
-          >
-            Create My Free Account
-          </button>
-        </form>
-
-        <p className="mt-8 text-center text-sm text-slate-400">
-          Already have an account?{" "}
-          <Link href="/login" className="font-semibold text-indigo-400 transition hover:text-indigo-300 hover:underline">
-            Log in
-          </Link>
-        </p>
-      </div>
-    </div>
-  );
+import {signup} from "@/app/auth/actions";
+import {GoogleSignInButton} from "@/components/GoogleSignInButton";
+import {AuthLayout} from "@/components/AuthLayout";
+import {PasswordField,AuthSubmit} from "@/components/AuthFormControls";
+import {contactVerificationEnabled} from "@/lib/auth/contact-verification";
+import {countryOptions} from "@/lib/profile/residence";
+import {AVATAR_OPTIONS} from "@/lib/profile/avatars";
+import {ProfileAvatar} from "@/components/ProfileAvatar";
+import styles from "@/components/AuthLayout.module.css";
+export default async function SignupPage({searchParams}:{searchParams:Promise<{error?:string;next?:string}>}) {
+ const params=await searchParams;
+ return <AuthLayout signup><p className={styles.kicker}>MAKE SPACE FOR WHAT’S NEXT</p><h1 className={styles.title}>Start with possibility.</h1><p className={styles.subtitle}>Create your free account. We’ll help you find your way.</p>
+ {params.error && <div className={styles.error} role="alert">{params.error}</div>}
+ <GoogleSignInButton nextParam={params.next} className={styles.google}/><div className={styles.divider}><span>or create an account with email</span></div>
+ <form action={signup} className={styles.form}>
+ <div><label htmlFor="displayName">Your name</label><input id="displayName" name="displayName" autoComplete="name" required maxLength={100} placeholder="How should we call you?"/></div>
+ <div><label htmlFor="email">Email address</label><input id="email" name="email" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false} required placeholder="you@example.com"/><p className={styles.hint}>We’ll send a confirmation email to verify your account.</p></div>
+ <div><label htmlFor="password">Password</label><PasswordField signup/><p id="password-help" className={styles.hint}>Use at least 8 characters.</p></div>
+ <div><label htmlFor="country">Country of residence</label><select id="country" name="country" autoComplete="country" required defaultValue="" aria-describedby="country-help"><option value="" disabled>Select your country</option>{countryOptions().map(c=><option key={c.code} value={c.code}>{c.name}</option>)}</select><p id="country-help" className={styles.hint}>Helps us match regional offers and set your display currency.</p></div>
+ {contactVerificationEnabled() && <div><label htmlFor="phone">Mobile number</label><input id="phone" name="phone" type="tel" autoComplete="tel" required maxLength={40} placeholder="+91 98765 43210"/><p className={styles.hint}>Include your country calling code. We’ll verify it by SMS.</p></div>}
+ <details className={styles.personalise}><summary>Choose your companion <span>Optional</span></summary><fieldset><legend className={styles.hint}>A small touch of personality. Change it anytime in Settings.</legend><div className={styles.avatars}>{AVATAR_OPTIONS.map((avatar,i)=><label key={avatar.id}><input type="radio" name="avatarId" value={avatar.id} defaultChecked={i===0}/><span><ProfileAvatar id={avatar.id} size={36}/><small>{avatar.label}</small></span></label>)}</div></fieldset></details>
+ <label className={styles.terms}><input id="acceptTerms" name="acceptTerms" type="checkbox" required/><span>I agree to the <Link href="/terms">Terms of Service</Link> and <Link href="/privacy">Privacy Policy</Link>.</span></label><AuthSubmit signup/>
+ </form><p className={styles.afterForm}>Already found your direction? <Link href="/login">Sign in</Link></p></AuthLayout>;
 }

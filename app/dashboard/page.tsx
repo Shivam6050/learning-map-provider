@@ -1,3 +1,4 @@
+import { getLearningUser } from "@/lib/auth/learning-user";
 import { createServiceClient } from "@/lib/supabase/service";
 import { getFieldBySlug } from "@/lib/fields/catalog";
 import { redirect } from "next/navigation";
@@ -22,7 +23,7 @@ type StoredPath = {
 
 export default async function DashboardPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await getLearningUser(supabase);
   if (!user) redirect("/login?redirectedFrom=/dashboard");
 
   const [profileResult, pathsResult] = await Promise.all([

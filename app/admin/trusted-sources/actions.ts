@@ -1,4 +1,5 @@
 "use server";
+import { getLearningUser } from "@/lib/auth/learning-user";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -17,7 +18,7 @@ export async function approveTrustedSource(formData: FormData) {
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getLearningUser(supabase);
   if (!user) redirect("/login");
 
   const id = String(formData.get("id"));
@@ -36,7 +37,7 @@ export async function rejectTrustedSource(formData: FormData) {
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getLearningUser(supabase);
   if (!user) redirect("/login");
 
   const id = String(formData.get("id"));

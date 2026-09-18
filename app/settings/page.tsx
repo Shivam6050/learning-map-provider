@@ -1,6 +1,9 @@
+import Link from "next/link";
+import { ResidenceFields } from "@/components/ResidenceFields";
+import { contactVerificationEnabled } from "@/lib/auth/contact-verification";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { updateProfile } from "@/app/settings/actions";
+import { updateProfile, updateResidence } from "@/app/settings/actions";
 import { AvatarSelectorWithPreview } from "@/components/AvatarSelectorWithPreview";
 import { DeleteAccountForm } from "@/components/DeleteAccountForm";
 import { SaveProfileButton } from "@/components/SaveProfileButton";
@@ -89,6 +92,11 @@ export default async function SettingsPage({
             <SaveProfileButton />
           </div>
         </form>
+        <form action={updateResidence} className="space-y-5 border-t border-slate-700 pt-6">
+          <ResidenceFields showPhone={false} defaultCountry={user.user_metadata?.country_of_residence || ""} />
+          <button className="btn-primary px-5 py-3">Save learning region</button>
+        </form>
+        {contactVerificationEnabled() && <Link href="/verify-contact" className="block underline">Verify contact details</Link>}
 
         <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-5 space-y-3">
           <h2 className="text-xs font-bold uppercase tracking-wider text-red-400">

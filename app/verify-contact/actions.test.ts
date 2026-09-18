@@ -1,0 +1,11 @@
+import {it,expect,vi,beforeEach} from "vitest";
+const state=vi.hoisted(()=>({user:null as any,verifyOtp:vi.fn(),updateUser:vi.fn(),resend:vi.fn(),get:vi.fn(),set:vi.fn(),del:vi.fn()}));
+vi.mock("next/navigation",()=>({redirect:(url:string)=>{throw new Error("REDIRECT:"+url)}}));
+vi.mock("next/headers",()=>({cookies:async()=>({get:state.get,set:state.set,delete:state.del})}));
+vi.mock("@/lib/supabase/server",()=>({createClient:async()=>({auth:{getUser:async()=>({data:{user:state.user}}),verifyOtp:state.verifyOtp,updateUser:state.updateUser,resend:state.resend}})}));
+import {sendPhoneCode,verifyPhone,verifyEmail} from "./actions";
+beforeEach(()=>{vi.resetAllMocks();vi.stubEnv("AUTH_CONTACT_VERIFICATION_ENABLED","true");state.user=null;state.verifyOtp.mockResolvedValue({error:null});state.updateUser.mockResolvedValue({error:null})});
+it("makes no delivery request while the integration is disabled",async()=>{vi.stubEnv("AUTH_CONTACT_VERIFICATION_ENABLED","false");await expect(sendPhoneCode(new FormData())).rejects.toThrow("not%20enabled");expect(state.updateUser).not.toHaveBeenCalled()});
+it("requires verified email before SMS delivery",async()=>{state.user={email:"a@example.com"};await expect(sendPhoneCode(new FormData())).rejects.toThrow("Verify%20your%20email");expect(state.updateUser).not.toHaveBeenCalled()});
+it("verifies the pending Auth phone, not a submitted replacement",async()=>{state.user={email_confirmed_at:"now",new_phone:"12025550123"};const form=new FormData();form.set("token","123456");form.set("phone","+442079460123");await expect(verifyPhone(form)).rejects.toThrow("REDIRECT:/dashboard");expect(state.verifyOtp).toHaveBeenCalledWith({phone:"12025550123",token:"123456",type:"phone_change"})});
+it("does not complete signup on an invalid email code",async()=>{state.get.mockReturnValue({value:"a@example.com"});state.verifyOtp.mockResolvedValue({error:{message:"expired"}});const form=new FormData();form.set("token","123456");await expect(verifyEmail(form)).rejects.toThrow("invalid%20or%20expired");expect(state.del).not.toHaveBeenCalled()});

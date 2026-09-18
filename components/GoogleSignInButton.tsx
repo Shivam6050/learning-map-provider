@@ -5,14 +5,17 @@ import { createClient } from "@/lib/supabase/client";
 
 interface GoogleSignInButtonProps {
   nextParam?: string;
+  className?: string;
 }
 
-export function GoogleSignInButton({ nextParam }: GoogleSignInButtonProps) {
+export function GoogleSignInButton({ nextParam, className }: GoogleSignInButtonProps) {
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleClick = async () => {
     if (loading) return;
     setLoading(true);
+    setErrorMessage(null);
 
     try {
       const targetNext = nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : "/dashboard";
@@ -32,21 +35,22 @@ export function GoogleSignInButton({ nextParam }: GoogleSignInButtonProps) {
       });
 
       if (error) {
-        alert(`Google Sign-In Error: ${error.message}`);
+        setErrorMessage(error.message || "Google sign-in is unavailable. Please try again.");
         setLoading(false);
       }
     } catch (err: any) {
-      alert(`Google Sign-In Error: ${err?.message || "Failed to initiate Google login"}`);
+      setErrorMessage(err?.message || "Could not connect to Google. Please try again.");
       setLoading(false);
     }
   };
 
   return (
+    <>
     <button
       type="button"
       onClick={handleClick}
       disabled={loading}
-      className="flex w-full items-center justify-center gap-3 rounded-xl border border-slate-700 bg-slate-900/90 px-4 py-3 text-sm font-semibold text-slate-100 transition hover:border-slate-500 hover:bg-slate-800 shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+      className={className ?? "flex w-full items-center justify-center gap-3 rounded-xl border border-slate-700 bg-slate-900/90 px-4 py-3 text-sm font-semibold text-slate-100 transition hover:border-slate-500 hover:bg-slate-800 shadow-md disabled:opacity-60 disabled:cursor-not-allowed"}
     >
       {loading ? (
         <>
@@ -80,5 +84,7 @@ export function GoogleSignInButton({ nextParam }: GoogleSignInButtonProps) {
         </>
       )}
     </button>
+    {errorMessage && <p role="alert" style={{marginTop:12,fontSize:12,lineHeight:1.6,color:className ? "#8c3627" : "#fca5a5"}}>{errorMessage}</p>}
+    </>
   );
 }

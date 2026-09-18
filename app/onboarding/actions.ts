@@ -1,4 +1,5 @@
 "use server";
+import { getLearningUser } from "@/lib/auth/learning-user";
 
 import { launchLimits } from "@/lib/config/launch";
 import { redirect } from "next/navigation";
@@ -33,7 +34,7 @@ export async function generatePath(formData: FormData) {
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getLearningUser(supabase);
 
   if (!user) redirect("/login?next=/onboarding");
   const effectiveUserId = user.id;
@@ -157,7 +158,7 @@ export async function generatePath(formData: FormData) {
       })
     );
 
-    const verified = await prepareCandidates(stageResults.flatMap(stage => stage.candidates), currency);
+    const verified = await prepareCandidates(stageResults.flatMap(stage => stage.candidates), currency, user.user_metadata?.country_of_residence);
     const verifiedByUrl = new Map(verified.map(resource => [resource.url, resource]));
     for (const res of stageResults) {
       res.candidates = res.candidates.flatMap(resource => { const valid = verifiedByUrl.get(resource.url); return valid ? [valid] : []; });
@@ -232,7 +233,7 @@ export async function confirmSelectedPath(formData: FormData) {
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getLearningUser(supabase);
 
   const setId = String(formData.get("setId") ?? "");
   const optionId = String(formData.get("optionId") ?? "");
@@ -261,6 +262,7 @@ export async function confirmSelectedPath(formData: FormData) {
     const selectedOption = includePurchased(offeredOption, formData.getAll("purchasedResourceId").map(String));
     if (!selectedOption) throw new Error("No path option available to confirm.");
 
+    if (selectedOption.stages.some(stage => stage.stage_resources.some(r => r.resources.billing_interval === "month" && r.resources.url.includes("scrimba.com/")))) throw new Error("Refresh outdated Scrimba prices by generating new options.");
     const pathId = await savePath(service, user.id, setId, pathSet, selectedOption);
     // Keep the pending set until its normal expiry so an interrupted response can retry safely.
     redirect(`/paths/${pathId}`);

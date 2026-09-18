@@ -1,3 +1,4 @@
+import { getLearningUser } from "@/lib/auth/learning-user";
 import { redirect } from "next/navigation";
 import { PathSelectionForm } from "@/components/PathSelectionForm";
 import { courseLink } from "@/lib/affiliates/links";
@@ -22,7 +23,7 @@ export default async function OnboardingSelectPage({
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getLearningUser(supabase);
 
   if (!user) redirect("/login?next=" + encodeURIComponent("/onboarding/select?set=" + (set ?? "")));
 
@@ -73,6 +74,9 @@ export default async function OnboardingSelectPage({
       }
     : null;
 
+  if (pathSet?.options.some(option => option.stages?.some((stage: any) => stage.stage_resources?.some((r: any) => r.resources?.billing_interval === "month" && String(r.resources?.url).includes("scrimba.com/"))))) {
+    return <div className="mx-auto max-w-xl px-6 py-16"><h1 className="text-2xl font-semibold">Refresh your course prices</h1><p className="mt-4">These options contain an outdated Scrimba subscription estimate. Generate fresh options before choosing your path.</p><Link className="mt-6 inline-block underline" href="/onboarding">Generate updated options</Link></div>;
+  }
   if (!pathSet) {
     return (
       <div className="relative flex min-h-[calc(100vh-64px)] items-center justify-center px-4 py-20 bg-slate-950 text-slate-100 bg-grid-pattern">
@@ -121,7 +125,7 @@ export default async function OnboardingSelectPage({
           )}
         </div>
 
-        <p className="mt-6 rounded-xl border border-slate-700 p-4 text-sm text-slate-300">Course costs are planning estimates. Provider checkout prices can vary by region, account, tax and promotion. Courses without a verifiable price are excluded; subscriptions show a monthly rate and the estimated number of months included in the total. Cancel renewal when you finish; regional discounts are not assumed.</p>
+        <p className="mt-6 rounded-xl border border-slate-700 p-4 text-sm text-slate-300">Course costs are planning estimates. Provider checkout prices can vary by region, account, tax and promotion. Courses without a verifiable price are excluded; subscriptions show their billing interval and include the full upfront charge in the total. Cancel renewal when you finish; regional discounts are not assumed.</p>
         {pathSet.options.some(option => option.stages.some((stage: any) => stage.stage_resources.some((sr: any) => courseLink(sr.resources?.url || "", sr.resources?.affiliate === true).affiliate))) && <p className="mt-3 text-sm text-slate-400">Some course links are affiliate links. Learning Map may earn a commission if you buy through them. Selection is based on relevance and your budget.</p>}
         <div className="mt-10 grid grid-cols-1 gap-8 md:grid-cols-3">
           {pathSet.options.map((option, idx) => {
@@ -148,7 +152,7 @@ export default async function OnboardingSelectPage({
                   </p>
 
 
-                  {option.subscriptions?.map((plan: any) => <p key={plan.provider} className="mt-4 rounded-xl border border-slate-700 p-3 text-xs text-slate-300">Scrimba Pro: {plan.months} month(s) × <Money amount={plan.monthly_price} currency={pathSet.currency} />. Included once across selected courses, starting at the first paid stage. Renews monthly until cancelled.</p>)}
+                  {option.subscriptions?.map((plan: any) => <p key={plan.provider} className="mt-4 rounded-xl border border-slate-700 p-3 text-xs text-slate-300">Scrimba Pro: {plan.periods ?? plan.months} {plan.billing_interval === "year" ? "year(s)" : "month(s)"} × <Money amount={plan.monthly_price} currency={pathSet.currency} />. Included once across selected courses, starting at the first paid stage. Charged per billing period; renews until cancelled.</p>)}
                   <div className="mt-5 flex items-baseline justify-between rounded-2xl bg-slate-900/80 p-4 border border-slate-800">
                     <div>
                       <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Est. Cost</p>
@@ -203,7 +207,7 @@ export default async function OnboardingSelectPage({
                                       <span>{t === "course" ? p === "udemy" ? "Udemy" : providerName(sr.resources?.url ?? "") : label}</span>
                                     </span>
                                     <span className="font-extrabold text-emerald-400">
-                                      <Money amount={sr.resources?.price ?? 0} currency={sr.resources?.currency ?? pathSet.currency} freeLabel />{sr.resources?.billing_interval === "month" ? " / month" : ""}
+                                      <Money amount={sr.resources?.price ?? 0} currency={sr.resources?.currency ?? pathSet.currency} freeLabel />{sr.resources?.billing_interval === "year" ? " / year, billed upfront · shared Pro access" : sr.resources?.billing_interval === "month" ? " / month" : ""}
                                     </span>
                                   </div>
                                   {safeUrl ? (

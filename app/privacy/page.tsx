@@ -13,7 +13,7 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-lg font-bold text-white">1. Data We Collect</h2>
             <ul className="mt-2 list-disc pl-5 space-y-1 text-slate-400">
-              <li><strong className="text-slate-200">Account Information:</strong> Email address, display name, companion avatar, and encrypted password credentials managed by Supabase Auth.</li>
+              <li><strong className="text-slate-200">Account Information:</strong> Email address, country of residence, mobile number when verification is enabled, display name, companion avatar, and encrypted password credentials managed by Supabase Auth.</li>
               <li><strong className="text-slate-200">Roadmap Inputs:</strong> Target skill fields, self-reported experience level, weekly availability, budget limit, and quiz scores.</li>
               <li><strong className="text-slate-200">Progress Tracking:</strong> Marked stage completions, ratings, practice checks, and export timestamps.</li>
             </ul>
@@ -22,7 +22,7 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-lg font-bold text-white">2. AI & Third-Party Integrations</h2>
             <p className="mt-1 text-slate-400">
-              Your onboarding parameters are transmitted to Google Gemini API (with search grounding) to synthesize your learning stages and filter public YouTube and web resources.
+              Verification messages are delivered through Supabase Auth and its configured email and SMS providers. Phone numbers are used for verification, not marketing. Your onboarding parameters are transmitted to Google Gemini API (with search grounding) to synthesize your learning stages and filter public YouTube and web resources.
             </p>
           </section>
 

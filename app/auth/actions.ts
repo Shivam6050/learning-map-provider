@@ -1,5 +1,9 @@
 "use server";
 
+import { cookies } from "next/headers";
+import { validCountry, internationalPhone, residenceCurrency } from "@/lib/profile/residence";
+import { contactVerificationEnabled } from "@/lib/auth/contact-verification";
+import { CURRENCY_COOKIE } from "@/lib/currency/format";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -13,6 +17,11 @@ export async function signup(formData: FormData) {
   const password = String(formData.get("password") ?? "");
   const displayName = String(formData.get("displayName") ?? "").trim();
   const rawAvatarId = String(formData.get("avatarId") ?? "");
+  const country = String(formData.get("country") ?? "");
+  const rawPhone = String(formData.get("phone") ?? "");
+  const phone = internationalPhone(rawPhone);
+  if (!validCountry(country)) redirect("/signup?error=Select your country of residence");
+  if ((rawPhone || contactVerificationEnabled()) && !phone) redirect("/signup?error=Enter a valid mobile number including its country calling code");
   const acceptedTerms = formData.get("acceptTerms") === "on";
 
   if (!acceptedTerms) {
@@ -34,7 +43,7 @@ export async function signup(formData: FormData) {
       email,
       password,
       options: {
-        data: { display_name: displayName, avatar_id: avatarId },
+        data: { display_name: displayName, avatar_id: avatarId, country_of_residence: country },
         emailRedirectTo: `${getSiteUrl()}/auth/callback`,
       },
     });
@@ -63,6 +72,13 @@ export async function signup(formData: FormData) {
     redirect(`/signup?error=${encodeURIComponent(errorMessage)}`);
   }
 
+  const jar = await cookies();
+  jar.set(CURRENCY_COOKIE, residenceCurrency(country), {path:"/",maxAge:31536000,sameSite:"lax",secure:process.env.NODE_ENV === "production"});
+  if (contactVerificationEnabled()) {
+    if (phone) jar.set("learning-map-pending-phone", phone, {httpOnly:true,path:"/",sameSite:"lax",secure:process.env.NODE_ENV === "production",maxAge:1800});
+    jar.set("learning-map-pending-email", email, {httpOnly:true,path:"/",sameSite:"lax",secure:process.env.NODE_ENV === "production",maxAge:1800});
+    redirect("/verify-contact");
+  }
   redirect("/login?message=Check your email to confirm your account");
 }
 

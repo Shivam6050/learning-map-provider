@@ -1,3 +1,4 @@
+import { residenceCurrency, validCountry } from "@/lib/profile/residence";
 import { BrandLogo } from "@/components/BrandLogo";
 import { cookies } from "next/headers";
 import { CurrencyProvider, CurrencySwitcher } from "@/components/CurrencyProvider";
@@ -26,13 +27,16 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const savedCurrency = (await cookies()).get(CURRENCY_COOKIE)?.value;
-  const initialCurrency = isCurrency(savedCurrency) ? savedCurrency : null;
+
   const rateEntriesPromise = Promise.all(CURRENCIES.flatMap(from => CURRENCIES.map(async to => [`${from}:${to}`, await getConversionRate(from, to).catch(() => null)] as const)));
 
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  const country = user?.user_metadata?.country_of_residence;
+  const initialCurrency = isCurrency(savedCurrency) ? savedCurrency : validCountry(country) ? residenceCurrency(country) : null;
 
   let profile: { avatar_id?: string; display_name?: string } | null = null;
   if (user) {
