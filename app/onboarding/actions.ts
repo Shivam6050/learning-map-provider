@@ -1,4 +1,5 @@
 "use server";
+import { loadRoadmapTemplate } from "@/lib/templates/load";
 import { getLearningUser } from "@/lib/auth/learning-user";
 
 import { launchLimits } from "@/lib/config/launch";
@@ -106,7 +107,9 @@ export async function generatePath(formData: FormData) {
     const fieldId = await ensureField(field!.name, field!.slug);
 
     // --- Stage 1: skeleton (no search) ---
-    const skeleton = await generateSkeleton({
+    const generationStarted = Date.now();
+    const template = await loadRoadmapTemplate(field!.slug, skillLevel, currency);
+    const skeleton = template?.stages ?? await generateSkeleton({
       fieldName: field!.name,
       skillLevel,
       weeklyHours,
@@ -121,14 +124,14 @@ export async function generatePath(formData: FormData) {
       skeleton.map(async (stage) => {
         const stageCandidates: DiscoveredResource[] = [];
 
-        const catalogPromise = discoverUdemyCourses(stage.search_topics, currency, budgetTotal).catch(error => {
+        const catalogPromise = budgetTotal === 0 ? Promise.resolve([]) : discoverUdemyCourses(stage.search_topics, currency, budgetTotal).catch(error => {
           paidCatalogFailed = true;
           console.warn("[Udemy catalog]", error instanceof Error ? error.message : "Unavailable");
           return [];
         });
-        const seedPromise = ensureSeedCandidates(stage.search_topics, currency, budgetTotal, field!.slug).catch(() => []);
+        const seedPromise = ensureSeedCandidates(stage.search_topics, currency, budgetTotal, field!.slug, template ? "paid" : "all").catch(() => []);
 
-        const topicPromises = stage.search_topics.map(async (topic) => {
+        const topicPromises = (template ? [] : stage.search_topics).map(async (topic) => {
           try {
             const [youtubeResults, webResults] = await Promise.all([
               discoverYoutubeForTopic(topic, fieldId, currencyToRegion(currency)).catch(() => []),
@@ -158,7 +161,9 @@ export async function generatePath(formData: FormData) {
       })
     );
 
-    const verified = await prepareCandidates(stageResults.flatMap(stage => stage.candidates), currency, user.user_metadata?.country_of_residence);
+    const freshPaidOrFallback = await prepareCandidates(stageResults.flatMap(stage => stage.candidates), currency, user.user_metadata?.country_of_residence);
+    const verified = [...freshPaidOrFallback, ...(template?.stages.flatMap(stage => stage.candidates) ?? [])];
+    if (template) for (const result of stageResults) result.candidates.push(...(template.stages.find(stage => stage.order_index === result.order_index)?.candidates ?? []));
     const verifiedByUrl = new Map(verified.map(resource => [resource.url, resource]));
     for (const res of stageResults) {
       res.candidates = res.candidates.flatMap(resource => { const valid = verifiedByUrl.get(resource.url); return valid ? [valid] : []; });
@@ -173,7 +178,10 @@ export async function generatePath(formData: FormData) {
     }
 
     // --- Stage 3: real judgment per stage, grounded in real candidates ---
-    const [judgedStages, practiceChecksByStage] = await Promise.all([
+    const [judgedStages, practiceChecksByStage] = template ? [
+      template.stages.map(stage => ({order_index:stage.order_index,selected_resources:stage.candidates.map((r,i)=>({url:r.url,is_primary:i===0,reason:"Curated free roadmap resource"}))})),
+      new Map(template.stages.map(stage => [stage.order_index,stage.practice_check])),
+    ] as const : await Promise.all([
       Promise.all(skeleton.map((stage) => judgeStage(stage, candidatesByStage.get(stage.order_index) ?? []))),
       generatePracticeChecks(skeleton),
     ]);
@@ -194,6 +202,7 @@ export async function generatePath(formData: FormData) {
     if (budgetTotal > 0) for (const option of options.slice(0, 2)) {
       if (option.total_cost === 0) option.availability_note = "No relevant paid course or subscription with a verified cost fits this tier. Free resources remain available; a higher budget may unlock paid options.";
     }
+    console.info("[roadmap-generation]", {source:template ? "template" : "discovery",templateVersion:template?.version ?? null,field:field!.slug,level:skillLevel,durationMs:Date.now()-generationStarted});
     // --- Persist the pending option set to the DATABASE ---
     const { data: pendingSet, error: pendingError } = await service
       .from("pending_path_sets")

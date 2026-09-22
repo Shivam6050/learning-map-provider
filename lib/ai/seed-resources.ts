@@ -17,6 +17,8 @@ export type SeedResource = {
 
 export const BASE_SEED_RESOURCES: SeedResource[] = [
   ...CURATED_LEARNING_RESOURCES,
+  { title: "Supervised learning — scikit-learn", url: "https://scikit-learn.org/stable/user_guide.html", platform: "docs", resource_type: "docs", price: 0, currency: "USD", field_slug: "ai-machine-learning", topic_hints: ["supervised learning", "scikit learn machine learning", "regression classification"] },
+  { title: "Kubernetes tutorials", url: "https://kubernetes.io/docs/tutorials/", platform: "docs", resource_type: "docs", price: 0, currency: "USD", field_slug: "devops-cloud", topic_hints: ["kubernetes orchestration"] },
   ...PAID_CATALOG.map(course => ({ title: course.title, url: course.url, platform: "article" as const, resource_type: "course" as const, price: 1, currency: "USD", topic_hints: course.topics })),
   // --- BACKEND DEVELOPMENT ---
   {
@@ -660,7 +662,7 @@ export function getAdjustedResourcePool(
   return BASE_SEED_RESOURCES.map(res => res.price === 0 ? { ...res, currency: targetCurrency.toUpperCase() } : { ...res });
 }
 
-function matchTopicHint(topic: string, hint: string): boolean {
+export function matchTopicHint(topic: string, hint: string): boolean {
   const t = topic.toLowerCase().trim();
   const h = hint.toLowerCase().trim();
   if (!t || !h) return false;
@@ -677,9 +679,11 @@ export async function ensureSeedCandidates(
   topics: string[],
   currency: string,
   budgetTotal: number,
-  fieldSlug?: string
+  fieldSlug?: string,
+  mode: "all" | "paid" = "all"
 ): Promise<DiscoveredResource[]> {
   let pool = getAdjustedResourcePool(currency, budgetTotal);
+  if (mode === "paid") pool = pool.filter(resource => resource.price > 0);
   if (fieldSlug) {
     const scoped = pool.filter((res) => !res.field_slug || res.field_slug === fieldSlug);
     if (scoped.length > 0) {

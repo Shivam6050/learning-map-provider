@@ -32,7 +32,7 @@ Schema:
   ]
 }`;
 
-const FIELD_FALLBACK_SKELETONS: Record<string, SkeletonStage[]> = {
+export const FIELD_FALLBACK_SKELETONS: Record<string, SkeletonStage[]> = {
   "frontend-development": [
     {
       order_index: 0,
