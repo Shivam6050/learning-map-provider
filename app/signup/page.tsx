@@ -1,3 +1,4 @@
+import { CountryPicker } from "@/components/CountryPicker";
 import Link from "next/link";
 import {signup} from "@/app/auth/actions";
 import {GoogleSignInButton} from "@/components/GoogleSignInButton";
@@ -17,7 +18,7 @@ export default async function SignupPage({searchParams}:{searchParams:Promise<{e
  <div><label htmlFor="displayName">Your name</label><input id="displayName" name="displayName" autoComplete="name" required maxLength={100} placeholder="How should we call you?"/></div>
  <div><label htmlFor="email">Email address</label><input id="email" name="email" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false} required placeholder="you@example.com"/><p className={styles.hint}>We’ll send a confirmation email to verify your account.</p></div>
  <div><label htmlFor="password">Password</label><PasswordField signup/><p id="password-help" className={styles.hint}>Use at least 8 characters.</p></div>
- <div><label htmlFor="country">Country of residence</label><select id="country" name="country" autoComplete="country" required defaultValue="" aria-describedby="country-help"><option value="" disabled>Select your country</option>{countryOptions().map(c=><option key={c.code} value={c.code}>{c.name}</option>)}</select><p id="country-help" className={styles.hint}>Helps us match regional offers and set your display currency.</p></div>
+ <div><CountryPicker countries={countryOptions()}/><p id="country-help" className={styles.hint}>Helps us match regional offers and set your display currency.</p></div>
  {contactVerificationEnabled() && <div><label htmlFor="phone">Mobile number</label><input id="phone" name="phone" type="tel" autoComplete="tel" required maxLength={40} placeholder="+91 98765 43210"/><p className={styles.hint}>Include your country calling code. We’ll verify it by SMS.</p></div>}
  <details className={styles.personalise}><summary>Choose your companion <span>Optional</span></summary><fieldset><legend className={styles.hint}>A small touch of personality. Change it anytime in Settings.</legend><div className={styles.avatars}>{AVATAR_OPTIONS.map((avatar,i)=><label key={avatar.id}><input type="radio" name="avatarId" value={avatar.id} defaultChecked={i===0}/><span><ProfileAvatar id={avatar.id} size={36}/><small>{avatar.label}</small></span></label>)}</div></fieldset></details>
  <label className={styles.terms}><input id="acceptTerms" name="acceptTerms" type="checkbox" required/><span>I agree to the <Link href="/terms">Terms of Service</Link> and <Link href="/privacy">Privacy Policy</Link>.</span></label><AuthSubmit signup/>
