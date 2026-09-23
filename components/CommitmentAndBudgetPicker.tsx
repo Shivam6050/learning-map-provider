@@ -16,10 +16,10 @@ export function CommitmentAndBudgetPicker() {
   const estimatedWeeks = Math.max(1, Math.ceil(baseHours / Math.max(1, weeklyHours)));
 
   return (
-    <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5 space-y-5">
+    <div className="commitment-panel rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5 space-y-5">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider">
-          2. Commitment & Budget
+          03 / Your pace & budget
         </h3>
         <span className="rounded-full bg-indigo-500/10 px-3 py-1 text-xs font-semibold text-indigo-300 border border-indigo-500/20">
           Estimated: ~{estimatedWeeks} {estimatedWeeks === 1 ? "week" : "weeks"}
@@ -65,6 +65,8 @@ export function CommitmentAndBudgetPicker() {
         />
         <div className="mt-2 flex items-center gap-2">
           <input
+            id="weeklyHoursRange"
+            aria-label="Weekly learning hours"
             type="range"
             min={1}
             max={80}

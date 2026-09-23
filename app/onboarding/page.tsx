@@ -1,49 +1,37 @@
+import Link from "next/link";
 import { generatePath } from "@/app/onboarding/actions";
 import { FieldAndQuizPicker } from "@/components/FieldAndQuizPicker";
 import { CommitmentAndBudgetPicker } from "@/components/CommitmentAndBudgetPicker";
 import { SubmitButton } from "@/components/SubmitButton";
+import styles from "./onboarding.module.css";
 
-export default async function OnboardingPage({
-  searchParams,
-}: {
+export default async function OnboardingPage({ searchParams }: {
   searchParams: Promise<{ error?: string; field?: string }>;
 }) {
   const params = await searchParams;
-
-  return (
-    <div className="relative flex min-h-[calc(100vh-64px)] items-center justify-center px-4 py-16 bg-slate-950 text-slate-100 bg-grid-pattern">
-      <div className="glow-orb-indigo top-10 left-1/2 -translate-x-1/2" />
-
-      <div className="relative w-full max-w-2xl glass-card rounded-3xl p-6 sm:p-10 border-slate-800 shadow-2xl">
-        <div className="text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-500/10 text-3xl border border-indigo-500/20">
-            ↗
-          </div>
-          <h1 className="mt-4 font-serif text-3xl font-bold text-white sm:text-4xl">
-            Let&apos;s map your path
-          </h1>
-          <p className="mt-2 text-sm text-slate-400 max-w-md mx-auto">
-            Choose a direction, find your starting point, and make room for learning in your week.
-          </p>
-        </div>
-
-        {params.error && (
-          <div className="mt-6 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300 backdrop-blur-md" role="alert">
-            ⚠️ {params.error}
-          </div>
-        )}
-
-        <form action={generatePath} className="mt-8 space-y-6">
-          <FieldAndQuizPicker initialField={params.field} />
-          <CommitmentAndBudgetPicker />
-
-          <SubmitButton />
-          
-          <p className="text-center text-xs text-slate-400">
-            We check resources while building your options. This can take a minute.
-          </p>
+  return <div className={styles.page}>
+    <div className={styles.layout}>
+      <aside className={styles.intro}>
+        <Link href="/dashboard" className={styles.back}>← Back to dashboard</Link>
+        <p className={styles.eyebrow}>A little direction changes everything</p>
+        <h1>Your next chapter.<br/><em>Mapped for you.</em></h1>
+        <p className={styles.description}>Start with where you are. We’ll help you find what to learn next, at a pace and price that work for you.</p>
+        <ol className={styles.steps}>
+          <li><span>01</span><div><strong>Choose your direction</strong><p>A field you’re ready to explore.</p></div></li>
+          <li><span>02</span><div><strong>Find your starting point</strong><p>Check your knowledge or choose your level.</p></div></li>
+          <li><span>03</span><div><strong>Make it fit your life</strong><p>Your time, your budget, your path.</p></div></li>
+        </ol>
+        <div className={styles.note}><span>WHAT COMES NEXT</span><p>Compare a fuller route, a balanced option and a free path. Choose the one that feels right.</p><small>Paid options depend on course availability and your budget.</small></div>
+      </aside>
+      <section className={styles.panel} aria-labelledby="onboarding-title">
+        <header className={styles.heading}><p className={styles.eyebrow}>YOUR LEARNING BRIEF</p><h2 id="onboarding-title">Let’s find your way forward.</h2><p>A few choices now. A clearer next step ahead.</p></header>
+        {params.error && <div className={styles.error} role="alert">{params.error}</div>}
+        <form action={generatePath} className={styles.form}>
+          <FieldAndQuizPicker initialField={params.field}/>
+          <CommitmentAndBudgetPicker/>
+          <footer className={styles.submit}><SubmitButton/><p>We’ll check available resources and prepare your options. Keep this page open while we build your roadmap.</p></footer>
         </form>
-      </div>
+      </section>
     </div>
-  );
+  </div>;
 }
