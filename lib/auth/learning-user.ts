@@ -1,8 +1,12 @@
 import { redirect } from "next/navigation";
+import type { User } from "@supabase/supabase-js";
+import { validCountry } from "@/lib/profile/residence";
 import { contactVerificationEnabled, hasVerifiedContacts } from "./contact-verification";
-/** Runs at each protected server entry point, including direct server-action calls. */
-export async function getLearningUser(client: {auth:{getUser:()=>Promise<any>}}) {
+/** Runs at protected server entries, including direct server-action calls. */
+export async function getLearningUser<T extends {data:{user:User|null}}>(client: {auth:{getUser:()=>Promise<T>}}) {
  const result=await client.auth.getUser();
- if (result.data?.user && contactVerificationEnabled() && !hasVerifiedContacts(result.data.user)) redirect("/verify-contact");
+ const user=result.data.user;
+ if(user && !validCountry(user.user_metadata?.country_of_residence)) redirect("/complete-profile");
+ if(user && contactVerificationEnabled() && !hasVerifiedContacts(user)) redirect("/verify-contact");
  return result;
 }

@@ -62,7 +62,7 @@ export default async function TrustedSourcesAdminPage() {
 
           {pending?.length ? (
             <ul className="mt-4 space-y-3">
-              {pending.map((source: any) => {
+              {pending.map((source: {id:string;source_name:string;source_url:string|null;platform:string;added_by?:string;fields:{name:string}|{name:string}[]|null}) => {
                 const field = Array.isArray(source.fields) ? source.fields[0] : source.fields;
                 return (
                   <li
@@ -70,9 +70,9 @@ export default async function TrustedSourcesAdminPage() {
                     className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-sm"
                   >
                     <div>
-                      {isSafeHttpUrl(source.source_url) ? (
+                      {isSafeHttpUrl(source.source_url || "") ? (
                         <a
-                          href={source.source_url}
+                          href={source.source_url || undefined}
                           target="_blank"
                           rel="noreferrer"
                           className="font-semibold text-indigo-400 transition hover:text-indigo-300 hover:underline"
@@ -119,7 +119,7 @@ export default async function TrustedSourcesAdminPage() {
           </h2>
           {approved?.length ? (
             <ul className="mt-4 space-y-2">
-              {approved.map((source: any) => {
+              {approved.map((source: {id:string;source_name:string;source_url:string|null;platform:string;added_by?:string;fields:{name:string}|{name:string}[]|null}) => {
                 const field = Array.isArray(source.fields) ? source.fields[0] : source.fields;
                 return (
                   <li key={source.id} className="rounded-xl border border-slate-800/60 bg-slate-900/40 px-4 py-2 text-xs text-slate-300 flex items-center justify-between">

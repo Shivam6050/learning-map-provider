@@ -9,8 +9,8 @@ export function parseGfgOffer(html: string, page: string, country?: string): { a
  for(const [key,value] of Object.entries(queries??{})) {
   if(!key.startsWith('getLandingPageCourseDetails('))continue;
   const args=JSON.parse(key.slice(key.indexOf('(')+1,-1));if(args.slug!==slug || (country && args.cdnCountryCode !== country))continue;
-  const data=(value as {data?:any}).data;const amount=data?.first_upcoming_batch?.batch_fee;
-  const currency=({'₹':'INR','$':'USD','€':'EUR','£':'GBP'} as Record<string,string>)[data?.currency_symbol];
+  const data=(value as {data?:{first_upcoming_batch?:{batch_fee?:number};currency_symbol?:string}}).data;const amount=data?.first_upcoming_batch?.batch_fee;
+  const currency=({'₹':'INR','$':'USD','€':'EUR','£':'GBP'} as Record<string,string>)[data?.currency_symbol ?? ""];
   if(typeof amount!=='number'||!Number.isFinite(amount)||amount<=0||!currency)continue;
   // A dollar sign alone is ambiguous outside the US region.
   if(currency==='USD'&&args.cdnCountryCode!=='US')continue;

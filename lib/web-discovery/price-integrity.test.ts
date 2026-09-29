@@ -8,3 +8,5 @@ describe("price identity",()=>{
   it("does not consider a lookalike free platform free",async()=>{expect((await fetchRealtimePrice("https://youtube.com.evil.example/watch?v=test")).price).toBeNull();});
   it("does not relabel an unconverted foreign price",async()=>{vi.stubEnv("UDEMY_CLIENT_ID","test");vi.stubEnv("UDEMY_CLIENT_SECRET","test");vi.spyOn(global,"fetch").mockResolvedValue(new Response(JSON.stringify({results:[{url:"/course/requested/",price_detail:{amount:10,currency:"USD"}}]})));expect(await fetchUdemyApiPrice("https://www.udemy.com/course/requested/","INR")).toBeNull();});
 });
+
+vi.mock("@/lib/link-check/public-fetch",()=>({publicPageFetch:(url:string,init:RequestInit)=>fetch(url,init)}));

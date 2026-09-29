@@ -17,7 +17,7 @@ export function isSafeHttpUrl(rawUrl: string): boolean {
     if (host.includes(":")) return false;
     if (/^\d+\.\d+\.\d+\.\d+$/.test(host)) {
       const [a,b] = host.split(".").map(Number);
-      if (a === 0 || a === 10 || a === 127 || a >= 224 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127)) return false;
+      if (a === 0 || a === 10 || a === 127 || a >= 224 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && [0,168].includes(b)) || (a === 198 && [18,19,51].includes(b)) || (a === 203 && b === 0) || (a === 100 && b >= 64 && b <= 127)) return false;
     }
     return url.protocol === "http:" || url.protocol === "https:";
   } catch {

@@ -17,6 +17,7 @@ export type SeedResource = {
 
 export const BASE_SEED_RESOURCES: SeedResource[] = [
   ...CURATED_LEARNING_RESOURCES,
+  { title: "Terraform tutorials", url: "https://developer.hashicorp.com/terraform/tutorials", platform: "docs", resource_type: "docs", price: 0, currency: "USD", field_slug: "devops-cloud", topic_hints: ["terraform", "infrastructure as code", "cloud"] },
   { title: "Supervised learning — scikit-learn", url: "https://scikit-learn.org/stable/user_guide.html", platform: "docs", resource_type: "docs", price: 0, currency: "USD", field_slug: "ai-machine-learning", topic_hints: ["supervised learning", "scikit learn machine learning", "regression classification"] },
   { title: "Kubernetes tutorials", url: "https://kubernetes.io/docs/tutorials/", platform: "docs", resource_type: "docs", price: 0, currency: "USD", field_slug: "devops-cloud", topic_hints: ["kubernetes orchestration"] },
   ...PAID_CATALOG.map(course => ({ title: course.title, url: course.url, platform: "article" as const, resource_type: "course" as const, price: 1, currency: "USD", topic_hints: course.topics })),
@@ -680,7 +681,8 @@ export async function ensureSeedCandidates(
   currency: string,
   budgetTotal: number,
   fieldSlug?: string,
-  mode: "all" | "paid" = "all"
+  mode: "all" | "paid" = "all",
+  country?: string
 ): Promise<DiscoveredResource[]> {
   let pool = getAdjustedResourcePool(currency, budgetTotal);
   if (mode === "paid") pool = pool.filter(resource => resource.price > 0);
@@ -703,10 +705,10 @@ export async function ensureSeedCandidates(
   const results: DiscoveredResource[] = [];
   for (const seed of matched) {
     if (budgetTotal === 0 && seed.price > 0) continue;
-    const subscription = await paidSubscriptionQuote(seed.url, currency);
+    const subscription = await paidSubscriptionQuote(seed.url, currency, country);
     const quote = subscription ?? (seed.price === 0
       ? { price: 0, currency: currency.toUpperCase(), isRealtime: false }
-      : await fetchRealtimePrice(seed.url, currency));
+      : await fetchRealtimePrice(seed.url, currency, country));
     if (quote.price === null) continue;
     const { data, error } = await service.from("resources").upsert({
       title: seed.title, url: seed.url, platform: seed.platform, resource_type: seed.resource_type,

@@ -27,54 +27,15 @@ export async function updateStageProgress(formData: FormData) {
     throw new Error(`Invalid status: ${status}`);
   }
 
-  const updatePayload: Record<string, any> = {
+  const updatePayload: {status:string;completed_at?:string|null} = {
     status,
     completed_at: status === "completed" ? new Date().toISOString() : null,
   };
 
-  let { error, count } = await supabase
-    .from("stage_progress")
-    .update({ ...updatePayload, updated_at: new Date().toISOString() })
-    .eq("stage_id", stageId)
-    .eq("user_id", user.id)
-    .select("*", { count: "exact", head: true });
-
-  if (error && error.message.includes("updated_at")) {
-    const fallback = await supabase
-      .from("stage_progress")
-      .update(updatePayload)
-      .eq("stage_id", stageId)
-      .eq("user_id", user.id)
-      .select("*", { count: "exact", head: true });
-    error = fallback.error;
-    count = fallback.count;
-  }
-
-  if (error) {
-    throw new Error(`Failed to update progress: ${error.message}`);
-  }
-
-  if (count === 0) {
-    let { error: insertError } = await supabase.from("stage_progress").insert({
-      stage_id: stageId,
-      user_id: user.id,
-      ...updatePayload,
-      updated_at: new Date().toISOString(),
-    });
-
-    if (insertError && insertError.message.includes("updated_at")) {
-      const fallbackInsert = await supabase.from("stage_progress").insert({
-        stage_id: stageId,
-        user_id: user.id,
-        ...updatePayload,
-      });
-      insertError = fallbackInsert.error;
-    }
-
-    if (insertError) {
-      throw new Error(`Failed to create progress row: ${insertError.message}`);
-    }
-  }
+  const {error}=await supabase.from("stage_progress").upsert({
+    stage_id:stageId,user_id:user.id,...updatePayload,updated_at:new Date().toISOString(),
+  },{onConflict:"stage_id,user_id"}).select("stage_id").single();
+  if(error)throw new Error("Could not save progress. Please try again.");
 
   revalidatePath(`/paths/${pathId}`);
   revalidatePath("/dashboard");
@@ -95,7 +56,7 @@ export async function savePracticeNote(formData: FormData): Promise<{ ok: boolea
     if (readError) return { ok: false, error: "Could not load your saved notes. Please try again." };
     const practice_check = { ...(existing?.practice_check ?? {}), user_submission: userSubmission, submitted_at: new Date().toISOString() };
     const query = existing
-      ? supabase.from("stage_progress").update({ practice_check }).eq("stage_id", stageId).eq("user_id", user.id)
+      ? supabase.from("stage_progress").update({ practice_check, updated_at: new Date().toISOString() }).eq("stage_id", stageId).eq("user_id", user.id)
       : supabase.from("stage_progress").insert({ stage_id: stageId, user_id: user.id, status: "not_started", practice_check });
     const { data: saved, error } = await query.select("stage_id").single();
     if (error || !saved) return { ok: false, error: "Your notes could not be saved. Please try again; your draft is still here." };
@@ -138,7 +99,7 @@ export async function rateResource(formData: FormData) {
     .eq("resource_id", resourceId);
 
   if (allRatings?.length) {
-    const avg = allRatings.reduce((sum: number, r: any) => sum + r.rating, 0) / allRatings.length;
+    const avg = allRatings.reduce((sum: number, r: {rating:number}) => sum + r.rating, 0) / allRatings.length;
     await service
       .from("resources")
       .update({ rating: Math.round(avg * 100) / 100 })

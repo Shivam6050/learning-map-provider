@@ -23,7 +23,7 @@ export function parseScrimbaMonthlyPrice(html: string): number | null {
 // Parse the upfront billing amount. Currency alone does not establish a regional offer.
 export function parseScrimbaPlan(html: string, currency: string) {
  const text = html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ").replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ");
- const symbol = currency === "INR" ? "₹" : currency === "USD" ? "USD\\s*" : currency === "EUR" ? "€" : null;
+ const symbol = currency === "INR" ? "₹" : currency === "USD" ? "(?:USD\\s*|US\\$\\s*|\\$)" : currency === "EUR" ? "€" : null;
  if (!symbol) return null;
  const annual = [...text.matchAll(new RegExp("billed annually for\\s*" + symbol + "([0-9][0-9,]*(?:\\.[0-9]{1,2})?)", "gi"))].map(m=>Number(m[1].replace(/,/g,"")));
  const prices = [...new Set(annual)];

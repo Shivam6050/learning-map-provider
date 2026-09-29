@@ -1,3 +1,4 @@
+import { validCountry } from "@/lib/profile/residence";
 import { safeRedirectPath } from "@/lib/security/validation";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
@@ -20,8 +21,11 @@ export async function GET(request: Request) {
 
   if (code) {
     const supabase = await createClient();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      if (data.user && !validCountry(data.user.user_metadata?.country_of_residence)) {
+        return NextResponse.redirect(`${origin}/complete-profile?next=${encodeURIComponent(safeNext)}`);
+      }
       return NextResponse.redirect(`${origin}${safeNext}`);
     } else {
       return NextResponse.redirect(

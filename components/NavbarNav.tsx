@@ -4,7 +4,7 @@ import { GeneratePathIcon } from "@/components/GeneratePathIcon";
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition } from "react";
 
 
 import { AccountMenu } from "@/components/AccountMenu";
@@ -14,7 +14,7 @@ export function NavbarNav({
   avatarId,
   displayName = "Learner",
 }: {
-  user: any;
+  user: {id:string} | null;
   avatarId?: string;
   displayName?: string;
 }) {
@@ -24,9 +24,8 @@ export function NavbarNav({
   const [isPending, startTransition] = useTransition();
 
   // Reset navigating state when pathname changes
-  useEffect(() => {
-    setNavigatingPath(null);
-  }, [pathname]);
+  const [previousPath,setPreviousPath]=useState(pathname);
+  if(previousPath!==pathname){setPreviousPath(pathname);setNavigatingPath(null);}
 
   function handleNavClick(e: React.MouseEvent<HTMLAnchorElement>, href: string) {
     if (pathname === href || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;

@@ -1,3 +1,5 @@
+import { FIELD_CATALOG } from "@/lib/fields/catalog";
+import { getQuizForField } from "@/lib/onboarding/skill-quiz";
 import Link from "next/link";
 import { generatePath } from "@/app/onboarding/actions";
 import { FieldAndQuizPicker } from "@/components/FieldAndQuizPicker";
@@ -27,7 +29,7 @@ export default async function OnboardingPage({ searchParams }: {
         <header className={styles.heading}><p className={styles.eyebrow}>YOUR LEARNING BRIEF</p><h2 id="onboarding-title">Let’s find your way forward.</h2><p>A few choices now. A clearer next step ahead.</p></header>
         {params.error && <div className={styles.error} role="alert">{params.error}</div>}
         <form action={generatePath} className={styles.form}>
-          <FieldAndQuizPicker initialField={params.field}/>
+          <FieldAndQuizPicker initialField={params.field} quizzes={Object.fromEntries(FIELD_CATALOG.map(f=>[f.slug,getQuizForField(f.slug).map(q=>({id:q.id,prompt:q.prompt,options:q.options}))]))}/>
           <CommitmentAndBudgetPicker/>
           <footer className={styles.submit}><SubmitButton/><p>We’ll check available resources and prepare your options. Keep this page open while we build your roadmap.</p></footer>
         </form>

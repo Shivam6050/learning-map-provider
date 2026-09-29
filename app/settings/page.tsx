@@ -4,7 +4,7 @@ import { ResidenceFields } from "@/components/ResidenceFields";
 import { contactVerificationEnabled } from "@/lib/auth/contact-verification";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { updateProfile, updateResidence } from "@/app/settings/actions";
+import { updateProfile, updateResidence, updateReminderPreference } from "@/app/settings/actions";
 import { AvatarSelectorWithPreview } from "@/components/AvatarSelectorWithPreview";
 import { DeleteAccountForm } from "@/components/DeleteAccountForm";
 import { SaveProfileButton } from "@/components/SaveProfileButton";
@@ -12,7 +12,7 @@ import { SaveProfileButton } from "@/components/SaveProfileButton";
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; saved?: string }>;
+  searchParams: Promise<{ error?: string; saved?: string; deletionCodeSent?: string }>;
 }) {
   const params = await searchParams;
   const supabase = await createClient();
@@ -59,6 +59,7 @@ export default async function SettingsPage({
       </aside>
       <div className={styles.content}>
         <header className={styles.header}><p className={styles.eyebrow}>ACCOUNT SETTINGS</p><h2>A space that feels like you.</h2><p>Manage your profile and personalise your learning preferences.</p></header>
+        {params.deletionCodeSent && <div className={styles.success} role="status">Check your email for the verification code, then enter it under Account management.</div>}
         {params.saved && <div className={styles.success} role="status">Your settings have been saved.</div>}
         {params.error && <div className={styles.error} role="alert">{params.error}</div>}
         <section id="profile" className={styles.card} aria-labelledby="profile-title">
@@ -77,6 +78,7 @@ export default async function SettingsPage({
           </form>
           {contactVerificationEnabled() && <Link href="/verify-contact" className={styles.verify}>Verify contact details →</Link>}
         </section>
+        <section className={styles.card}><h2>Learning reminders</h2><form action={updateReminderPreference} className={styles.form}><label><input type="checkbox" name="weeklyReminders" defaultChecked={user.user_metadata?.weekly_reminders !== false}/> Send me a reminder when I have not studied for a week</label><button className={styles.regionButton}>Save reminder preference</button></form></section>
         <section id="account" className={styles.account} aria-labelledby="account-title">
           <div className={styles.sectionHeading}><span>03</span><div><h2 id="account-title">Account management</h2><p>You’re in control of your account and your data.</p></div></div>
           <details className={styles.delete}><summary>Delete your account</summary><p>This permanently deletes your account, saved roadmaps and progress history. This action cannot be undone.</p><DeleteAccountForm/></details>

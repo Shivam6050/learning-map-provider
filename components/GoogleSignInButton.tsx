@@ -38,8 +38,8 @@ export function GoogleSignInButton({ nextParam, className }: GoogleSignInButtonP
         setErrorMessage(error.message || "Google sign-in is unavailable. Please try again.");
         setLoading(false);
       }
-    } catch (err: any) {
-      setErrorMessage(err?.message || "Could not connect to Google. Please try again.");
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : "Could not connect to Google. Please try again.");
       setLoading(false);
     }
   };

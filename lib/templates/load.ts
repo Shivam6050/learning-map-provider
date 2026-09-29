@@ -1,3 +1,4 @@
+import {logError} from "@/lib/monitoring/log-error";
 import {createServiceClient} from "@/lib/supabase/service";
 import {validTemplate} from "./validate";
 import type {DiscoveredResource} from "@/lib/youtube/discover";
@@ -6,7 +7,8 @@ export async function loadRoadmapTemplate(field:string,level:string,currency:str
  try {
   const client=createServiceClient();
   const {data,error}=await client.from("roadmap_templates").select("field_slug,skill_level,version,valid_until,stages").eq("field_slug",field).eq("skill_level",level).eq("status","published").gt("valid_until",new Date().toISOString()).order("version",{ascending:false}).limit(1).maybeSingle();
-  if(error || !validTemplate(data,field,level)) return null;
+  if(error) {await logError("templates/load",error);return null;}
+  if(!validTemplate(data,field,level)) {console.warn("[templates] Missing or expired curriculum",field,level);return null;}
   const ids=[...new Set(data.stages.flatMap(s=>s.resource_ids))];
   const {data:rows,error:resourcesError}=await client.from("resources").select("*").in("id",ids);
   if(resourcesError || !rows) return null;
@@ -14,5 +16,5 @@ export async function loadRoadmapTemplate(field:string,level:string,currency:str
   const stages=data.stages.map(stage=>({...stage,candidates:stage.resource_ids.flatMap(id=>{const resource=resources.get(id);return resource?[resource]:[]})}));
   if(stages.some(s=>!s.candidates.length)) return null;
   return {version:data.version,stages};
- } catch { return null; } // Missing migration, stale or unavailable template uses the existing pipeline.
+ } catch (error) { await logError("templates/load",error); return null; } // Missing migration, stale or unavailable template uses the existing pipeline.
 }

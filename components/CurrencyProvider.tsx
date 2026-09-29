@@ -15,7 +15,8 @@ export function CurrencyProvider({ initialCurrency, rates, children }: {
 }) {
   const [currency, setValue] = useState(initialCurrency);
   const router = useRouter();
-  useEffect(() => { setValue(initialCurrency); }, [initialCurrency]);
+  const [previousInitial,setPreviousInitial]=useState(initialCurrency);
+  if(previousInitial!==initialCurrency){setPreviousInitial(initialCurrency);setValue(initialCurrency);}
   function setCurrency(value: Currency) {
     if (!isCurrency(value)) return;
     setValue(value);

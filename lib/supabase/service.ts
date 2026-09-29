@@ -13,30 +13,6 @@ function isValidUrl(urlString?: string) {
   }
 }
 
-function createFallbackServiceClient() {
-  const createChainableBuilder = (): any => {
-    const builder: any = new Proxy(
-      () => Promise.resolve({ data: [], error: null }),
-      {
-        get(_target, prop) {
-          if (prop === "then") {
-            return (resolve: any) => resolve({ data: [], error: null });
-          }
-          return () => builder;
-        },
-        apply() {
-          return builder;
-        },
-      }
-    );
-    return builder;
-  };
-
-  return {
-    from: () => createChainableBuilder(),
-  };
-}
-
 /**
  * Service-role Supabase client. BYPASSES ROW LEVEL SECURITY ENTIRELY.
  *

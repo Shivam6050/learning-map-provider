@@ -75,3 +75,5 @@ describe("Udemy API & Realtime Price Fetcher", () => {
     });
   });
 });
+
+vi.mock("@/lib/link-check/public-fetch",()=>({publicPageFetch:(url:string,init:RequestInit)=>fetch(url,init)}));

@@ -1,0 +1,2 @@
+import type {DiscoveredResource} from "@/lib/youtube/discover";
+export type RoadmapStage={id:string;order_index:number;title:string;description:string|null;estimated_hours:number;stage_resources:{order_index:number;is_primary:boolean;resources:DiscoveredResource}[];stage_progress:{status:string;completed_at:string|null;practice_check:{description?:string;user_submission?:string;submitted_at?:string}|null}[]};

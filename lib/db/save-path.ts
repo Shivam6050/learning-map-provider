@@ -23,16 +23,14 @@ export async function retryPathWrite(write: () => PromiseLike<WriteResult>, paus
   }
 }
 
-/** Fixed IDs and ignoreDuplicates allow an uncertain committed write to be retried safely. */
-export async function savePath(service: any, userId: string, setId: string, pathSet: any, option: PathOption) {
+/** One transaction; stable IDs preserve progress when retrying an uncertain commit. */
+export async function savePath(service: { rpc: (name: string, args: Record<string, unknown>) => PromiseLike<WriteResult> }, userId: string, setId: string, pathSet: { field_id: string; skill_level: string; weekly_hours: number; budget_total: number; currency: string }, option: PathOption) {
   const identity = JSON.stringify([userId,setId,option.id,option.stages.map(stage => [stage.order_index,stage.stage_resources.map(r=>r.resource_id).sort()])]);
   const id = stableSaveId(identity);
   const stages = option.stages.map(stage => ({ id: stableSaveId(id + ":stage:" + stage.order_index), path_id: id, title: stage.title, order_index: stage.order_index, description: stage.description, estimated_hours: stage.estimated_hours }));
-  await retryPathWrite(() => service.from("learning_paths").upsert({ id, user_id:userId, field_id:pathSet.field_id, skill_level:pathSet.skill_level, weekly_hours:pathSet.weekly_hours, budget_total:pathSet.budget_total, currency:pathSet.currency, status:"active" }, {onConflict:"id",ignoreDuplicates:true}));
-  if (stages.length) await retryPathWrite(() => service.from("stages").upsert(stages,{onConflict:"id",ignoreDuplicates:true}));
+  const path = { id, user_id:userId, field_id:pathSet.field_id, skill_level:pathSet.skill_level, weekly_hours:pathSet.weekly_hours, budget_total:pathSet.budget_total, currency:pathSet.currency, status:"active" };
   const links = option.stages.flatMap((stage,i) => stage.stage_resources.map(sr=>({stage_id:stages[i].id,resource_id:sr.resource_id,order_index:sr.order_index,is_primary:sr.is_primary})));
-  if (links.length) await retryPathWrite(() => service.from("stage_resources").upsert(links,{onConflict:"stage_id,resource_id",ignoreDuplicates:true}));
   const progress = option.stages.map((stage,i) => ({stage_id:stages[i].id,user_id:userId,status:"not_started",practice_check:stage.practice_check ? {description:stage.practice_check} : {}}));
-  if (progress.length) await retryPathWrite(() => service.from("stage_progress").upsert(progress,{onConflict:"stage_id,user_id",ignoreDuplicates:true}));
+  await retryPathWrite(() => service.rpc("save_learning_path", { p_path: path, p_stages: stages, p_links: links, p_progress: progress }));
   return id;
 }

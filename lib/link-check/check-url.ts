@@ -1,3 +1,4 @@
+import {publicPageFetch} from "./public-fetch";
 import { isSafeHttpUrl } from "./url-safety";
 
 export type LinkStatus = "ok" | "broken" | "unknown";
@@ -9,8 +10,8 @@ export async function inspectUrl(url: string): Promise<{ status: LinkStatus; url
   try {
     for (let hop = 0; hop < 6; hop++) {
       if (!isSafeHttpUrl(current)) return { status: "broken", url: current };
-      const response = await fetch(current, {
-        method: "GET", redirect: "manual", signal, cache: "no-store",
+      const response = await publicPageFetch(current, {
+        signal,
         headers: { "User-Agent": "LearningMap-LinkChecker/1.0", Accept: "text/html" },
       });
       if (response.status >= 300 && response.status < 400) {

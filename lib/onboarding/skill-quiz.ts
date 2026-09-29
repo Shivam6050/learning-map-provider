@@ -224,10 +224,43 @@ export const FIELD_QUIZZES: Record<string, QuizQuestion[]> = {
   ],
 };
 
-export const BACKEND_DEV_QUIZ = FIELD_QUIZZES["backend-development"];
+const SCENARIOS: Record<string, [string,string[],number][]> = {
+ "backend-development":[
+  ["A payment webhook is delivered twice. What prevents a duplicate order?",["Increase the timeout","Use an idempotency key protected by a database uniqueness constraint","Retry both requests immediately","Cache only in process memory"],1],
+  ["Two requests reserve the final seat concurrently. Where should correctness be enforced?",["Only in the browser","In a daily cleanup job","In the database transaction and constraints","With a client-side loading spinner"],2],
+  ["A dependency slows down and requests accumulate. What bounds the damage?",["Unlimited retries","Larger unbounded queues","Disable all timeouts","Deadlines, bounded concurrency and backpressure"],3]],
+ "frontend-development":[
+  ["An old search response arrives after a newer response. What should the interface do?",["Always show the last response to arrive","Accept results only for the current request or query","Reload the page","Use a longer fixed delay"],1],
+  ["A modal closes after keyboard use. Where should focus usually return?",["The document body","The address bar","The control that opened the modal","Nowhere"],2],
+  ["An optimistic update fails. What is a reliable response?",["Leave the optimistic value silently","Undo or reconcile the change and offer a clear retry","Hide all errors","Mark the operation complete anyway"],1]],
+ "full-stack-development":[
+  ["A user changes a record ID in a request. What protects another user's record?",["A hidden button","A UUID alone","An ownership check on the server or database for that operation","Client-side route guards alone"],2],
+  ["A save commits but its response is lost. How should a retry behave?",["Always create another record","Use a stable operation identifier to return or complete the same save","Delete all previous saves","Assume the save failed forever"],1],
+  ["An API response contains private data. Which caching policy is safe?",["One global cache key for every user","Cache it indefinitely on a CDN","Ignore authentication in the key","Avoid shared caching or scope it to the authorized user"],3]],
+ "ai-machine-learning":[
+  ["Which preprocessing procedure avoids holdout leakage?",["Fit transformations on the whole dataset","Fit transformations on training data and apply them to the holdout","Tune repeatedly on the holdout","Remove the holdout after training"],1],
+  ["A model scores well overall but poorly for one group. What is the next step?",["Report only the aggregate","Delete that group","Investigate subgroup errors and uncertainty before deployment","Assume random noise without checking"],2],
+  ["A faster quantized model is proposed. What evidence should decide adoption?",["File size alone","Its name","Training accuracy alone","Task quality and latency/memory measurements on representative inputs"],3]],
+ "data-science":[
+  ["A join unexpectedly doubles revenue totals. What should you inspect first?",["Chart colors","Duplicate keys and join cardinality","The font size","The model learning rate"],1],
+  ["Customers who use a feature retain longer. Does this prove the feature causes retention?",["Yes, always","Yes, if the sample is large","No; confounding and selection can explain the association","Only the chart type matters"],2],
+  ["Why decide an experiment's stopping rule in advance?",["To prevent all variance","To make data collection unnecessary","To guarantee significance","To control errors caused by repeatedly checking and stopping opportunistically"],3]],
+ "devops-cloud":[
+  ["A rollout increases errors. What makes recovery dependable?",["An untested backup somewhere","A tested rollback or roll-forward plan with compatible data changes","Restart every service blindly","Disable monitoring"],1],
+  ["What demonstrates a backup can support recovery?",["Its filename","A successful upload alone","A restore drill that meets measured recovery objectives","A large file size"],2],
+  ["What best limits the impact of a compromised workload?",["Shared administrator credentials","Public access to all services","A longer password in source control","Least privilege, isolation and scoped credentials"],3]],
+};
+for (const [field,questions] of Object.entries(SCENARIOS)) {
+ FIELD_QUIZZES[field].push(...questions.map(([prompt,options,correctIndex],i)=>({id:field+"_scenario_"+i,prompt,options,correctIndex})));
+}
+
+export const BACKEND_DEV_QUIZ = getQuizForField("backend-development");
 
 export function getQuizForField(slug: string): QuizQuestion[] {
-  return FIELD_QUIZZES[slug] ?? [];
+  return (FIELD_QUIZZES[slug] ?? []).map((q,index) => {
+    const offset=(index * 3 + 1) % q.options.length;
+    return {...q, options:[...q.options.slice(offset),...q.options.slice(0,offset)], correctIndex:(q.correctIndex-offset+q.options.length)%q.options.length};
+  });
 }
 
 export function blendSkillLevel(
@@ -241,7 +274,9 @@ export function blendSkillLevel(
     0
   );
 
-  const quizImpliedLevel: SkillLevel = quizScore <= 1 ? "beginner" : quizScore <= 3 ? "intermediate" : "advanced";
+  const fraction = quiz.length ? quizScore / quiz.length : 0;
+  const scenariosCorrect=quiz.filter((q,i)=>q.id.includes("_scenario_") && quizAnswers[i]===q.correctIndex).length;
+  const quizImpliedLevel: SkillLevel = fraction < 0.4 ? "beginner" : fraction >= 0.75 && scenariosCorrect >= 2 ? "advanced" : "intermediate";
 
   const finalLevel = quiz.length && quizAnswers.length === quiz.length ? quizImpliedLevel : selfReported;
 

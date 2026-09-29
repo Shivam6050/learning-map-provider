@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Bound build-time page workers on small development and CI machines.
+  experimental: { cpus: 2 },
   turbopack: {
     root: __dirname,
   },

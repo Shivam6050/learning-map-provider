@@ -1,48 +1,62 @@
-const RESEND_API_URL = "https://api.resend.com/emails";
+type EmailProvider = "brevo" | "resend";
+function provider(): EmailProvider | null {
+  const value = process.env.EMAIL_PROVIDER?.trim() || "resend";
+  return value === "brevo" || value === "resend" ? value : null;
+}
+function sender() {
+  const value = process.env.EMAIL_FROM_ADDRESS?.trim() || "";
+  const match = value.match(/^([^<>]*)<([^<>]+)>$/);
+  const email = match ? match[2].trim() : value;
+  if (/[\r\n]/.test(value) || !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(email)
+      || email.toLowerCase().endsWith("@resend.dev")) return null;
+  return {email, name: match?.[1].trim() || "LearningMap"};
+}
+export function emailDeliveryConfigured(): boolean {
+  const selected = provider();
+  return Boolean(sender() && selected && (selected === "brevo" ? process.env.BREVO_API_KEY : process.env.RESEND_API_KEY));
+}
 
-/**
- * Sends via Resend's REST API directly rather than adding their SDK —
- * this is a single POST with a bearer token, not worth a dependency.
- * Returns false on failure rather than throwing: a reminder email
- * failing to send shouldn't crash the cron run for every other user
- * in the batch.
- */
+/** Server-side reminders. Auth verification emails use Supabase's separate SMTP configuration. */
 export async function sendEmail(params: {
   to: string;
   subject: string;
   html: string;
+  idempotencyKey?: string;
 }): Promise<boolean> {
-  const apiKey = process.env.RESEND_API_KEY;
-  const fromAddress = process.env.EMAIL_FROM_ADDRESS ?? "Learning Map <onboarding@resend.dev>";
-
-  if (!apiKey) {
-    console.error("[email] RESEND_API_KEY is not set — skipping send");
+  const selected = provider();
+  const from = sender();
+  if (!emailDeliveryConfigured() || !from) {
+    console.error("[email] A valid sender and selected provider key are required — skipping send");
     return false;
   }
-
+  const brevo = selected === "brevo";
+  const headers: Record<string, string> = {"Content-Type": "application/json"};
+  if (brevo) headers["api-key"] = process.env.BREVO_API_KEY!;
+  else {
+    headers.Authorization = `Bearer ${process.env.RESEND_API_KEY}`;
+    if (params.idempotencyKey) headers["Idempotency-Key"] = params.idempotencyKey;
+  }
+  // The database delivery claim prevents duplicates for both providers.
+  // Never fail over or automatically retry an uncertain send.
+  const body = brevo
+    ? {sender: from, to: [{email: params.to}], replyTo: from, subject: params.subject, htmlContent: params.html}
+    : {from: process.env.EMAIL_FROM_ADDRESS, to: params.to, subject: params.subject, html: params.html};
   try {
-    const res = await fetch(RESEND_API_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: fromAddress,
-        to: params.to,
-        subject: params.subject,
-        html: params.html,
-      }),
+    const response = await fetch(brevo ? "https://api.brevo.com/v3/smtp/email" : "https://api.resend.com/emails", {
+      method: "POST", signal: AbortSignal.timeout(8000), headers, body: JSON.stringify(body),
     });
-
-    if (!res.ok) {
-      const body = await res.text().catch(() => "");
-      console.error(`[email] Resend returned ${res.status}: ${body.slice(0, 300)}`);
+    if (!response.ok) {
+      // Provider bodies may contain addresses or message content; keep them out of logs.
+      console.error(`[email] ${selected} returned HTTP ${response.status}`);
       return false;
     }
+    if (brevo) {
+      const result = await response.json() as {messageId?: unknown};
+      return typeof result.messageId === "string" && result.messageId.length > 0;
+    }
     return true;
-  } catch (err) {
-    console.error("[email] send failed:", err instanceof Error ? err.message : err);
+  } catch {
+    console.error(`[email] ${selected} delivery outcome is unknown`);
     return false;
   }
 }

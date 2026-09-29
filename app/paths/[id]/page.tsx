@@ -1,3 +1,4 @@
+import type {RoadmapStage} from "@/lib/paths/stage";
 import { currentQuote } from "@/lib/pricing/current-quote";
 import { getLearningUser } from "@/lib/auth/learning-user";
 import { AddToCalendar } from "@/components/AddToCalendar";
@@ -49,7 +50,7 @@ export default async function PathPage({
     `
     )
     .eq("path_id", id)
-    .order("order_index");
+    .order("order_index").returns<RoadmapStage[]>();
 
   if (stagesError && stagesError.message?.includes("link_status")) {
     const fallback = await supabase
@@ -66,7 +67,7 @@ export default async function PathPage({
       `
       )
       .eq("path_id", id)
-      .order("order_index");
+      .order("order_index").returns<RoadmapStage[]>();
     stages = fallback.data;
     stagesError = fallback.error;
   }
@@ -75,8 +76,8 @@ export default async function PathPage({
     throw new Error(`Failed to load path stages: ${stagesError.message || "Unknown error"}`);
   }
 
-  let fieldName = Array.isArray(path.fields) ? path.fields[0]?.name : (path.fields as any)?.name;
-  let fieldSlug = Array.isArray(path.fields) ? path.fields[0]?.slug : (path.fields as any)?.slug;
+  let fieldName = Array.isArray(path.fields) ? path.fields[0]?.name : (path.fields as unknown as {name?:string;slug?:string}|null)?.name;
+  let fieldSlug = Array.isArray(path.fields) ? path.fields[0]?.slug : (path.fields as unknown as {name?:string;slug?:string}|null)?.slug;
 
   if (!fieldName && path.field_id) {
     const { data: fRow } = await service.from("fields").select("name, slug").eq("id", path.field_id).maybeSingle();
@@ -91,7 +92,7 @@ export default async function PathPage({
     if (catalogMatch) fieldName = catalogMatch.name;
   }
 
-  const originalResources: DiscoveredResource[] = (stages ?? []).flatMap((stage: any) => (stage.stage_resources ?? []).flatMap((sr: any) => {
+  const originalResources: DiscoveredResource[] = (stages ?? []).flatMap((stage) => (stage.stage_resources ?? []).flatMap((sr) => {
     const resource = Array.isArray(sr.resources) ? sr.resources[0] : sr.resources;
     return resource ? [resource as DiscoveredResource] : [];
   }));
@@ -113,8 +114,8 @@ export default async function PathPage({
   let hiddenResources = 0;
   let totalCost = 0;
   const processedResourceUrls = new Set<string>();
-  (stages ?? []).forEach((stage: any) => {
-    stage.stage_resources = (stage.stage_resources ?? []).flatMap((sr: any) => {
+  (stages ?? []).forEach((stage) => {
+    stage.stage_resources = (stage.stage_resources ?? []).flatMap((sr) => {
       const resource = Array.isArray(sr.resources) ? sr.resources[0] : sr.resources;
       const valid = resource && refreshedByUrl.get(resource.url);
       if (!valid) { hiddenResources++; return []; }
@@ -122,24 +123,24 @@ export default async function PathPage({
       return [{ ...sr, resources: valid }];
     });
   });
-  const billing = pathCost((stages ?? []).map((stage: any) => ({ estimated_hours: stage.estimated_hours, resources: stage.stage_resources.map((sr: any) => sr.resources) })), path.weekly_hours);
+  const billing = pathCost((stages ?? []).map((stage) => ({ estimated_hours: stage.estimated_hours, resources: stage.stage_resources.map((sr) => sr.resources) })), path.weekly_hours);
   totalCost = billing.total;
 
 
   const totalStages = stages?.length ?? 0;
   const completedStages = (stages ?? []).filter(
-    (s: any) => s.stage_progress?.[0]?.status === "completed"
+    (s) => s.stage_progress?.[0]?.status === "completed"
   ).length;
   const progressPct = totalStages > 0 ? Math.round((completedStages / totalStages) * 100) : 0;
 
   const { timeline: stageTimeline, totalWeeks } = computeStageTimeline(
-    (stages ?? []).map((s: any) => ({ id: s.id, estimated_hours: s.estimated_hours })),
+    (stages ?? []).map((s) => ({ id: s.id, estimated_hours: s.estimated_hours })),
     path.weekly_hours
   );
 
 
 
-  const boardStages = (stages ?? []).map((stage: any) => ({
+  const boardStages = (stages ?? []).map((stage) => ({
     id: stage.id,
     order_index: stage.order_index,
     title: stage.title,
@@ -150,8 +151,8 @@ export default async function PathPage({
   }));
 
   const resourceIds = new Set<string>();
-  (stages ?? []).forEach((stage: any) => {
-    stage.stage_resources?.forEach((sr: any) => {
+  (stages ?? []).forEach((stage) => {
+    stage.stage_resources?.forEach((sr) => {
       const res = Array.isArray(sr.resources) ? sr.resources[0] : sr.resources;
       if (res?.id) resourceIds.add(res.id);
     });
@@ -166,7 +167,7 @@ export default async function PathPage({
     : { data: [] };
 
   const myRatingByResource: Record<string, number> = Object.fromEntries(
-    (myRatings ?? []).map((r: any) => [r.resource_id, r.rating])
+    (myRatings ?? []).map((r: {resource_id:string;rating:number}) => [r.resource_id, r.rating])
   );
 
   const stageTimelineRecord: Record<string, { startWeek: number; endWeek: number }> =

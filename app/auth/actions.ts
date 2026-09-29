@@ -43,7 +43,7 @@ export async function signup(formData: FormData) {
       email,
       password,
       options: {
-        data: { display_name: displayName, avatar_id: avatarId, country_of_residence: country },
+        data: { display_name: displayName, avatar_id: avatarId, country_of_residence: country, terms_accepted_at: new Date().toISOString() },
         emailRedirectTo: `${getSiteUrl()}/auth/callback`,
       },
     });
@@ -54,11 +54,11 @@ export async function signup(formData: FormData) {
         ? "Supabase service error (502 Bad Gateway). Please check your Supabase project status."
         : msg;
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (err && typeof err === "object" && "digest" in err) {
       throw err;
     }
-    const rawMsg = typeof err === "string" ? err : err?.message || String(err);
+    const rawMsg = err instanceof Error ? err.message : String(err);
     if (!rawMsg || rawMsg === "{}" || rawMsg === "[object Object]" || rawMsg.includes("502")) {
       errorMessage = "Supabase service error (502 Bad Gateway). Please check your Supabase project status.";
     } else if (rawMsg.includes("fetch failed") || rawMsg.includes("ENOTFOUND")) {
@@ -106,11 +106,11 @@ export async function login(formData: FormData) {
           : msg;
       }
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (err && typeof err === "object" && "digest" in err) {
       throw err;
     }
-    const rawMsg = typeof err === "string" ? err : err?.message || String(err);
+    const rawMsg = err instanceof Error ? err.message : String(err);
     if (rawMsg.toLowerCase().includes("captcha")) {
       errorMessage = "CAPTCHA protection is enabled on your Supabase project. Please complete verification or use Google Sign-In.";
     } else if (!rawMsg || rawMsg === "{}" || rawMsg === "[object Object]" || rawMsg.includes("502")) {

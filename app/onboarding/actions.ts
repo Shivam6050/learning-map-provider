@@ -129,7 +129,7 @@ export async function generatePath(formData: FormData) {
           console.warn("[Udemy catalog]", error instanceof Error ? error.message : "Unavailable");
           return [];
         });
-        const seedPromise = ensureSeedCandidates(stage.search_topics, currency, budgetTotal, field!.slug, template ? "paid" : "all").catch(() => []);
+        const seedPromise = ensureSeedCandidates(stage.search_topics, currency, budgetTotal, field!.slug, template ? "paid" : "all", user.user_metadata?.country_of_residence).catch(() => []);
 
         const topicPromises = (template ? [] : stage.search_topics).map(async (topic) => {
           try {

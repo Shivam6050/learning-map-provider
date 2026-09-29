@@ -1,3 +1,4 @@
+import type {PathOption} from "@/lib/ai/build-options";
 import { getLearningUser } from "@/lib/auth/learning-user";
 import { redirect } from "next/navigation";
 import { PathSelectionForm } from "@/components/PathSelectionForm";
@@ -44,8 +45,8 @@ export default async function OnboardingSelectPage({
         .maybeSingle()
     : { data: null };
 
-  let resolvedFieldName = Array.isArray(row?.fields) ? row?.fields[0]?.name : (row?.fields as any)?.name;
-  let resolvedFieldSlug = Array.isArray(row?.fields) ? row?.fields[0]?.slug : (row?.fields as any)?.slug;
+  let resolvedFieldName = Array.isArray(row?.fields) ? row?.fields[0]?.name : (row?.fields as unknown as {name?:string;slug?:string}|null)?.name;
+  let resolvedFieldSlug = Array.isArray(row?.fields) ? row?.fields[0]?.slug : (row?.fields as unknown as {name?:string;slug?:string}|null)?.slug;
 
   if (!resolvedFieldName && row?.field_id) {
     const { data: fRow } = await service.from("fields").select("name, slug").eq("id", row.field_id).maybeSingle();
@@ -70,11 +71,11 @@ export default async function OnboardingSelectPage({
         weekly_hours: row.weekly_hours,
         budget_total: row.budget_total,
         currency: row.currency,
-        options: row.options as any[],
+        options: row.options as PathOption[],
       }
     : null;
 
-  if (pathSet?.options.some(option => option.stages?.some((stage: any) => stage.stage_resources?.some((r: any) => r.resources?.billing_interval === "month" && String(r.resources?.url).includes("scrimba.com/"))))) {
+  if (pathSet?.options.some(option => option.stages?.some((stage) => stage.stage_resources?.some((r) => r.resources?.billing_interval === "month" && String(r.resources?.url).includes("scrimba.com/"))))) {
     return <div className="mx-auto max-w-xl px-6 py-16"><h1 className="text-2xl font-semibold">Refresh your course prices</h1><p className="mt-4">These options contain an outdated Scrimba subscription estimate. Generate fresh options before choosing your path.</p><Link className="mt-6 inline-block underline" href="/onboarding">Generate updated options</Link></div>;
   }
   if (!pathSet) {
@@ -126,7 +127,7 @@ export default async function OnboardingSelectPage({
         </div>
 
         <p className="mt-6 rounded-xl border border-slate-700 p-4 text-sm text-slate-300">Course costs are planning estimates. Provider checkout prices can vary by region, account, tax and promotion. Courses without a verifiable price are excluded; subscriptions show their billing interval and include the full upfront charge in the total. Cancel renewal when you finish; regional discounts are not assumed.</p>
-        {pathSet.options.some(option => option.stages.some((stage: any) => stage.stage_resources.some((sr: any) => courseLink(sr.resources?.url || "", sr.resources?.affiliate === true).affiliate))) && <p className="mt-3 text-sm text-slate-400">Some course links are affiliate links. Learning Map may earn a commission if you buy through them. Selection is based on relevance and your budget.</p>}
+        {pathSet.options.some(option => option.stages.some((stage) => stage.stage_resources.some((sr) => courseLink(sr.resources?.url || "", sr.resources?.affiliate === true).affiliate))) && <p className="mt-3 text-sm text-slate-400">Some course links are affiliate links. Learning Map may earn a commission if you buy through them. Selection is based on relevance and your budget.</p>}
         <div className="mt-10 grid grid-cols-1 gap-8 md:grid-cols-3">
           {pathSet.options.map((option, idx) => {
             const paidUnavailable = idx < 2 && pathSet.budget_total > 0 && option.total_cost === 0;
@@ -152,7 +153,7 @@ export default async function OnboardingSelectPage({
                   </p>
 
 
-                  {option.subscriptions?.map((plan: any) => <p key={plan.provider} className="mt-4 rounded-xl border border-slate-700 p-3 text-xs text-slate-300">Scrimba Pro: {plan.periods ?? plan.months} {plan.billing_interval === "year" ? "year(s)" : "month(s)"} × <Money amount={plan.monthly_price} currency={pathSet.currency} />. Included once across selected courses, starting at the first paid stage. Charged per billing period; renews until cancelled.</p>)}
+                  {option.subscriptions?.map((plan) => <p key={plan.provider} className="mt-4 rounded-xl border border-slate-700 p-3 text-xs text-slate-300">Scrimba Pro: {plan.periods ?? plan.months} {plan.billing_interval === "year" ? "year(s)" : "month(s)"} × <Money amount={plan.monthly_price} currency={pathSet.currency} />. Included once across selected courses, starting at the first paid stage. Charged per billing period; renews until cancelled.</p>)}
                   <div className="mt-5 flex items-baseline justify-between rounded-2xl bg-slate-900/80 p-4 border border-slate-800">
                     <div>
                       <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Est. Cost</p>
@@ -174,13 +175,13 @@ export default async function OnboardingSelectPage({
                       Curated Stages ({option.stages.length}):
                     </p>
                     <ul className="space-y-3">
-                      {option.stages.map((stage: any) => (
+                      {option.stages.map((stage) => (
                         <li key={stage.order_index} className="rounded-xl border border-slate-800/80 bg-slate-900/40 p-3 text-xs">
                           <p className="font-semibold text-white">
                             {stage.order_index + 1}. {stage.title}
                           </p>
                           <div className="mt-2 space-y-1.5">
-                            {stage.stage_resources.map((sr: any, rIdx: number) => {
+                            {stage.stage_resources.map((sr, rIdx: number) => {
                               const outgoing = courseLink(sr.resources?.url || "", sr.resources?.affiliate === true);
                               const safeUrl = outgoing.href;
                               const p = (sr.resources?.platform || "").toLowerCase();

@@ -57,7 +57,7 @@ async function callOneModel<T>(
     if (!res.ok) {
       const body = await res.text().catch(() => "");
       const err = new Error(`Gemini ${model} returned ${res.status}: ${body.slice(0, 300)}`);
-      (err as any).status = res.status;
+      Object.assign(err,{status:res.status});
       throw err;
     }
 
@@ -92,11 +92,11 @@ export async function callForJson<T>(params: {
   for (const model of GEMINI_MODEL_CANDIDATES) {
     try {
       return await callOneModel<T>(model, geminiKey, params);
-    } catch (err: any) {
+    } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       console.error(`[gemini] ${model} failed:`, message);
       failures.push(`${model}: ${message}`);
-      if (err?.status === 429 || err?.status === 401 || err?.status === 403) {
+      if (err instanceof Error && "status" in err && [429,401,403].includes(Number(err.status))) {
         // Quota/Auth error on API key — break fast to trigger instant fallback
         break;
       }
@@ -149,24 +149,24 @@ export async function callWithGoogleSearch(params: {
       if (!res.ok) {
         const body = await res.text().catch(() => "");
         const err = new Error(`Gemini ${model} (grounded) returned ${res.status}: ${body.slice(0, 300)}`);
-        (err as any).status = res.status;
+        Object.assign(err,{status:res.status});
         throw err;
       }
 
       const data = await res.json();
       const candidate = data.candidates?.[0];
-      const text = candidate?.content?.parts?.map((p: any) => p.text).join("") ?? "";
+      const text = candidate?.content?.parts?.map((p: {text?:string}) => p.text).join("") ?? "";
       const chunks: GroundingChunk[] = (candidate?.groundingMetadata?.groundingChunks ?? [])
-        .filter((c: any) => c.web?.uri)
-        .map((c: any) => ({ url: c.web.uri, title: c.web.title ?? c.web.uri }));
+        .filter((c: {web?:{uri:string;title?:string}}) => c.web?.uri)
+        .map((c: {web?:{uri:string;title?:string}}) => ({ url: c.web!.uri, title: c.web!.title ?? c.web!.uri }));
 
       return { text, chunks };
-    } catch (err: any) {
+    } catch (err: unknown) {
       clearTimeout(timeoutId);
       const message = err instanceof Error ? err.message : String(err);
       console.error(`[gemini grounded] ${model} failed:`, message);
       failures.push(`${model}: ${message}`);
-      if (err?.status === 429 || err?.status === 401 || err?.status === 403) {
+      if (err instanceof Error && "status" in err && [429,401,403].includes(Number(err.status))) {
         break;
       }
     }

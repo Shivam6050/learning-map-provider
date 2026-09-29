@@ -9,11 +9,11 @@ export function CommitmentAndBudgetPicker() {
   const currency = preferredCurrency ?? "USD";
   const [weeklyHours, setWeeklyHours] = useState(5);
   const [skillLevel, setSkillLevel] = useState("beginner");
-  const [budgetTotal, setBudgetTotal] = useState(currency === "INR" ? 5000 : 50);
-
-  // Estimate total hours based on skill level (typical path ~80-120 hrs)
-  const baseHours = skillLevel === "beginner" ? 110 : skillLevel === "intermediate" ? 85 : 65;
-  const estimatedWeeks = Math.max(1, Math.ceil(baseHours / Math.max(1, weeklyHours)));
+  const [budget, setBudget] = useState<{ currency: Currency; amount: string }>({
+    currency, amount: currency === "INR" ? "5000" : "50",
+  });
+  const budgetValue = budget.currency === currency ? budget.amount : "";
+  const budgetTotal = Number(budgetValue);
 
   return (
     <div className="commitment-panel rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5 space-y-5">
@@ -22,7 +22,7 @@ export function CommitmentAndBudgetPicker() {
           03 / Your pace & budget
         </h3>
         <span className="rounded-full bg-indigo-500/10 px-3 py-1 text-xs font-semibold text-indigo-300 border border-indigo-500/20">
-          Estimated: ~{estimatedWeeks} {estimatedWeeks === 1 ? "week" : "weeks"}
+          Pace: {weeklyHours} hrs / week
         </span>
       </div>
 
@@ -77,7 +77,8 @@ export function CommitmentAndBudgetPicker() {
         </div>
       </div>
 
-      <p className="text-sm text-slate-300">Your three options: up to {formatMoney(budgetTotal, currency)}, up to {formatMoney(Math.floor(budgetTotal * 50) / 100, currency)}, and free. Currency is remembered across the site.</p>
+      <p className="text-sm text-slate-300" aria-live="polite">{budgetValue === "" ? "Enter your budget in the selected currency to compare routes." : <>Your three options: up to {formatMoney(budgetTotal, currency)}, up to {formatMoney(Math.floor(budgetTotal * 50) / 100, currency)}, and free. Currency is remembered across the site.</>}</p>
+      <p className="text-xs text-slate-400">Your duration is calculated from the curated stages. After changing currency, enter the budget you want to spend in that currency.</p>
       <div className="grid grid-cols-3 gap-3">
         <div className="col-span-2">
           <label htmlFor="budgetTotal" className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
@@ -90,9 +91,9 @@ export function CommitmentAndBudgetPicker() {
             min={0}
             step="0.01"
             max={100000}
-            value={budgetTotal}
-            onChange={(e) => setBudgetTotal(Math.max(0, Number(e.target.value)))}
-            placeholder="e.g. 50"
+            value={budgetValue}
+            onChange={(e) => setBudget({ currency, amount: e.target.value })}
+            placeholder={currency === "INR" ? "e.g. 5000" : "e.g. 50"}
             required
             className="mt-2 block w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-2.5 text-sm text-white focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
           />

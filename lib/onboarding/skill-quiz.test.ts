@@ -9,7 +9,7 @@ describe("blendSkillLevel", () => {
     // All correct -> quiz implies advanced. Self-reported advanced too.
     const result = blendSkillLevel("advanced", allCorrect);
     expect(result.finalLevel).toBe("advanced");
-    expect(result.quizScore).toBe(5);
+    expect(result.quizScore).toBe(BACKEND_DEV_QUIZ.length);
   });
 
   it("uses the completed assessment when self-report disagrees", () => {
@@ -34,3 +34,5 @@ describe("blendSkillLevel", () => {
     }
   });
 });
+
+it("does not place factual recall alone at advanced level",()=>{const answers=BACKEND_DEV_QUIZ.map(q=>q.id.includes("_scenario_")?(q.correctIndex+1)%q.options.length:q.correctIndex);expect(blendSkillLevel("beginner",answers).finalLevel).toBe("intermediate");});

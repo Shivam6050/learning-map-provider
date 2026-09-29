@@ -1,5 +1,5 @@
 import {it,expect,vi,beforeEach} from "vitest";
-const state=vi.hoisted(()=>({user:null as any,verifyOtp:vi.fn(),updateUser:vi.fn(),resend:vi.fn(),get:vi.fn(),set:vi.fn(),del:vi.fn()}));
+const state=vi.hoisted(()=>({user:null as {id?:string;email?:string;phone?:string;new_phone?:string;email_confirmed_at?:string;phone_confirmed_at?:string;user_metadata?:Record<string,unknown>} | null,verifyOtp:vi.fn(),updateUser:vi.fn(),resend:vi.fn(),get:vi.fn(),set:vi.fn(),del:vi.fn()}));
 vi.mock("next/navigation",()=>({redirect:(url:string)=>{throw new Error("REDIRECT:"+url)}}));
 vi.mock("next/headers",()=>({cookies:async()=>({get:state.get,set:state.set,delete:state.del})}));
 vi.mock("@/lib/supabase/server",()=>({createClient:async()=>({auth:{getUser:async()=>({data:{user:state.user}}),verifyOtp:state.verifyOtp,updateUser:state.updateUser,resend:state.resend}})}));

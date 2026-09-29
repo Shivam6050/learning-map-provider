@@ -1,8 +1,9 @@
 import { getConversionRate } from "@/lib/currency/convert";
 
-export function parseW3Product(product: any, handle: string): number | null {
-  if (product?.handle !== handle || product.available !== true || product.requires_selling_plan || product.selling_plan_groups?.length || !Array.isArray(product.variants)) return null;
-  const prices = [...new Set<number>(product.variants.filter((v: any) => v.available === true && !v.requires_selling_plan).map((v: any) => v.price))];
+export function parseW3Product(product: unknown, handle: string): number | null {
+  const item=product as {handle?:string;available?:boolean;requires_selling_plan?:boolean;selling_plan_groups?:unknown[];variants?:{available?:boolean;requires_selling_plan?:boolean;price:number}[]}|null;
+  if (item?.handle !== handle || item.available !== true || item.requires_selling_plan || item.selling_plan_groups?.length || !Array.isArray(item.variants)) return null;
+  const prices = [...new Set<number>(item.variants.filter((v) => v.available === true && !v.requires_selling_plan).map((v) => v.price))];
   return prices.length === 1 && Number.isInteger(prices[0]) && prices[0] > 0 ? prices[0] / 100 : null;
 }
 

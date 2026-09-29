@@ -10,7 +10,8 @@ export function AccountMenu({ avatarId, displayName }: { avatarId?: string; disp
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null), trigger = useRef<HTMLButtonElement>(null);
   const panelId = useId(), pathname = usePathname();
-  useEffect(() => { setOpen(false); }, [pathname]);
+  const [previousPath,setPreviousPath]=useState(pathname);
+  if(previousPath!==pathname){setPreviousPath(pathname);setOpen(false);}
   useEffect(() => {
     if (!open) return;
     function outside(event: PointerEvent) { if (!root.current?.contains(event.target as Node)) setOpen(false); }

@@ -9,3 +9,5 @@ describe("resource verification", () => {
   it("accepts an available course", async () => { vi.spyOn(global,"fetch").mockResolvedValue(new Response("<title>Learn CSS</title>")); expect(await checkUrlAlive("https://example.com/course/css")).toBe(true); });
   it("does not confuse rate limiting with deletion", async () => { vi.spyOn(global,"fetch").mockResolvedValue(new Response("",{status:429})); expect((await inspectUrl("https://example.com/a")).status).toBe("unknown"); });
 });
+
+vi.mock("@/lib/link-check/public-fetch",()=>({publicPageFetch:(url:string,init:RequestInit)=>fetch(url,init)}));

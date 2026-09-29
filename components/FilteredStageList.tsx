@@ -1,4 +1,5 @@
 "use client";
+import type {RoadmapStage} from "@/lib/paths/stage";
 import { ActionButton } from "@/components/ActionButton";
 import styles from "./Roadmap.module.css";
 import { courseLink } from "@/lib/affiliates/links";
@@ -28,9 +29,9 @@ export function FilteredStageList({
   path,
   myRatingByResource,
 }: {
-  stages: any[];
+  stages: RoadmapStage[];
   stageTimeline: Record<string, { startWeek: number; endWeek: number }>;
-  path: any;
+  path: {id:string;currency:string};
   myRatingByResource: Record<string, number>;
 }) {
   const [openStage, setOpenStage] = useState<string | null>(() => stages.find(s => s.stage_progress?.[0]?.status === "in_progress")?.id ?? stages.find(s => s.stage_progress?.[0]?.status !== "completed")?.id ?? stages[0]?.id ?? null);
@@ -93,7 +94,7 @@ export function FilteredStageList({
       const q = searchQuery.toLowerCase();
       const matchTitle = stage.title.toLowerCase().includes(q);
       const matchDesc = stage.description?.toLowerCase().includes(q);
-      const matchResources = stage.stage_resources?.some((sr: any) =>
+      const matchResources = stage.stage_resources?.some((sr) =>
         (sr.resources?.title ?? "").toLowerCase().includes(q)
       );
       return matchTitle || matchDesc || matchResources;
@@ -116,7 +117,7 @@ export function FilteredStageList({
         </div>
       ) : (
         <ol className="space-y-6">
-          {filteredStages.map((stage: any) => {
+          {filteredStages.map((stage) => {
             const progress = stage.stage_progress?.[0];
             const status = progress?.status ?? "not_started";
             const timeline = stageTimeline[stage.id];
@@ -147,9 +148,9 @@ export function FilteredStageList({
                       Curated Learning Resources
                     </h4>
                     <ul className="space-y-2.5">
-                      {stage.stage_resources
-                        .sort((a: any, b: any) => a.order_index - b.order_index)
-                        .map((sr: any, i: number) => {
+                      {[...stage.stage_resources]
+                        .sort((a, b) => a.order_index - b.order_index)
+                        .map((sr, i: number) => {
                           const resource = Array.isArray(sr.resources) ? sr.resources[0] : sr.resources;
                           if (!resource) return null;
                           const isBroken = resource.link_status === "broken";
@@ -235,7 +236,7 @@ export function FilteredStageList({
                 {/* Resource Rating Actions */}
                 {stage.stage_resources?.length ? (
                   <div className="mt-4 flex flex-wrap gap-3 border-t border-slate-800/80 pt-3">
-                    {stage.stage_resources.map((sr: any) => {
+                    {stage.stage_resources.map((sr) => {
                       const resource = Array.isArray(sr.resources) ? sr.resources[0] : sr.resources;
                       if (!resource || resource.link_status === "broken") return null;
                       const myRating = myRatingByResource[resource.id];

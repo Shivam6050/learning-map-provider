@@ -14,10 +14,13 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - run: npm ci
+
+      - name: Lint
+        run: npm run lint -- app components lib proxy.ts --quiet
 
       - name: Type-check
         run: npx tsc --noEmit
@@ -26,14 +29,8 @@ jobs:
         run: npm test
 
       - name: Build
-        # Real env vars aren't available in CI and shouldn't be — this
-        # verifies the app COMPILES with placeholder values, catching
-        # syntax/type errors and broken imports before merge. It does
-        # NOT verify the app actually works against real Supabase/
-        # Gemini/YouTube — that still needs a real deploy or local run.
-        run: |
-          for line in $(grep -v '^#' .env.local.example | grep '='); do
-            key=$(echo "$line" | cut -d '=' -f1)
-            echo "$key=placeholder" >> .env.local
-          done
-          npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://build-only.invalid
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_build_only
+          SUPABASE_SERVICE_ROLE_KEY: sb_secret_build_only
+        run: npm run build

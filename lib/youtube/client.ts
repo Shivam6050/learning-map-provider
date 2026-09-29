@@ -38,7 +38,7 @@ export async function searchVideos(
   if (!res.ok) throw new Error(`YouTube search.list failed: ${res.status}`);
   const data = await res.json();
 
-  return (data.items ?? []).map((item: any) => ({
+  return (data.items ?? []).map((item: {id:{videoId:string};snippet:{channelId:string;channelTitle:string;title:string;publishedAt:string}}) => ({
     videoId: item.id.videoId,
     channelId: item.snippet.channelId,
     channelTitle: item.snippet.channelTitle,
@@ -67,7 +67,7 @@ export async function getVideoStats(
   if (!res.ok) throw new Error(`YouTube videos.list failed: ${res.status}`);
   const data = await res.json();
 
-  return (data.items ?? []).map((item: any) => ({
+  return (data.items ?? []).map((item: {id:string;statistics?:{viewCount?:string;likeCount?:string}}) => ({
     videoId: item.id,
     viewCount: Number(item.statistics?.viewCount ?? 0),
     likeCount: Number(item.statistics?.likeCount ?? 0),
@@ -93,7 +93,7 @@ export async function getChannelStats(
   if (!res.ok) throw new Error(`YouTube channels.list failed: ${res.status}`);
   const data = await res.json();
 
-  return (data.items ?? []).map((item: any) => ({
+  return (data.items ?? []).map((item: {id:string;statistics?:{subscriberCount?:string}}) => ({
     channelId: item.id,
     subscriberCount: Number(item.statistics?.subscriberCount ?? 0),
   }));

@@ -35,13 +35,11 @@ export function PieChart({
   }
 
   const activeSegments = segments.filter((s) => s.value > 0);
-  let accumulatedFraction = 0;
-  const preparedSegments = activeSegments.map((segment) => {
+  const preparedSegments = activeSegments.map((segment, index) => {
     const fraction = segment.value / total;
     const dashLength = fraction * circumference;
     const dashArray = `${dashLength} ${circumference - dashLength}`;
-    const dashOffset = -accumulatedFraction * circumference;
-    accumulatedFraction += fraction;
+    const dashOffset = -activeSegments.slice(0,index).reduce((sum,s)=>sum+s.value,0) / total * circumference;
     return { segment, dashArray, dashOffset };
   });
 

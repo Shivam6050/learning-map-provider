@@ -1,0 +1,9 @@
+import {it,expect,vi,beforeEach} from "vitest";
+const state=vi.hoisted(()=>({owned:true,upsert:vi.fn()}));
+vi.mock("@/lib/supabase/server",()=>({createClient:async()=>({auth:{getUser:async()=>({data:{user:{id:"owner",user_metadata:{country_of_residence:"IN"}}}})},from:()=>{const q={select:()=>q,eq:()=>q,maybeSingle:async()=>({data:state.owned?{id:"stage"}:null,error:null}),upsert:(v:unknown)=>{state.upsert(v);return q;},single:async()=>({data:{stage_id:"stage"},error:null})};return q;}})}));
+vi.mock("next/cache",()=>({revalidatePath:vi.fn()}));
+import {updateStageProgress} from "./actions";
+const form=()=>{const f=new FormData();f.set("stageId","11111111-1111-4111-8111-111111111111");f.set("pathId","22222222-2222-4222-8222-222222222222");f.set("status","completed");return f;};
+beforeEach(()=>{state.owned=true;state.upsert.mockClear();});
+it("writes status and activity without overwriting project notes",async()=>{await updateStageProgress(form());expect(state.upsert).toHaveBeenCalledOnce();expect(state.upsert.mock.calls[0][0]).toMatchObject({user_id:"owner",status:"completed",updated_at:expect.any(String)});expect(state.upsert.mock.calls[0][0]).not.toHaveProperty("practice_check");});
+it("rejects an unowned stage before writing",async()=>{state.owned=false;await expect(updateStageProgress(form())).rejects.toThrow("Stage unavailable");expect(state.upsert).not.toHaveBeenCalled();});

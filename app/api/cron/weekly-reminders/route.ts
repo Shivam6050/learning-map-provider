@@ -1,90 +1,38 @@
-import { NextResponse } from "next/server";
-import { createServiceClient } from "@/lib/supabase/service";
-import { sendEmail } from "@/lib/email/send";
-import { getSiteUrl } from "@/lib/site";
-import { logError } from "@/lib/monitoring/log-error";
-
-const INACTIVE_AFTER_DAYS = 7;
-
-/**
- * Relies on this cron's own schedule being weekly (see vercel.json) to
- * avoid double-emailing, rather than a separate "last reminded"
- * tracking column — simpler for now. If the schedule ever changes to
- * run more often, this would need that tracking added, since nothing
- * here currently stops it from re-emailing the same inactive user on
- * every run.
- *
- * Scale note: this fetches every active path with its stages/progress
- * and does the "is it stale and incomplete" check in application code,
- * rather than a single aggregate SQL query. Fine at the scale this
- * project is at; a materialized view or SQL function would be the next
- * step if the active-path count grows into the thousands.
- */
-export async function GET(request: Request) {
-  const authHeader = request.headers.get("authorization");
-  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+import {createServiceClient} from "@/lib/supabase/service";
+import {sendEmail,emailDeliveryConfigured} from "@/lib/email/send";
+import {getSiteUrl} from "@/lib/site";
+export const maxDuration=60;
+type Path={id:string;user_id:string;created_at:string;fields:{name:string}|{name:string}[]|null;stages:{stage_progress:{status:string;updated_at:string}[]}[]};
+function escapeHtml(s:string){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]!));}
+export async function GET(request:Request) {
+ if(!process.env.CRON_SECRET || request.headers.get("authorization")!==`Bearer ${process.env.CRON_SECRET}`)return Response.json({error:"Unauthorized"},{status:401});
+ if(!emailDeliveryConfigured())return Response.json({error:"Email delivery is not configured"},{status:503});
+ const client=createServiceClient();const cutoff=Date.now()-7*86400000;
+ const week=new Date();week.setUTCDate(week.getUTCDate()-((week.getUTCDay()+6)%7));const period=week.toISOString().slice(0,10);
+ let offset=0,sent=0,claimed=0;const started=Date.now();
+ while(Date.now()-started<45000){
+  const {data,error}=await client.from("learning_paths").select("id,user_id,created_at,fields(name),stages(stage_progress(status,updated_at))").eq("status","active").order("id").range(offset,offset+99).abortSignal(AbortSignal.timeout(5000));
+  if(error)return Response.json({error:"Could not load reminder candidates"},{status:503});
+  const paths=(data??[]) as unknown as Path[];
+  for(const path of paths){
+   if(Date.now()-started>=45000)return Response.json({sent,claimed,incomplete:true},{status:503});
+   if(!path.stages.length || path.stages.every(s=>s.stage_progress[0]?.status==="completed"))continue;
+   const latest=Math.max(Date.parse(path.created_at),...path.stages.flatMap(s=>s.stage_progress.map(p=>Date.parse(p.updated_at)||0)));
+   if(latest>=cutoff)continue;
+   const {data:userData,error:userError}=await client.auth.admin.getUserById(path.user_id);
+   if(userError || !userData.user?.email || !userData.user.email_confirmed_at || userData.user.user_metadata?.weekly_reminders===false)continue;
+   // A durable claim suppresses concurrent runs and uncertain email outcomes.
+   const {error:claimError}=await client.from("reminder_deliveries").insert({user_id:path.user_id,period});
+   if(claimError?.code==="23505")continue;
+   if(claimError)return Response.json({error:"Reminder delivery storage unavailable"},{status:503});
+   claimed++;
+   const field=Array.isArray(path.fields)?path.fields[0]:path.fields;
+   const ok=await sendEmail({to:userData.user.email,subject:"Your learning path is waiting",idempotencyKey:`learning-reminder/${path.user_id}/${period}`,html:`<p>Your ${escapeHtml(field?.name || "learning")} path is ready when you are.</p><p><a href="${getSiteUrl()}/paths/${path.id}">Continue learning</a></p><p><a href="${getSiteUrl()}/settings">Manage reminders in settings</a></p>`});
+   const {error:deliveryError}=await client.from("reminder_deliveries").update({status:ok?"sent":"uncertain"}).eq("user_id",path.user_id).eq("period",period);
+   if(deliveryError)console.error("[reminders] Delivery status could not be recorded");
+   if(ok)sent++;
   }
-
-  const service = createServiceClient();
-  const cutoff = new Date(Date.now() - INACTIVE_AFTER_DAYS * 24 * 60 * 60 * 1000);
-
-  const { data: paths, error } = await service
-    .from("learning_paths")
-    .select(
-      `
-      id, user_id, created_at, fields(name),
-      stages ( id, title, stage_progress ( status, updated_at ) )
-    `
-    )
-    .eq("status", "active");
-
-  if (error) {
-    await logError("cron/weekly-reminders", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  const staleUserIds = new Map<string, { pathId: string; fieldName: string }>();
-
-  for (const path of paths ?? []) {
-    const stages = (path as any).stages ?? [];
-    if (stages.length === 0) continue;
-
-    const allCompleted = stages.every(
-      (s: any) => s.stage_progress?.[0]?.status === "completed"
-    );
-    if (allCompleted) continue; // nothing to nudge about
-
-    const lastActivity = stages.reduce((latest: Date, s: any) => {
-      const updatedAt = s.stage_progress?.[0]?.updated_at;
-      const t = updatedAt ? new Date(updatedAt) : new Date(path.created_at);
-      return t > latest ? t : latest;
-    }, new Date(path.created_at));
-
-    if (lastActivity < cutoff && !staleUserIds.has(path.user_id)) {
-      const field = Array.isArray((path as any).fields) ? (path as any).fields[0] : (path as any).fields;
-      staleUserIds.set(path.user_id, { pathId: path.id, fieldName: field?.name ?? "your field" });
-    }
-  }
-
-  let sent = 0;
-  const siteUrl = getSiteUrl();
-
-  for (const [userId, info] of staleUserIds) {
-    const { data: userData, error: userError } = await service.auth.admin.getUserById(userId);
-    if (userError || !userData?.user?.email) continue;
-
-    const ok = await sendEmail({
-      to: userData.user.email,
-      subject: `You haven't touched your ${info.fieldName} path in a while`,
-      html: `
-        <p>Hey — your ${info.fieldName} learning path is waiting for you.</p>
-        <p>A few minutes today keeps momentum going.</p>
-        <p><a href="${siteUrl}/paths/${info.pathId}">Pick up where you left off</a></p>
-      `,
-    });
-    if (ok) sent++;
-  }
-
-  return NextResponse.json({ candidateUsers: staleUserIds.size, sent });
+  if(paths.length<100)break;offset+=100;
+ }
+ return Response.json({sent,claimed});
 }

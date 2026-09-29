@@ -1,3 +1,4 @@
+import type {SupabaseClient} from "@supabase/supabase-js";
 import { createBrowserClient } from "@supabase/ssr";
 
 function isValidUrl(urlString?: string) {
@@ -33,23 +34,6 @@ function getSupabaseConfig() {
 }
 
 function createFallbackClient() {
-  const createChainableBuilder = (): any => {
-    const builder: any = new Proxy(
-      () => Promise.resolve({ data: [], error: null }),
-      {
-        get(_target, prop) {
-          if (prop === "then") {
-            return (resolve: any) => resolve({ data: [], error: null });
-          }
-          return () => builder;
-        },
-        apply() {
-          return builder;
-        },
-      }
-    );
-    return builder;
-  };
 
   return {
     auth: {
@@ -64,7 +48,7 @@ function createFallbackClient() {
       }),
       signOut: async () => ({ error: null }),
     },
-    from: () => createChainableBuilder(),
+    from: () => { throw new Error("Database configuration is unavailable"); },
   };
 }
 
@@ -82,11 +66,11 @@ const fetchWithTimeout = (input: RequestInfo | URL, init?: RequestInit) => {
  * Reads the anon key — safe to expose in the browser because
  * every table is protected by the RLS policies in supabase/schema.sql.
  */
-export function createClient() {
+export function createClient():SupabaseClient {
   const { url, key } = getSupabaseConfig();
 
   if (!url || !key) {
-    return createFallbackClient() as any;
+    return createFallbackClient() as unknown as SupabaseClient;
   }
 
   return createBrowserClient(url, key, {

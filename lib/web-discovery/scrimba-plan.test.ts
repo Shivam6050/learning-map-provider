@@ -20,3 +20,5 @@ it('excludes unverified legacy quotes from budget totals',()=>{
 
 import {scrimbaMatchesMarket} from './paid-catalog';
 it('does not confuse a currency with a verified market',()=>{expect(scrimbaMatchesMarket('Billed annually for ₹4983.99','IN')).toBe(false);expect(scrimbaMatchesMarket('IN Price discounted based on your region','IN')).toBe(true);expect(scrimbaMatchesMarket('US Price discounted based on your region','IN')).toBe(false)});
+
+it("accepts a dollar-denominated annual amount without bypassing the region check",()=>{expect(parseScrimbaPlan("Billed annually for $120.00","USD")?.price).toBe(120);expect(scrimbaMatchesMarket("US Price discounted based on your region","IN")).toBe(false);});
