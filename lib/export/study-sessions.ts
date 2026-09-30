@@ -17,3 +17,11 @@ export function studySessions(stages: StudyStage[], weeklyHours:number, date:str
  if(used===capacity){day++;slot++;used=0;}
  }}return result;
 }
+
+/** Missing query uses weekdays; an explicitly empty selection is invalid. */
+export function parseStudyDays(value: string | null): number[] {
+ if(value === null)return [1,2,3,4,5];
+ const tokens=value.split(",");
+ if(tokens.some(token=>!/^\s*[0-6]\s*$/.test(token)))throw new Error("Choose at least one valid study day");
+ return [...new Set(tokens.map(Number))];
+}

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { parseStudyDays } from "@/lib/export/study-sessions";
 import { generatePathIcs } from "@/lib/export/ics";
 
 export async function GET(
@@ -40,7 +41,7 @@ export async function GET(
     stages: stages ?? [],
     date: query.get("date") ?? new Date().toISOString().slice(0,10),
     time: query.get("time") ?? "09:00",
-    days: (query.get("days") ?? "1,2,3,4,5").split(",").map(Number),
+    days: parseStudyDays(query.get("days")),
   });
 
   } catch (error) { return NextResponse.json({error: error instanceof Error ? error.message : "Invalid schedule"}, {status:400}); }

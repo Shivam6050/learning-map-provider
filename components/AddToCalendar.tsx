@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { fetchCalendar } from "@/lib/export/download-calendar";
 import styles from "./AddToCalendar.module.css";
 
 const providers = [
@@ -15,6 +16,23 @@ export function AddToCalendar({ pathId }: { pathId: string }) {
  const [date,setDate]=useState("");
  const [time,setTime]=useState("09:00");
  const [days,setDays]=useState([1,2,3,4,5]);
+ const scheduleError = !date || !time ? "Choose a start date and time." : !days.length ? "Choose at least one study day." : "";
+ const [downloading,setDownloading]=useState(false);
+ const [downloadError,setDownloadError]=useState("");
+ const downloadLock=useRef(false);
+ async function downloadSchedule() {
+  if(scheduleError || downloadLock.current)return;
+  downloadLock.current=true;setDownloading(true);setDownloadError("");
+  try {
+   const blob=await fetchCalendar(`/paths/${pathId}/ics?${new URLSearchParams({date,time,days:days.join(",")})}`);
+   const url=URL.createObjectURL(blob);
+   const link=document.createElement("a");link.href=url;link.download="learning-path.ics";
+   document.body.appendChild(link);link.click();link.remove();
+   setTimeout(()=>URL.revokeObjectURL(url),1000);
+  } catch(error) {
+   setDownloadError(error instanceof Error && error.name !== "TimeoutError" && error.name !== "TypeError" ? error.message : "The download couldn’t finish. Check your connection and try again.");
+  } finally {downloadLock.current=false;setDownloading(false);}
+ }
  const provider = providers.find(item => item.id === selected)!;
  return <>
   <button type="button" className={styles.trigger} onClick={() => { if(!date) { const d=new Date();d.setDate(d.getDate()+1);setDate(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")); } dialog.current?.showModal(); }}>
@@ -24,11 +42,13 @@ export function AddToCalendar({ pathId }: { pathId: string }) {
   <dialog ref={dialog} className={styles.dialog} aria-labelledby="calendar-title" onClick={event => { if(event.target === event.currentTarget) dialog.current?.close(); }}>
    <div className={styles.header}><div><p className={styles.eyebrow}>MAKE TIME TO LEARN</p><h2 id="calendar-title">Your roadmap, on your calendar.</h2></div><button className={styles.close} type="button" aria-label="Close calendar options" onClick={() => dialog.current?.close()}>×</button></div>
    <p className={styles.intro}>Schedule timed study sessions using your roadmap’s weekly hours. Time is shared across your selected days, in your calendar’s local time zone.</p>
-   <div className={styles.schedule}><label>Start date<input type="date" value={date} onChange={e=>setDate(e.target.value)}/></label><label>Daily start time<input type="time" value={time} onChange={e=>setTime(e.target.value)}/></label><fieldset><legend>Study days</legend>{['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((name,i)=><label key={name}><input type="checkbox" checked={days.includes(i)} onChange={()=>setDays(days.includes(i)?days.filter(d=>d!==i):[...days,i])}/>{name}</label>)}</fieldset></div>
+   <div className={styles.schedule}><label>Start date<input name="calendar-start-date" type="date" value={date} onChange={e=>setDate(e.target.value)}/></label><label>Daily start time<input name="calendar-start-time" type="time" value={time} onChange={e=>setTime(e.target.value)}/></label><fieldset><legend>Study days</legend>{['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((name,i)=><label key={name}><input name="calendar-study-days" value={i} type="checkbox" checked={days.includes(i)} onChange={()=>setDays(days.includes(i)?days.filter(d=>d!==i):[...days,i])}/>{name}</label>)}</fieldset></div>
+   {scheduleError && <p id="calendar-schedule-error" role="status" className={styles.validation}>{scheduleError}</p>}
    <div className={styles.providers} aria-label="Choose a calendar">
     {providers.map(item => <button type="button" key={item.id} aria-pressed={selected === item.id} onClick={() => setSelected(item.id)}><span aria-hidden="true" className={styles.mark}>{item.mark}</span>{item.name}<span aria-hidden="true" className={styles.check}>{selected === item.id ? "✓" : ""}</span></button>)}
    </div>
-   <section className={styles.instructions} aria-live="polite"><h3>Add to {provider.name}</h3><p>{provider.steps}</p><div className={styles.actions}><a className={styles.download} href={`/paths/${pathId}/ics?${new URLSearchParams({date,time,days:days.join(",")})}`} download>Download timed schedule (.ics) ↓</a>{provider.url && <a href={provider.url} target="_blank" rel="noopener noreferrer">{provider.action} ↗</a>}</div></section>
+   <section className={styles.instructions} aria-live="polite"><h3>Add to {provider.name}</h3><p>{provider.steps}</p><div className={styles.actions}><button type="button" className={styles.download} disabled={Boolean(scheduleError) || downloading} aria-busy={downloading} aria-describedby={scheduleError ? "calendar-schedule-error" : undefined} onClick={downloadSchedule}>{downloading ? "Preparing schedule…" : "Download timed schedule (.ics) ↓"}</button>{provider.url && <a href={provider.url} target="_blank" rel="noopener noreferrer">{provider.action} ↗</a>}</div></section>
+   {downloadError && <p role="alert" className={styles.validation}>{downloadError}</p>}
    <p className={styles.note}>Google requires importing the downloaded file; opening its calendar does not save events automatically. This is a one-time import, not a live sync. Review your calendar before importing again to avoid duplicates. Calendar availability depends on your device.</p>
   </dialog>
  </>;

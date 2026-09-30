@@ -9,13 +9,13 @@ export async function GET(request:Request) {
  if(!emailDeliveryConfigured())return Response.json({error:"Email delivery is not configured"},{status:503});
  const client=createServiceClient();const cutoff=Date.now()-7*86400000;
  const week=new Date();week.setUTCDate(week.getUTCDate()-((week.getUTCDay()+6)%7));const period=week.toISOString().slice(0,10);
- let offset=0,sent=0,claimed=0;const started=Date.now();
+ let offset=0,sent=0,claimed=0,uncertain=0;const started=Date.now();
  while(Date.now()-started<45000){
   const {data,error}=await client.from("learning_paths").select("id,user_id,created_at,fields(name),stages(stage_progress(status,updated_at))").eq("status","active").order("id").range(offset,offset+99).abortSignal(AbortSignal.timeout(5000));
   if(error)return Response.json({error:"Could not load reminder candidates"},{status:503});
   const paths=(data??[]) as unknown as Path[];
   for(const path of paths){
-   if(Date.now()-started>=45000)return Response.json({sent,claimed,incomplete:true},{status:503});
+   if(Date.now()-started>=45000)return Response.json({sent,claimed,uncertain,incomplete:true},{status:503});
    if(!path.stages.length || path.stages.every(s=>s.stage_progress[0]?.status==="completed"))continue;
    const latest=Math.max(Date.parse(path.created_at),...path.stages.flatMap(s=>s.stage_progress.map(p=>Date.parse(p.updated_at)||0)));
    if(latest>=cutoff)continue;
@@ -30,9 +30,10 @@ export async function GET(request:Request) {
    const ok=await sendEmail({to:userData.user.email,subject:"Your learning path is waiting",idempotencyKey:`learning-reminder/${path.user_id}/${period}`,html:`<p>Your ${escapeHtml(field?.name || "learning")} path is ready when you are.</p><p><a href="${getSiteUrl()}/paths/${path.id}">Continue learning</a></p><p><a href="${getSiteUrl()}/settings">Manage reminders in settings</a></p>`});
    const {error:deliveryError}=await client.from("reminder_deliveries").update({status:ok?"sent":"uncertain"}).eq("user_id",path.user_id).eq("period",period);
    if(deliveryError)console.error("[reminders] Delivery status could not be recorded");
-   if(ok)sent++;
+   if(ok)sent++;else uncertain++;
   }
-  if(paths.length<100)break;offset+=100;
+  if(paths.length<100)return Response.json({sent,claimed,uncertain,incomplete:false},{status:uncertain ? 503 : 200});
+  offset+=100;
  }
- return Response.json({sent,claimed});
+ return Response.json({sent,claimed,uncertain,incomplete:true},{status:503});
 }
