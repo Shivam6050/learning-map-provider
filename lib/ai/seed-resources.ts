@@ -1,8 +1,8 @@
-import { PAID_CATALOG, paidSubscriptionQuote } from "@/lib/web-discovery/paid-catalog";
+import { PAID_CATALOG } from "@/lib/web-discovery/paid-catalog";
 import { CURATED_LEARNING_RESOURCES } from "@/lib/web-discovery/curated-resources";
 import { createServiceClient } from "@/lib/supabase/service";
 import type { DiscoveredResource } from "@/lib/youtube/discover";
-import { fetchRealtimePrice } from "@/lib/web-discovery/price-fetcher";
+import { currentQuote } from "@/lib/pricing/current-quote";
 
 export type SeedResource = {
   title: string;
@@ -704,18 +704,15 @@ export async function ensureSeedCandidates(
   const service = createServiceClient();
   const results: DiscoveredResource[] = [];
   for (const seed of matched) {
-    if (budgetTotal === 0 && seed.price > 0) continue;
-    const subscription = await paidSubscriptionQuote(seed.url, currency, country);
-    const quote = subscription ?? (seed.price === 0
-      ? { price: 0, currency: currency.toUpperCase(), isRealtime: false }
-      : await fetchRealtimePrice(seed.url, currency, country));
-    if (quote.price === null) continue;
+
+    const quote = seed.price === 0 ? null : await currentQuote(seed.url,currency,country ?? "");
+    const signals = seed.price === 0 ? {} : quote?.signals ?? {price_unverified:true,billing_group:PAID_CATALOG.some(c=>c.url===seed.url && c.subscription)?"scrimba-pro":undefined};
     const { data, error } = await service.from("resources").upsert({
       title: seed.title, url: seed.url, platform: seed.platform, resource_type: seed.resource_type,
-      price: quote.price, currency: quote.currency, trust_status: "allowlisted", signals: subscription?.signals ?? {},
+      price: 0, currency, trust_status: "allowlisted", signals: seed.price === 0 ? {} : {price_unverified:true,billing_group:PAID_CATALOG.some(c=>c.url===seed.url && c.subscription)?"scrimba-pro":undefined},
     }, { onConflict: "url" }).select("*").single();
     if (error) { console.warn("[seed resource storage]", seed.url, error.message); continue; }
-    if (data) results.push({ ...data, link_status: data.link_status ?? "unchecked" } as DiscoveredResource);
+    if (data) results.push({ ...data, price:quote?.price ?? 0,currency,signals, link_status: data.link_status ?? "unchecked" } as DiscoveredResource);
   }
   return results;
 }

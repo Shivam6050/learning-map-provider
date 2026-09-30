@@ -44,8 +44,8 @@ it("rejects sold-out, ambiguous and recurring W3Schools products", () => {
   expect(parseW3Product({...product, requires_selling_plan: true}, "sql-course")).toBeNull();
   expect(parseW3Product({...product, variants: [...product.variants, {available:true,price:5000}]}, "sql-course")).toBeNull();
 });
-it("places a monthly subscription inside the right INR tier and explains higher-cost alternatives", () => {
-  const paid: DiscoveredResource = { id: "pro", title: "Advanced React", url: "https://scrimba.com/advanced-react-c02h", platform: "article", resource_type: "course", price: 4410, currency: "INR", signals: {price_source: "scrimba_monthly"}, trust_status: "allowlisted", rating: null, link_status: "ok" };
+it("places a verified annual subscription inside the right INR tier and explains higher-cost alternatives", () => {
+  const paid: DiscoveredResource = { id: "pro", title: "Advanced React", url: "https://scrimba.com/advanced-react-c02h", platform: "article", resource_type: "course", price: 4410, currency: "INR", signals: {price_source: "scrimba_regional_plan",billing_interval:"year"}, trust_status: "allowlisted", rating: null, link_status: "ok" };
   const free = {...paid, id: "free",url: "https://react.dev/",price: 0,signals: {}};
   const options = buildPathOptions({skeleton: [{order_index: 0,title: "React",description: "React",estimated_hours: 20,search_topics:["react"]}],judgedStages: [],candidatesByStage: new Map([[0,[paid,free]]]), resourcesByUrl: new Map([[paid.url,paid],[free.url,free]]),budgetTotal: 5000,currency: "INR",weeklyHours: 10,practiceChecksByStage: new Map()});
   expect(options[0].total_cost).toBe(4410);

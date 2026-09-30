@@ -33,7 +33,7 @@ export async function publishRoadmapTemplates(publish = false) {
  if(insertError) throw new Error("Could not store template resources: "+insertError.message);
  const {data:rows,error:readError}=await client.from("resources").select("*").in("url",verified.map(r=>r.url));
  if(readError || !rows) throw new Error("Could not load stored resource identifiers.");
- const byUrl=new Map(rows.filter(r=>Number(r.price)===0 && r.link_status!=="broken" && r.trust_status!=="rejected").map(r=>[r.url,r.id]));
+ const byUrl=new Map(rows.filter(r=>Number(r.price)===0 && !r.signals?.price_unverified && r.link_status!=="broken" && r.trust_status!=="rejected").map(r=>[r.url,r.id]));
  const version=Math.floor(Date.now()/1000);
  const checked=new Date();const validUntil=new Date(checked.getTime()+30*86400000).toISOString();
  const records=ready.map(t=>({field_slug:t.field_slug,skill_level:t.skill_level,version,status:"published",reviewed_at:checked.toISOString(),valid_until:validUntil,stages:t.stages.map(({resources,...stage})=>({...stage,resource_ids:resources.flatMap(r=>byUrl.has(r.url)?[byUrl.get(r.url)!]:[])}))}));

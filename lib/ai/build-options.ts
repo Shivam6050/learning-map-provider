@@ -14,6 +14,7 @@ export type OptionStageResource = {
     resource_type: string;
     price: number;
     currency: string;
+    price_unverified?: boolean;
     affiliate?: boolean;
     billing_interval?: "month" | "year";
   };
@@ -30,10 +31,13 @@ export type OptionStage = {
 
 export type PaidAlternative = {
   title: string; url: string; cost: number; months?: number; over_budget: boolean;
+  price_unknown?: boolean;
+  subscription?: boolean;
   resource_id: string; stage_indices: number[]; resources: OptionStageResource["resources"];
 };
 
 export type PathOption = {
+  assessment?: { score: number; total: number };
   id: string;
   name: string;
   tagline: string;
@@ -97,13 +101,14 @@ export function buildPathOptions(params: {
   const { skeleton, judgedStages, candidatesByStage, resourcesByUrl, practiceChecksByStage } = params;
   const budget = Math.max(0, Math.floor((Number.isFinite(params.budgetTotal) ? params.budgetTotal : 0) * 100));
   const currency = params.currency ?? resourcesByUrl.values().next().value?.currency ?? "USD";
-  const pools = skeleton.map(stage => {
+  const allPools = skeleton.map(stage => {
     const judged = (judgedStages.find(j => j.order_index === stage.order_index)?.selected_resources ?? [])
       .map(r => resourcesByUrl.get(r.url)).filter((r): r is DiscoveredResource => !!r);
     const offered = candidatesByStage?.get(stage.order_index);
     const candidates = offered === undefined ? judged : [...judged.filter(r => offered.some(c => c.url === r.url)), ...offered];
     return [...new Map(candidates.filter(r => r.currency === currency && Number.isFinite(r.price) && r.price >= 0 && r.link_status !== "broken").map(r => [r.url,r])).values()];
   });
+  const pools = allPools.map(pool=>pool.filter(r=>!r.signals?.price_unverified && !r.signals?.price_estimate && r.signals?.price_source !== "scrimba_monthly"));
   return ([1, 0.5, 0] as const).map((fraction, index) => {
     const cap = Math.floor(budget * fraction);
     const stageHours = skeleton.map(stage => Math.max(4, Math.round(stage.estimated_hours * [1.25,1,0.75][index])));
@@ -134,7 +139,7 @@ export function buildPathOptions(params: {
         estimated_hours: Math.max(4, Math.round(stage.estimated_hours * [1.25,1,0.75][index])),
         practice_check: practiceChecksByStage.get(stage.order_index) ?? "Practice what you learned: " + stage.title,
         stage_resources: picks.map((r,i) => ({ is_primary: i === 0, order_index: i, resource_id: r.id,
-          resources: { title:r.title, url:r.url, platform:r.platform, resource_type:r.resource_type, price:r.price, currency:r.currency, affiliate:r.signals?.affiliate === true, billing_interval:r.signals?.billing_interval === "year" ? "year" as const : r.signals?.price_source === "scrimba_monthly" ? "month" as const : undefined } })),
+          resources: { title:r.title, url:r.url, platform:r.platform, resource_type:r.resource_type, price:r.price, currency:r.currency, price_unverified:Boolean(r.signals?.price_unverified || r.signals?.price_estimate), affiliate:r.signals?.affiliate === true, billing_interval:r.signals?.billing_interval === "year" ? "year" as const : r.signals?.price_source === "scrimba_monthly" ? "month" as const : undefined } })),
       };
     });
     const met = cap === 0 || bundle.cents >= minimum;
@@ -143,13 +148,13 @@ export function buildPathOptions(params: {
       tagline: ["A broader course mix, targeting 80–100% of your budget.", "A focused course mix, targeting 40–50% of your budget.", "Free tutorials, videos and documentation. No course purchases."][index],
       total_cost: bundle.cents / 100, total_hours: stages.reduce((sum,stage) => sum + stage.estimated_hours,0), stages,
       subscriptions: billing.subscriptions,
-      paid_alternatives: [...new Map(pools.flatMap((pool, stageIndex) => pool.filter(r => r.price > 0 && !bundle.urls.has(r.url)).map(r => {
+      paid_alternatives: [...new Map(allPools.flatMap((pool, stageIndex) => pool.filter(r => (r.price > 0 || r.signals?.price_unverified) && !bundle.urls.has(r.url)).map(r => {
         const estimate = pathCost(pools.map((pool, i) => ({ estimated_hours: stageHours[i], resources: pool.some(candidate => candidate.url === r.url) ? [r] : [] })), params.weeklyHours ?? 10);
         const withCourse = bundle.picks.map((pick, i) => ({ estimated_hours: stageHours[i], resources: [...(pick ? [pick] : []), ...(pools[i].some(candidate => candidate.url === r.url) ? [r] : [])] }));
-        return { title: r.title, url: r.url, cost: estimate.total, months: estimate.subscriptions[0]?.months,
+        return { subscription: r.signals?.billing_group === "scrimba-pro" || r.signals?.price_source === "scrimba_regional_plan" || r.signals?.price_source === "scrimba_monthly", price_unknown: Boolean(r.signals?.price_unverified || r.signals?.price_estimate || r.signals?.price_source === "scrimba_monthly"), title: r.title, url: r.url, cost: estimate.total, months: estimate.subscriptions[0]?.months,
           over_budget: Math.round(pathCost(withCourse, params.weeklyHours ?? 10).total * 100) > cap,
-          resource_id: r.id, stage_indices: pools.flatMap((p,i) => p.some(c => c.url === r.url) ? [skeleton[i].order_index] : []),
-          resources: { title:r.title, url:r.url, platform:r.platform, resource_type:r.resource_type, price:r.price, currency:r.currency,
+          resource_id: r.id, stage_indices: allPools.flatMap((p,i) => p.some(c => c.url === r.url) ? [skeleton[i].order_index] : []),
+          resources: { title:r.title, url:r.url, platform:r.platform, resource_type:r.resource_type, price:r.price, currency:r.currency,price_unverified:Boolean(r.signals?.price_unverified || r.signals?.price_estimate),
             affiliate:r.signals?.affiliate === true, billing_interval:r.signals?.billing_interval === "year" ? "year" as const : r.signals?.price_source === "scrimba_monthly" ? "month" as const : undefined },
         };
       })).map(r => [r.url, r])).values()].sort((a,b) => a.cost - b.cost),

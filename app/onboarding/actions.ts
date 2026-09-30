@@ -9,7 +9,9 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { generateSkeleton } from "@/lib/ai/skeleton";
 import { judgeStage } from "@/lib/ai/judge";
 import { generatePracticeChecks } from "@/lib/ai/practice-checks";
-import { savePath } from "@/lib/db/save-path";
+import { selectionReturnPath } from "@/lib/paths/selection-return";
+import { savePath, pathSaveId } from "@/lib/db/save-path";
+import { validateSelectionPrices, SelectionPriceError } from "@/lib/pricing/validate-selection";
 import { includePurchased } from "@/lib/ai/include-purchased";
 import type { PathOption } from "@/lib/ai/build-options";
 import { buildPathOptions } from "@/lib/ai/build-options";
@@ -76,7 +78,6 @@ export async function generatePath(formData: FormData) {
   // Blend the self-reported level with the quiz — only for fields that
   let skillLevel: SkillLevel = selfReportedLevel;
   let quizScore = 0;
-  let quizImpliedLevel: SkillLevel = selfReportedLevel;
 
   const fieldQuiz = getQuizForField(field!.slug);
   const quizAnswers = fieldQuiz.map((q) => {
@@ -92,7 +93,6 @@ export async function generatePath(formData: FormData) {
     const blended = blendSkillLevel(selfReportedLevel, quizAnswers, field!.slug);
     skillLevel = blended.finalLevel;
     quizScore = blended.quizScore;
-    quizImpliedLevel = blended.quizImpliedLevel;
   }
 
   // Validate the entire form before reserving capacity. Fail closed if quotas are unavailable.
@@ -168,7 +168,7 @@ export async function generatePath(formData: FormData) {
     for (const res of stageResults) {
       res.candidates = res.candidates.flatMap(resource => { const valid = verifiedByUrl.get(resource.url); return valid ? [valid] : []; });
       if (!res.candidates.length) throw new Error("We could not verify learning resources for every stage. Please try again shortly or choose another field.");
-      if (!res.candidates.some(resource => resource.price === 0)) throw new Error("We could not verify free resources for every stage. Please try again to build all three complete options.");
+      if (!res.candidates.some(resource => resource.price === 0 && !resource.signals?.price_unverified)) throw new Error("We could not verify free resources for every stage. Please try again to build all three complete options.");
       candidatesByStage.set(res.order_index, res.candidates);
       for (const r of res.candidates) {
         if (!resourcesByUrl.has(r.url)) {
@@ -213,7 +213,7 @@ export async function generatePath(formData: FormData) {
         weekly_hours: weeklyHours,
         budget_total: budgetTotal,
         currency,
-        options,
+        options: options.map(option => ({ ...option, ...(answeredCount === fieldQuiz.length && fieldQuiz.length > 0 ? {assessment: {score: quizScore, total: fieldQuiz.length}} : {}) })),
       })
       .select("id")
       .single();
@@ -223,7 +223,7 @@ export async function generatePath(formData: FormData) {
     }
 
     redirect(
-      `/onboarding/select?set=${pendingSet.id}&quizScore=${answeredCount ? quizScore : ""}&quizImplied=${quizImpliedLevel}&selfReported=${selfReportedLevel}&finalLevel=${skillLevel}`
+      `/onboarding/select?set=${pendingSet.id}`
     );
   } catch (err) {
     if (err && typeof err === "object" && "digest" in err) {
@@ -248,7 +248,7 @@ export async function confirmSelectedPath(formData: FormData) {
   const optionId = String(formData.get("optionId") ?? "");
 
   if (!user) {
-    const nextPath = `/onboarding/select?set=${setId}&optionId=${optionId}&autoConfirm=1`;
+    const nextPath = selectionReturnPath(setId, optionId, formData.getAll("purchasedResourceId").map(String));
     redirect(`/login?next=${encodeURIComponent(nextPath)}`);
   }
 
@@ -271,7 +271,20 @@ export async function confirmSelectedPath(formData: FormData) {
     const selectedOption = includePurchased(offeredOption, formData.getAll("purchasedResourceId").map(String));
     if (!selectedOption) throw new Error("No path option available to confirm.");
 
+    // A previous request may have committed even when its response timed out.
+    // Check ownership explicitly: this client has service-role privileges.
+    const expectedId = pathSaveId(user.id, setId, selectedOption);
+    const { data: existingPath, error: existingError } = await service
+      .from("learning_paths")
+      .select("id")
+      .eq("id", expectedId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (existingError) throw new Error("Could not verify the previous save. Please retry.");
+    if (existingPath) redirect(`/paths/${existingPath.id}`);
+
     if (selectedOption.stages.some(stage => stage.stage_resources.some(r => r.resources.billing_interval === "month" && r.resources.url.includes("scrimba.com/")))) throw new Error("Refresh outdated Scrimba prices by generating new options.");
+    await validateSelectionPrices(offeredOption, pathSet.currency, user.user_metadata?.country_of_residence || "");
     const pathId = await savePath(service, user.id, setId, pathSet, selectedOption);
     // Keep the pending set until its normal expiry so an interrupted response can retry safely.
     redirect(`/paths/${pathId}`);
@@ -280,6 +293,6 @@ export async function confirmSelectedPath(formData: FormData) {
     const message = err instanceof Error ? err.message : "Failed to confirm path.";
     await logError("confirmSelectedPath", err);
     const purchased = formData.getAll("purchasedResourceId").map(String).join(",");
-    redirect(`/onboarding/select?set=${encodeURIComponent(setId)}&optionId=${encodeURIComponent(optionId)}&purchased=${encodeURIComponent(purchased)}&error=${encodeURIComponent("Saving was interrupted. Please retry or generate a new path if your options expired.")}`);
+    redirect(`/onboarding/select?set=${encodeURIComponent(setId)}&optionId=${encodeURIComponent(optionId)}&purchased=${encodeURIComponent(purchased)}&error=${encodeURIComponent(err instanceof SelectionPriceError ? err.message : "Saving was interrupted. Please retry or generate a new path if your options expired.")}`);
   }
 }

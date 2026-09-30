@@ -209,3 +209,20 @@ describe("budget tier regression cases", () => {
     expect(build([[3000], [2000]], 0).map(o => o.total_cost)).toEqual([0,0,0]);
   });
 });
+
+ it.each([0,40])("never treats an unverified price of %s as budget eligible",price=>{
+  const unknown=resource({id:"unknown",url:"https://scrimba.com/unknown",price,resource_type:"course",signals:{price_unverified:true}});
+  const options=buildPathOptions({skeleton:stages,judgedStages:[],resourcesByUrl:new Map([[unknown.url,unknown],[freeVideo.url,freeVideo]]),candidatesByStage:new Map([[0,[unknown,freeVideo]],[1,[unknown,freeVideo]]]),budgetTotal:100,practiceChecksByStage});
+  for(const option of options){expect(option.stages.flatMap(s=>s.stage_resources).some(r=>r.resource_id==="unknown")).toBe(false);expect(option.paid_alternatives?.find(r=>r.resource_id==="unknown")).toMatchObject({price_unknown:true,stage_indices:[0,1]});}
+ });
+ it.each([{price_estimate:true},{price_source:"scrimba_monthly"}])("excludes estimated and legacy monthly quotes %j",signals=>{
+  const quote=resource({id:"unsafe",url:"https://scrimba.com/paid",price:20,signals});
+  const options=buildPathOptions({skeleton:stages,judgedStages:[],resourcesByUrl:new Map(),candidatesByStage:new Map([[0,[quote,freeVideo]],[1,[quote,freeVideo]]]),budgetTotal:100,practiceChecksByStage});
+  expect(options.every(o=>o.stages.every(s=>s.stage_resources.every(r=>r.resource_id!=="unsafe")))).toBe(true);
+ });
+ it("bills shared annual access once and preserves annual labels",()=>{
+  const a=resource({id:"annual-a",url:"https://scrimba.com/a",price:80,signals:{price_source:"scrimba_regional_plan",billing_interval:"year",billing_group:"scrimba-pro"}});
+  const b=resource({...a,id:"annual-b",url:"https://scrimba.com/b"});
+  const options=buildPathOptions({skeleton:stages,judgedStages:[],resourcesByUrl:new Map(),candidatesByStage:new Map([[0,[a,freeVideo]],[1,[b,freeVideo]]]),budgetTotal:100,practiceChecksByStage});
+  expect(options[0].total_cost).toBe(80);expect(options[0].subscriptions).toHaveLength(1);expect(options[0].stages[0].stage_resources[0].resources.billing_interval).toBe("year");expect(options[2].total_cost).toBe(0);
+ });

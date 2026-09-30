@@ -8,6 +8,11 @@ export function stableSaveId(value: string) {
   return [h.slice(0,8),h.slice(8,12),h.slice(12,16),h.slice(16,20),h.slice(20)].join("-");
 }
 
+/** Keep identical to the transaction identity so retries find the committed path. */
+export function pathSaveId(userId: string, setId: string, option: PathOption) {
+  return stableSaveId(JSON.stringify([userId,setId,option.id,option.stages.map(stage => [stage.order_index,stage.stage_resources.map(r=>r.resource_id).sort()])]));
+}
+
 type WriteResult = { error: { message: string; code?: string } | null; status?: number };
 export async function retryPathWrite(write: () => PromiseLike<WriteResult>, pause = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))) {
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -25,8 +30,7 @@ export async function retryPathWrite(write: () => PromiseLike<WriteResult>, paus
 
 /** One transaction; stable IDs preserve progress when retrying an uncertain commit. */
 export async function savePath(service: { rpc: (name: string, args: Record<string, unknown>) => PromiseLike<WriteResult> }, userId: string, setId: string, pathSet: { field_id: string; skill_level: string; weekly_hours: number; budget_total: number; currency: string }, option: PathOption) {
-  const identity = JSON.stringify([userId,setId,option.id,option.stages.map(stage => [stage.order_index,stage.stage_resources.map(r=>r.resource_id).sort()])]);
-  const id = stableSaveId(identity);
+  const id = pathSaveId(userId, setId, option);
   const stages = option.stages.map(stage => ({ id: stableSaveId(id + ":stage:" + stage.order_index), path_id: id, title: stage.title, order_index: stage.order_index, description: stage.description, estimated_hours: stage.estimated_hours }));
   const path = { id, user_id:userId, field_id:pathSet.field_id, skill_level:pathSet.skill_level, weekly_hours:pathSet.weekly_hours, budget_total:pathSet.budget_total, currency:pathSet.currency, status:"active" };
   const links = option.stages.flatMap((stage,i) => stage.stage_resources.map(sr=>({stage_id:stages[i].id,resource_id:sr.resource_id,order_index:sr.order_index,is_primary:sr.is_primary})));

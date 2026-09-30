@@ -8,17 +8,16 @@ import { providerName } from "@/lib/web-discovery/providers";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { confirmSelectedPath } from "@/app/onboarding/actions";
+import { selectionReturnPath } from "@/lib/paths/selection-return";
 import { ensureHttpUrl } from "@/lib/link-check/url-safety";
 import { getFieldBySlug } from "@/lib/fields/catalog";
-import { ConfirmPathButton } from "@/components/ConfirmPathButton";
 
 export default async function OnboardingSelectPage({
   searchParams,
 }: {
   searchParams: Promise<{ error?: string; purchased?: string; set?: string; optionId?: string; autoConfirm?: string; field?: string; quizScore?: string; quizImplied?: string; selfReported?: string; finalLevel?: string }>;
 }) {
-  const { error, purchased, set, optionId, autoConfirm, field: fieldParam, quizScore, selfReported, finalLevel } = await searchParams;
+  const { error, purchased, set, optionId, field: fieldParam } = await searchParams;
   const service = createServiceClient();
 
   const supabase = await createClient();
@@ -26,16 +25,9 @@ export default async function OnboardingSelectPage({
     data: { user },
   } = await getLearningUser(supabase);
 
-  if (!user) redirect("/login?next=" + encodeURIComponent("/onboarding/select?set=" + (set ?? "")));
+  if (!user) redirect("/login?next=" + encodeURIComponent(selectionReturnPath(set ?? "", optionId, (purchased ?? "").split(","))));
 
-  if (autoConfirm === "1" && set && optionId && user) {
-    const formData = new FormData();
-    formData.set("setId", set);
-    formData.set("optionId", optionId);
-    await confirmSelectedPath(formData);
-  }
-
-  const { data: row } = set
+  const { data: row, error: loadError } = set
     ? await service
         .from("pending_path_sets")
         .select("id, field_id, skill_level, weekly_hours, budget_total, currency, options, fields(name, slug)")
@@ -43,7 +35,23 @@ export default async function OnboardingSelectPage({
         .eq("user_id", user.id)
         .gt("expires_at", new Date().toISOString())
         .maybeSingle()
-    : { data: null };
+    : { data: null, error: null };
+
+  if (loadError) {
+    // Use a full navigation so retry cannot reuse a prefetched failed response.
+    const retryHref = selectionReturnPath(set ?? "", optionId, (purchased ?? "").split(","));
+    return <main className="mx-auto flex min-h-[60vh] max-w-xl items-center px-6 py-16">
+      <section role="alert" className="glass-card w-full rounded-3xl border border-slate-700 p-8">
+        <p className="text-xs uppercase tracking-widest text-slate-400">Your learning routes</p>
+        <h1 className="mt-3 font-serif text-3xl text-white">We couldn’t load your options</h1>
+        <p className="mt-4 text-sm leading-relaxed text-slate-300">We couldn’t reach your saved options right now. Try loading them again before generating a new set.</p>
+        <div className="mt-6 flex flex-wrap items-center gap-5">
+          <a href={retryHref} className="btn-primary rounded-xl px-5 py-3 text-sm font-semibold">Try again</a>
+          <Link href="/dashboard" className="text-sm text-slate-300 underline">Go to dashboard</Link>
+        </div>
+      </section>
+    </main>;
+  }
 
   let resolvedFieldName = Array.isArray(row?.fields) ? row?.fields[0]?.name : (row?.fields as unknown as {name?:string;slug?:string}|null)?.name;
   let resolvedFieldSlug = Array.isArray(row?.fields) ? row?.fields[0]?.slug : (row?.fields as unknown as {name?:string;slug?:string}|null)?.slug;
@@ -98,6 +106,7 @@ export default async function OnboardingSelectPage({
     );
   }
 
+  const assessment = pathSet.options[0]?.assessment;
   return (
     <div className="relative min-h-[calc(100vh-64px)] bg-slate-950 text-slate-100 bg-grid-pattern py-12">
       <RememberCurrency value={pathSet.currency} />
@@ -118,10 +127,10 @@ export default async function OnboardingSelectPage({
             <span className="font-bold text-white">{pathSet.weekly_hours} hrs/week</span> commitment, and budget of{" "}
             <span className="font-bold text-emerald-400"><Money amount={pathSet.budget_total} currency={pathSet.currency} /></span>.
           </p>
-          {quizScore && (
+          {assessment && Number.isInteger(assessment.score) && Number.isInteger(assessment.total) && assessment.total > 0 && assessment.score >= 0 && assessment.score <= assessment.total && (
             <p className="mt-2 text-xs text-slate-400">
-              Starting-level estimate: quiz score ({quizScore}/5) →{" "}
-              <strong className="text-indigo-300">{finalLevel}</strong>.
+              Starting-level estimate: quiz score ({assessment.score}/{assessment.total}) →{" "}
+              <strong className="text-indigo-300">{pathSet.skill_level === "advanced" ? "Expert" : pathSet.skill_level}</strong>.
             </p>
           )}
         </div>

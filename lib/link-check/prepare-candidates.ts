@@ -1,4 +1,5 @@
-import { paidSubscriptionQuote } from "@/lib/web-discovery/paid-catalog";
+import { PAID_CATALOG } from "@/lib/web-discovery/paid-catalog";
+import { currentQuote } from "@/lib/pricing/current-quote";
 import { fetchImpactCourse } from "@/lib/web-discovery/impact-catalog";
 import type { DiscoveredResource } from "@/lib/youtube/discover";
 import { checkUrlAlive } from "./check-url";
@@ -13,9 +14,10 @@ export async function prepareCandidates(resources: DiscoveredResource[], currenc
   for (let i = 0; i < unique.length; i += 5) {
     const batch = await Promise.all(unique.slice(i, i + 5).map(async resource => {
       try {
-        if (resource.signals?.price_source === "scrimba_monthly" || resource.signals?.price_source === "scrimba_regional_plan") {
-          const quote = await paidSubscriptionQuote(resource.url, currency, country);
-          return quote ? { ...resource, ...quote, link_status: "ok" } : null;
+        if (PAID_CATALOG.some(course=>course.url===resource.url)) {
+          if(!(await checkUrlAlive(resource.url)))return null;
+          const quote=await currentQuote(resource.url,currency,country ?? "");
+          return {...resource,price:quote?.price ?? 0,currency,signals:quote?.signals ?? {price_unverified:true,billing_group:PAID_CATALOG.some(c=>c.url===resource.url && c.subscription)?"scrimba-pro":undefined},link_status:"ok"};
         }
         if (resource.signals?.price_source === "impact_catalog") {
           if (resource.signals.impact_catalog_id !== process.env.UDEMY_IMPACT_CATALOG_ID?.trim()) return null;
@@ -37,7 +39,7 @@ export async function prepareCandidates(resources: DiscoveredResource[], currenc
         const curatedFree = BASE_SEED_RESOURCES.some(seed => seed.url === resource.url && seed.price === 0);
         const quote = curatedFree ? { price: 0, currency } : await fetchRealtimePrice(resource.url, currency, country);
         if (quote.price === null || !Number.isFinite(quote.price) || quote.price < 0) return null;
-        return { ...resource, price: quote.price, currency: quote.currency, link_status: "ok" };
+        return { ...resource, price: quote.price, currency: quote.currency, signals:{...resource.signals,price_estimate:quote.price > 0 && !curatedFree && !("isRealtime" in quote && quote.isRealtime),price_checked_at:new Date().toISOString()}, link_status: "ok" };
       } catch { return null; }
     }));
     result.push(...batch.filter((r): r is DiscoveredResource => r !== null));

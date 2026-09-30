@@ -12,7 +12,7 @@ export async function loadRoadmapTemplate(field:string,level:string,currency:str
   const ids=[...new Set(data.stages.flatMap(s=>s.resource_ids))];
   const {data:rows,error:resourcesError}=await client.from("resources").select("*").in("id",ids);
   if(resourcesError || !rows) return null;
-  const resources=new Map<string,DiscoveredResource>(rows.filter((r:DiscoveredResource)=>r.price===0 && r.trust_status!=="rejected" && r.link_status!=="broken" && isSafeHttpUrl(r.url)).map((r:DiscoveredResource)=>[r.id,{...r,currency}]));
+  const resources=new Map<string,DiscoveredResource>(rows.filter((r:DiscoveredResource)=>r.price===0 && !r.signals?.price_unverified && r.trust_status!=="rejected" && r.link_status!=="broken" && isSafeHttpUrl(r.url)).map((r:DiscoveredResource)=>[r.id,{...r,currency}]));
   const stages=data.stages.map(stage=>({...stage,candidates:stage.resource_ids.flatMap(id=>{const resource=resources.get(id);return resource?[resource]:[]})}));
   if(stages.some(s=>!s.candidates.length)) return null;
   return {version:data.version,stages};

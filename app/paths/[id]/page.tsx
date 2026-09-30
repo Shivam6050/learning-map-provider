@@ -101,7 +101,7 @@ export default async function PathPage({
   const uniqueResources = [...new Map(originalResources.map(resource => [resource.url, resource])).values()];
   const savedResources = await Promise.all(uniqueResources.map(async resource => {
     if (resource.link_status === "broken" || !isSafeHttpUrl(resource.url)) return null;
-    if (resource.price > 0 || resource.signals?.price_source === "scrimba_monthly" || resource.signals?.price_source === "scrimba_regional_plan") {
+    if (resource.signals?.price_unverified || resource.price > 0 || resource.signals?.price_source === "scrimba_monthly" || resource.signals?.price_source === "scrimba_regional_plan") {
       const quote=await currentQuote(resource.url,path.currency,user?.user_metadata?.country_of_residence || "");
       if (!quote) return {...resource, signals:{...resource.signals,price_unverified:true}};
       return {...resource, price:quote.price, currency:path.currency, signals:{...resource.signals,...quote.signals,price_unverified:false}};
