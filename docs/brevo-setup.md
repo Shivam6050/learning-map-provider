@@ -25,7 +25,7 @@ Keep email confirmation enabled. Apply `supabase/templates/magic-link.html` to t
 
 ## Application reminders
 
-Create a separate Brevo API key. Set these server-side environment variables in Vercel and local .env.local:
+Create a separate Brevo API key. Set these server-side environment variables in Vercel and local .env:
 
 ```dotenv
 EMAIL_PROVIDER=brevo

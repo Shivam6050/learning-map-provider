@@ -2,11 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-for (const name of [".env.local", ".env"]) if (fs.existsSync(path.join(root, name))) process.loadEnvFile(path.join(root, name));
+for (const name of [".env"]) if (fs.existsSync(path.join(root, name))) process.loadEnvFile(path.join(root, name));
 const sid = process.env.IMPACT_ACCOUNT_SID?.trim(), token = process.env.IMPACT_AUTH_TOKEN?.trim();
 const catalog = process.env.UDEMY_IMPACT_CATALOG_ID?.trim();
 if (!sid || !token) {
-  console.error("Set IMPACT_ACCOUNT_SID and IMPACT_AUTH_TOKEN in .env.local. Do not paste tokens into chat.");
+  console.error("Set IMPACT_ACCOUNT_SID and IMPACT_AUTH_TOKEN in .env. Do not paste tokens into chat.");
   process.exitCode = 1;
 } else {
   try {

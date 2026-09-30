@@ -30,7 +30,7 @@ This project uses **Google Gemini API** to generate personalized learning paths 
    Create an API key at [aistudio.google.com](https://aistudio.google.com).
 
 2. **Set Environment Variable**:
-   Add your key to `.env.local` or `.env`:
+   Add your key to `.env`:
    ```env
    GEMINI_API_KEY=AIzaSy_your_actual_gemini_api_key_here
    ```

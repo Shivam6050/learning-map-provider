@@ -19,7 +19,7 @@ function requireKey(): string {
   const geminiKey = process.env.GEMINI_API_KEY?.trim();
   if (!isConfiguredKey(geminiKey)) {
     throw new Error(
-      "GEMINI_API_KEY is missing or still a placeholder value. Set a real key in .env.local (see .env.local.example)."
+      "GEMINI_API_KEY is missing or still a placeholder value. Set a real key in .env (see .env.example)."
     );
   }
   return geminiKey;

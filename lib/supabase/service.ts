@@ -23,7 +23,7 @@ function isValidUrl(urlString?: string) {
  * key must never reach client-side JavaScript.
  *
  * Requires SUPABASE_SERVICE_ROLE_KEY (no NEXT_PUBLIC_ prefix, so
- * Next.js will not bundle it into client code) in .env.local.
+ * Next.js will not bundle it into client code) in .env.
  */
 const fetchWithTimeout = (input: RequestInfo | URL, init?: RequestInit) => {
   const controller = new AbortController();

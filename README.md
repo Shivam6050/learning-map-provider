@@ -310,8 +310,8 @@ provider in the Supabase dashboard if you want that sign-in option live.
    - Supabase: Settings → API → Project URL, `anon` key, `service_role` key
    - Gemini: aistudio.google.com → API key
    - YouTube: Google Cloud Console → enable "YouTube Data API v3" → Credentials
-3. **Set environment variables** — copy `.env.local.example` to
-   `.env.local` and fill in all values.
+3. **Set environment variables** — copy `.env.example` to
+   `.env` and fill in all values.
 4. **Configure email redirect** in Supabase → Authentication → URL
    Configuration: Site URL to your dev/deployed URL, and add
    `{url}/auth/callback` as a redirect URL.

@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import { templateBlueprints } from '../lib/templates/blueprints';
 import { loadRoadmapTemplate } from '../lib/templates/load';
 async function main(){
- for(const file of ['.env.local','.env']) if(fs.existsSync(file)) process.loadEnvFile(file);
+ for(const file of ['.env']) if(fs.existsSync(file)) process.loadEnvFile(file);
  let checked=0; const started=Date.now();
  for(const blueprint of templateBlueprints()) {
   for(const currency of ['INR','USD']) {

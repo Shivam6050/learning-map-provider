@@ -2,7 +2,7 @@
 
 Generation uses the Impact partner catalog API. The old Udemy Affiliate API was discontinued; storefront bot challenges must not remove an otherwise verified, available catalog course.
 
-Add these server-only settings to `.env.local` (never `NEXT_PUBLIC_*`):
+Add these server-only settings to `.env` (never `NEXT_PUBLIC_*`):
 
 ```dotenv
 IMPACT_ACCOUNT_SID=

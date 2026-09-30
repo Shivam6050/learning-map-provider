@@ -41,11 +41,11 @@ function createFallbackClient() {
       getUser: async () => ({ data: { user: null }, error: null }),
       signInWithPassword: async () => ({
         data: { user: null, session: null },
-        error: { message: "Supabase credentials are not configured in .env.local. Please set your real NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY." },
+        error: { message: "Supabase credentials are not configured in .env. Please set your real NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY." },
       }),
       signUp: async () => ({
         data: { user: null, session: null },
-        error: { message: "Supabase credentials are not configured in .env.local. Please set your real NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY." },
+        error: { message: "Supabase credentials are not configured in .env. Please set your real NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY." },
       }),
       signOut: async () => ({ error: null }),
     },

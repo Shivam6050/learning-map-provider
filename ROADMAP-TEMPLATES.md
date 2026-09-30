@@ -7,7 +7,7 @@ Coverage: six supported fields, three skill levels each. These initial curricula
 ## Activate
 
 1. Apply only supabase/migrations/20260922192831_roadmap_templates.sql to the project database. Do not blindly push older migrations previously applied manually.
-2. From the repository with server credentials in .env.local, run npx tsx scripts/publish-roadmap-templates.ts to validate links without writes.
+2. From the repository with server credentials in .env, run npx tsx scripts/publish-roadmap-templates.ts to validate links without writes.
 3. Run npx tsx scripts/publish-roadmap-templates.ts --publish to insert and verify a complete version.
 
 Publishing checks public link availability and excludes unavailable resources. This is not a guarantee of educational quality or continued free access; review curriculum and provider access terms when editing blueprints. A conflict with an existing paid/rejected resource stops publication rather than overwriting it.
