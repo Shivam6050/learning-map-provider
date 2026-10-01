@@ -4,7 +4,7 @@ export function pathCost(stages: { estimated_hours: number; resources: ResourceC
   const seen = new Set<string>();
   const groups = new Map<string, { first: number; last: number; monthly: number; interval: "month" | "year" }>();
   stages.forEach((stage, index) => stage.resources.forEach(resource => {
-    if (resource.signals?.price_unverified) return;
+    if (resource.signals?.already_owned || resource.signals?.price_unverified) return;
     if (resource.signals?.price_source === "scrimba_monthly" || resource.signals?.price_source === "scrimba_regional_plan") {
       const existing = groups.get("scrimba-pro");
       groups.set("scrimba-pro", { first: existing?.first ?? index, last: index, monthly: Math.max(existing?.monthly ?? 0, resource.price), interval: resource.signals?.billing_interval === "year" ? "year" : "month" });

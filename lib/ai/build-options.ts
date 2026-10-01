@@ -4,6 +4,7 @@ import type { JudgedStage } from "@/lib/ai/judge";
 import type { DiscoveredResource } from "@/lib/youtube/discover";
 
 export type OptionStageResource = {
+  owned?: boolean;
   is_primary: boolean;
   order_index: number;
   resource_id: string; // real resources.id from discovery-time insert

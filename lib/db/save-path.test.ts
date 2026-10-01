@@ -34,3 +34,10 @@ it("keeps retry identity stable when quote amounts change",()=>{
  changed.stages[0].stage_resources[0].resources.price=500;
  expect(pathSaveId("user","set",changed)).toBe(pathSaveId("user","set",option));
 });
+
+it("persists self-reported ownership in user stage data",async()=>{
+ const owned=structuredClone(option);owned.stages[0].stage_resources[0].owned=true;
+ let payload:Record<string,unknown>={};
+ await savePath({rpc:async(_name,args)=>{payload=args;return {error:null};}},"user","set",{field_id:"f",skill_level:"beginner",weekly_hours:5,budget_total:50,currency:"USD"},owned);
+ expect(payload.p_progress).toEqual(expect.arrayContaining([expect.objectContaining({practice_check:{description:"Build a project",owned_resource_ids:["course-0"]}})]));
+});

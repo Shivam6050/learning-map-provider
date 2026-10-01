@@ -8,6 +8,7 @@ describe("purchase inclusion",()=>{
     const result=includePurchased(option,["gfg","gfg"]);
     expect(result.stages[0].stage_resources).toHaveLength(0);
     expect(result.stages[1].stage_resources.map(r=>r.resource_id)).toEqual(["gfg"]);
+    expect(result.stages[1].stage_resources[0].owned).toBe(true);
     expect(result.stages[1].stage_resources[0].resources.price).toBe(7999);
     expect(option.stages[1].stage_resources).toHaveLength(0);
     expect(includePurchased(result,["gfg"]).stages[1].stage_resources).toHaveLength(1);

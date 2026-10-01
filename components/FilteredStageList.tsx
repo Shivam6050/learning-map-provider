@@ -6,7 +6,7 @@ import { courseLink } from "@/lib/affiliates/links";
 
 import { Money } from "@/components/CurrencyProvider";
 import { providerName } from "@/lib/web-discovery/providers";
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition, useEffect, useRef } from "react";
 import { StageFilterBar, type StageFilter } from "@/components/StageFilterBar";
 import { updateStageProgress, rateResource, savePracticeNote } from "@/app/paths/[id]/actions";
 import { isSafeHttpUrl, ensureHttpUrl } from "@/lib/link-check/url-safety";
@@ -41,6 +41,7 @@ export function FilteredStageList({
   const [noteErrors, setNoteErrors] = useState<Record<string, string>>( {} );
   const [isPending, startTransition] = useTransition();
 
+  const initialHashHandled = useRef(false);
   const [filterVersion, setFilterVersion] = useState(0);
   useEffect(() => {
     const navigate = (event: Event) => {
@@ -57,6 +58,7 @@ export function FilteredStageList({
     const followHash = () => { const id = window.location.hash.replace(/^#stage-/, ""); if (id) navigate(new CustomEvent("roadmap-navigate", {detail:id})); };
     window.addEventListener("roadmap-navigate", navigate);
     window.addEventListener("hashchange", followHash);
+    if (!initialHashHandled.current) { initialHashHandled.current = true; followHash(); }
     return () => { window.removeEventListener("roadmap-navigate", navigate); window.removeEventListener("hashchange", followHash); };
   }, [stages]);
 
@@ -208,8 +210,8 @@ export function FilteredStageList({
                               </div>
                               <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
                                 <span className="text-xs text-slate-400 font-medium">
-                                  <>{resource.signals?.price_unverified ? "Check current price on provider" : <Money amount={resource.price} currency={resource.currency ?? path.currency} freeLabel />}{resource.signals?.billing_interval === "year" ? " / year billed upfront · shared Pro access" : resource.signals?.price_unverified && resource.platform === "scrimba" ? " · shared subscription" : !resource.signals?.price_unverified && resource.signals?.price_source === "scrimba_monthly" ? " / month · shared Pro access" : ""}{resource.signals?.price_estimate && !resource.signals?.price_unverified ? " · estimated; confirm at checkout" : ""}</>
-                                  {typeof resource.signals?.price_checked_at === "string" && !resource.signals?.price_unverified && <span className="block text-[10px]">Price checked {resource.signals.price_checked_at.slice(0, 16).replace("T", " ")} UTC</span>}
+                                  <>{resource.signals?.already_owned ? "Already have access · self-reported" : resource.signals?.price_unverified ? "Check current price on provider" : <Money amount={resource.price} currency={resource.currency ?? path.currency} freeLabel />}{!resource.signals?.already_owned && (resource.signals?.billing_interval === "year" ? " / year billed upfront · shared Pro access" : resource.signals?.price_unverified && resource.platform === "scrimba" ? " · shared subscription" : !resource.signals?.price_unverified && resource.signals?.price_source === "scrimba_monthly" ? " / month · shared Pro access" : "")}{resource.signals?.price_estimate && !resource.signals?.price_unverified ? " · estimated; confirm at checkout" : ""}</>
+                                  {!resource.signals?.already_owned && typeof resource.signals?.price_checked_at === "string" && !resource.signals?.price_unverified && <span className="block text-[10px]">Price checked {resource.signals.price_checked_at.slice(0, 16).replace("T", " ")} UTC</span>}
                                   {resource.rating ? ` · ★ ${Number(resource.rating).toFixed(1)}` : ""}
                                 </span>
                                 {isValidLink && !isBroken && (

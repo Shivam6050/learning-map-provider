@@ -34,7 +34,7 @@ export async function savePath(service: { rpc: (name: string, args: Record<strin
   const stages = option.stages.map(stage => ({ id: stableSaveId(id + ":stage:" + stage.order_index), path_id: id, title: stage.title, order_index: stage.order_index, description: stage.description, estimated_hours: stage.estimated_hours }));
   const path = { id, user_id:userId, field_id:pathSet.field_id, skill_level:pathSet.skill_level, weekly_hours:pathSet.weekly_hours, budget_total:pathSet.budget_total, currency:pathSet.currency, status:"active" };
   const links = option.stages.flatMap((stage,i) => stage.stage_resources.map(sr=>({stage_id:stages[i].id,resource_id:sr.resource_id,order_index:sr.order_index,is_primary:sr.is_primary})));
-  const progress = option.stages.map((stage,i) => ({stage_id:stages[i].id,user_id:userId,status:"not_started",practice_check:stage.practice_check ? {description:stage.practice_check} : {}}));
+  const progress = option.stages.map((stage,i) => ({stage_id:stages[i].id,user_id:userId,status:"not_started",practice_check:{...(stage.practice_check ? {description:stage.practice_check} : {}), owned_resource_ids:stage.stage_resources.filter(r=>r.owned).map(r=>r.resource_id)}}));
   await retryPathWrite(() => service.rpc("save_learning_path", { p_path: path, p_stages: stages, p_links: links, p_progress: progress }));
   return id;
 }
