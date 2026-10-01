@@ -28,12 +28,16 @@ export default async function RootLayout({
 }>) {
   const savedCurrency = (await cookies()).get(CURRENCY_COOKIE)?.value;
 
-  const rateEntriesPromise = Promise.all(CURRENCIES.flatMap(from => CURRENCIES.map(async to => [`${from}:${to}`, await getConversionRate(from, to).catch(() => null)] as const)));
 
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  // Public/auth pages contain no personal course prices. Do not block them on FX services.
+  const rateEntriesPromise = user
+    ? Promise.all(CURRENCIES.flatMap(from => CURRENCIES.map(async to => [`${from}:${to}`, await getConversionRate(from, to).catch(() => null)] as const)))
+    : Promise.resolve([]);
 
   const country = user?.user_metadata?.country_of_residence;
   const initialCurrency = isCurrency(savedCurrency) ? savedCurrency : validCountry(country) ? residenceCurrency(country) : null;

@@ -6,7 +6,7 @@ import styles from "@/components/Roadmap.module.css";
 import { pathCost } from "@/lib/pricing/path-cost";
 import { courseLink } from "@/lib/affiliates/links";
 import { Money, RememberCurrency } from "@/components/CurrencyProvider";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { PathBoard } from "@/components/PathBoard";
@@ -24,17 +24,22 @@ export default async function PathPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) notFound();
   const supabase = await createClient();
   const { data: { user } } = await getLearningUser(supabase);
+
+  if (!user) redirect("/login?next=" + encodeURIComponent(`/paths/${id}`));
 
   const service = createServiceClient();
   const { data: path, error: pathError } = await supabase
     .from("learning_paths")
     .select("id, field_id, skill_level, weekly_hours, budget_total, currency, fields(name, slug)")
     .eq("id", id)
+    .eq("user_id", user.id)
     .maybeSingle();
 
-  if (pathError || !path) notFound();
+  if (pathError) throw new Error("We could not load your roadmap. Please try again.");
+  if (!path) notFound();
 
   let { data: stages, error: stagesError } = await supabase
     .from("stages")

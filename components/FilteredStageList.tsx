@@ -303,7 +303,7 @@ export function FilteredStageList({
                         <input type="hidden" name="pathId" value={path.id} />
                         <label className={styles.practiceLabel} htmlFor={`project-note-${stage.id}`}>Your project notes</label>
                         <p className={styles.notesHint} id={`note-hint-${stage.id}`}>Capture what you built, what you learned, or a link to your work.</p>
-                        <textarea id={`project-note-${stage.id}`} aria-describedby={`note-hint-${stage.id}`} name="submissionNote" maxLength={10000} rows={4} defaultValue={practiceCheck.user_submission ?? ""} placeholder="What did you try? What would you improve next?" className={styles.practiceInput} />
+                        <textarea disabled={isPending} aria-busy={isPending} id={`project-note-${stage.id}`} aria-describedby={`note-hint-${stage.id}`} name="submissionNote" maxLength={10000} rows={4} defaultValue={practiceCheck.user_submission ?? ""} placeholder="What did you try? What would you improve next?" className={styles.practiceInput} />
                         {noteErrors[stage.id] && <p role="alert" className="text-sm text-amber-200">{noteErrors[stage.id]}</p>}
                         <div className={styles.notesFooter}><span>A small step. Something you can show.</span><button type="submit" disabled={isPending} className={styles.saveNote}><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M6 3h12v18l-6-4-6 4V3Z"/></svg>{isPending ? "Saving…" : "Save project notes"}</button></div>
                       </form>
