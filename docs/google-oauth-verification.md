@@ -15,3 +15,7 @@ Required preparation:
 The privacy policy now documents actual Calendar data use and connection retention; deploy it before submitting. Google reviews the submission; publishing is not verification. Final submission or new public access may require confirmation in browser.
 
 Search Console ownership setup: the official downloaded challenge is saved as public/googlec6f0da9702df187b.html. Deploy it, confirm the production URL returns the exact challenge, then use VERIFY in Search Console. This proves URL-prefix ownership only; OAuth domain acceptance remains subject to Google review. Keep the file deployed to maintain ownership. Branding has been saved as LearningMap with production policy links.
+
+2026-10-02: Search Console confirms the LearningMap URL-prefix property is verified. Unrelated Drive, Gmail, Chat, Contacts, directory and unused calendar scopes were removed and saved. Audience changed to In production with user approval. Automated branding verification started; outcome pending. Calendar sensitive-scope verification has not been submitted.
+
+Automated branding review returned: homepage ownership not registered to you; verify ownership, then wait 24 hours before retrying for Google systems to update. Search Console already confirms ownership, so do not repeatedly retry or claim domain rejection. Retry after propagation; Calendar scope review remains blocked until branding is verified and published.

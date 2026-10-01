@@ -1,6 +1,7 @@
 "use server";
 
 import { cookies } from "next/headers";
+import { TOKEN_COOKIE, STATE_COOKIE } from "@/lib/calendar/google-session";
 import { validCountry, internationalPhone, residenceCurrency } from "@/lib/profile/residence";
 import { contactVerificationEnabled } from "@/lib/auth/contact-verification";
 import { CURRENCY_COOKIE } from "@/lib/currency/format";
@@ -132,7 +133,10 @@ export async function login(formData: FormData) {
 
 export async function logout() {
   const supabase = await createClient();
-  await supabase.auth.signOut();
+  const { error } = await supabase.auth.signOut().catch(() => ({ error: true }));
+  if (error) redirect("/settings?error=Could%20not%20sign%20out.%20Please%20try%20again.");
+  const jar = await cookies();
+  for (const name of [TOKEN_COOKIE, STATE_COOKIE, "learning-map-pending-email", "learning-map-pending-phone"]) jar.delete(name);
   revalidatePath("/", "layout");
   redirect("/login");
 }

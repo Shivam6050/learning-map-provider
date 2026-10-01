@@ -3,7 +3,7 @@ import {createClient} from "@/lib/supabase/server";
 import {getLearningUser} from "@/lib/auth/learning-user";
 import {getRequestOrigin} from "@/lib/site";
 import {requireUuid} from "@/lib/security/validation";
-import {calendarConfigured,sameOrigin,TOKEN_COOKIE,openCalendar,type CalendarToken} from "@/lib/calendar/google-session";
+import {calendarConfigured,sameOrigin,TOKEN_COOKIE,STATE_COOKIE,openCalendar,type CalendarToken} from "@/lib/calendar/google-session";
 import {googleEvents,insertGoogleEvent,CalendarConnectionExpired} from "@/lib/calendar/google-events";
 export const maxDuration=60;
 const reply=(data:unknown,status=200)=>Response.json(data,{status,headers:{"Cache-Control":"private, no-store"}});
@@ -14,7 +14,7 @@ export async function GET() {
 }
 export async function DELETE(request:Request) {
  if(!sameOrigin(request,getRequestOrigin(request)))return reply({error:"Invalid request origin"},403);
- (await cookies()).delete(TOKEN_COOKIE);return reply({disconnected:true});
+ const jar=await cookies();jar.delete(TOKEN_COOKIE);jar.delete(STATE_COOKIE);return reply({disconnected:true});
 }
 export async function POST(request:Request,{params}:{params:Promise<{id:string}>}) {
  if(!sameOrigin(request,getRequestOrigin(request)))return reply({error:"Invalid request origin"},403);

@@ -1,0 +1,12 @@
+import {beforeEach,expect,it,vi} from "vitest";
+const m=vi.hoisted(()=>({signOut:vi.fn(),remove:vi.fn(),revalidate:vi.fn()}));
+vi.mock("@/lib/supabase/server",()=>({createClient:async()=>({auth:{signOut:m.signOut}})}));
+vi.mock("next/headers",()=>({cookies:async()=>({delete:m.remove})}));
+vi.mock("next/navigation",()=>({redirect:(url:string)=>{throw new Error(url)}}));
+vi.mock("next/cache",()=>({revalidatePath:m.revalidate}));
+import {logout} from "./actions";
+import {TOKEN_COOKIE,STATE_COOKIE} from "@/lib/calendar/google-session";
+beforeEach(()=>{vi.resetAllMocks();m.signOut.mockResolvedValue({error:null});});
+it("clears temporary calendar and verification credentials after successful logout",async()=>{await expect(logout()).rejects.toThrow("/login");for(const name of [TOKEN_COOKIE,STATE_COOKIE,"learning-map-pending-email","learning-map-pending-phone"])expect(m.remove).toHaveBeenCalledWith(name);expect(m.revalidate).toHaveBeenCalledWith("/","layout");});
+it("does not pretend sign-out succeeded when the provider rejects it",async()=>{m.signOut.mockResolvedValue({error:{message:"offline"}});await expect(logout()).rejects.toThrow("Could%20not%20sign%20out");expect(m.remove).not.toHaveBeenCalled();expect(m.revalidate).not.toHaveBeenCalled();});
+it("handles a sign-out network failure without crashing the page",async()=>{m.signOut.mockRejectedValue(new Error("network"));await expect(logout()).rejects.toThrow("/settings?error=");expect(m.remove).not.toHaveBeenCalled();});

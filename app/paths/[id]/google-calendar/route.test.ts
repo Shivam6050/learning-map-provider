@@ -4,9 +4,9 @@ vi.mock("next/headers",()=>({cookies:async()=>m.jar}));
 vi.mock("@/lib/supabase/server",()=>({createClient:m.client}));
 vi.mock("@/lib/auth/learning-user",()=>({getLearningUser:m.learningUser}));
 vi.mock("@/lib/site",()=>({getRequestOrigin:()=>"https://example.com"}));
-vi.mock("@/lib/calendar/google-session",()=>({TOKEN_COOKIE:"calendar",openCalendar:m.open,calendarConfigured:()=>true,sameOrigin:(r:Request,o:string)=>r.headers.get("origin")===o}));
+vi.mock("@/lib/calendar/google-session",()=>({TOKEN_COOKIE:"calendar",STATE_COOKIE:"calendar-state",openCalendar:m.open,calendarConfigured:()=>true,sameOrigin:(r:Request,o:string)=>r.headers.get("origin")===o}));
 vi.mock("@/lib/calendar/google-events",async importOriginal=>({...await importOriginal<typeof import("@/lib/calendar/google-events")>(),insertGoogleEvent:m.insert}));
-import {GET,POST} from "./route";
+import {GET,POST,DELETE} from "./route";
 import {CalendarConnectionExpired} from "@/lib/calendar/google-events";
 const id="112c786a-621a-819d-af6f-7b41c45df4ae";
 const context={params:Promise.resolve({id})};
@@ -29,3 +29,6 @@ it("limits imports to two events and returns the next position",async()=>{const 
 it("reports the failed position after partial success",async()=>{m.insert.mockResolvedValueOnce("added").mockRejectedValueOnce(new Error("Provider unavailable"));const r=await POST(request(),context);expect(r.status).toBe(502);expect(await r.json()).toMatchObject({added:1,nextOffset:1,reconnect:false});});
 it("clears rejected tokens and exposes reconnection",async()=>{m.insert.mockRejectedValue(new CalendarConnectionExpired("Connect again"));const r=await POST(request(),context);expect(r.status).toBe(401);expect(await r.json()).toMatchObject({reconnect:true,nextOffset:0});expect(m.jar.delete).toHaveBeenCalledWith("calendar");});
 it("does not show a malformed token as connected",async()=>{m.open.mockReturnValue({userId:"owner"});expect(await (await GET()).json()).toMatchObject({connected:false});});
+
+it("disconnects both the connection and pending authorization without modifying Google events",async()=>{const r=await DELETE(new Request("https://example.com/calendar",{method:"DELETE",headers:{origin:"https://example.com"}}));expect(await r.json()).toEqual({disconnected:true});expect(m.jar.delete).toHaveBeenCalledWith("calendar");expect(m.jar.delete).toHaveBeenCalledWith("calendar-state");expect(m.insert).not.toHaveBeenCalled();});
+it("rejects cross-origin disconnection before changing cookies",async()=>{expect((await DELETE(new Request("https://example.com/calendar",{method:"DELETE",headers:{origin:"https://evil.example"}}))).status).toBe(403);expect(m.jar.delete).not.toHaveBeenCalled();});
