@@ -13,3 +13,5 @@ Required preparation:
 - Test the live integration before recording or asserting it works. Complete any reviewer access instructions truthfully.
 
 The privacy policy now documents actual Calendar data use and connection retention; deploy it before submitting. Google reviews the submission; publishing is not verification. Final submission or new public access may require confirmation in browser.
+
+Search Console ownership setup: the official downloaded challenge is saved as public/googlec6f0da9702df187b.html. Deploy it, confirm the production URL returns the exact challenge, then use VERIFY in Search Console. This proves URL-prefix ownership only; OAuth domain acceptance remains subject to Google review. Keep the file deployed to maintain ownership. Branding has been saved as LearningMap with production policy links.
