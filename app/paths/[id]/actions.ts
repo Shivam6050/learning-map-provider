@@ -51,17 +51,26 @@ export async function savePracticeNote(formData: FormData): Promise<{ ok: boolea
     const userSubmission = String(formData.get("submissionNote") ?? "").trim();
     if (userSubmission.length > 10000) return { ok: false, error: "Keep project notes within 10,000 characters." };
     await assertOwnedStage(supabase, stageId, pathId);
-    const { data: existing, error: readError } = await supabase.from("stage_progress")
-      .select("practice_check").eq("stage_id", stageId).eq("user_id", user.id).maybeSingle();
-    if (readError) return { ok: false, error: "Could not load your saved notes. Please try again." };
-    const practice_check = { ...(existing?.practice_check ?? {}), user_submission: userSubmission, submitted_at: new Date().toISOString() };
-    const query = existing
-      ? supabase.from("stage_progress").update({ practice_check, updated_at: new Date().toISOString() }).eq("stage_id", stageId).eq("user_id", user.id)
-      : supabase.from("stage_progress").insert({ stage_id: stageId, user_id: user.id, status: "not_started", practice_check });
-    const { data: saved, error } = await query.select("stage_id").single();
-    if (error || !saved) return { ok: false, error: "Your notes could not be saved. Please try again; your draft is still here." };
-    revalidatePath(`/paths/${pathId}`);
-    return { ok: true };
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const { data: existing, error: readError } = await supabase.from("stage_progress")
+        .select("practice_check").eq("stage_id", stageId).eq("user_id", user.id).maybeSingle();
+      if (readError) return { ok: false, error: "Could not load your saved notes. Please try again." };
+      const practice_check = { ...(existing?.practice_check ?? {}), user_submission: userSubmission, submitted_at: new Date().toISOString() };
+      if (!existing) {
+        const { error } = await supabase.from("stage_progress").insert({ stage_id: stageId, user_id: user.id, status: "not_started", practice_check }).select("stage_id").single();
+        if (error?.code === "23505") continue;
+        if (error) return { ok: false, error: "Your notes could not be saved. Please retry; your draft is still here." };
+      } else {
+        let query = supabase.from("stage_progress").update({ practice_check, updated_at: new Date().toISOString() }).eq("stage_id", stageId).eq("user_id", user.id);
+        query = existing.practice_check === null ? query.is("practice_check", null) : query.eq("practice_check", JSON.stringify(existing.practice_check));
+        const { data: saved, error } = await query.select("stage_id").maybeSingle();
+        if (error) return { ok: false, error: "Your notes could not be saved. Please retry; your draft is still here." };
+        if (!saved) continue;
+      }
+      revalidatePath(`/paths/${pathId}`);
+      return { ok: true };
+    }
+    return { ok: false, error: "Your progress changed in another tab. Please retry; your draft is still here." };
   } catch {
     return { ok: false, error: "Saving is temporarily unavailable. Please try again; your draft is still here." };
   }

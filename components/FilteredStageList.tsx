@@ -1,4 +1,6 @@
 "use client";
+import {TopicChecklist} from "./TopicChecklist";
+import {projectCriteria} from "@/lib/paths/topics";
 import type {RoadmapStage} from "@/lib/paths/stage";
 import { ActionButton } from "@/components/ActionButton";
 import styles from "./Roadmap.module.css";
@@ -143,6 +145,7 @@ export function FilteredStageList({
                 <div id={`stage-panel-${stage.id}`} hidden={openStage !== stage.id} className={styles.stagePanel} role="region" aria-labelledby={`stage-toggle-${stage.id}`}>
                 <p className="mt-3 text-sm text-slate-300 leading-relaxed">{stage.description}</p>
 
+                <TopicChecklist key={stage.id} pathId={path.id} stageId={stage.id} title={stage.title} description={stage.description} initial={progress?.practice_check?.topic_completion ?? {}} />
                 {/* Stage Resources */}
                 {stage.stage_resources?.length ? (
                   <div className="mt-5 border-t border-slate-800/80 pt-4">
@@ -313,6 +316,7 @@ export function FilteredStageList({
                   </section>
                 )}
 
+                <section className={styles.completionCriteria}><h3>Before you complete this stage</h3><ul>{projectCriteria.map(criterion=><li key={criterion}>{criterion}</li>)}</ul><p>Choose a relevant resource above. A resource recommendation is not a claim that it covers every topic.</p></section>
                 {/* Stage Progress Action */}
                 <div className="mt-5 flex items-center gap-3 border-t border-slate-800/80 pt-4">
                   {status !== "completed" && (

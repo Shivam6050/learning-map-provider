@@ -9,7 +9,7 @@ const form=()=>{const f=new FormData();f.set('stageId','11111111-1111-4111-8111-
 beforeEach(()=>{
  mock.update.mockClear();mock.insert.mockClear();
  mock.read={data:{practice_check:{description:'Keep challenge'}},error:null};mock.saved={data:{stage_id:'saved'},error:null};
- mock.from.mockImplementation((table:string)=>{const q: {select:()=>typeof q;eq:()=>typeof q;maybeSingle:()=>Promise<Result>;single:()=>Promise<Result>;update:(v:unknown)=>typeof q;insert:(v:unknown)=>typeof q}={select:()=>q,eq:()=>q,maybeSingle:async()=>table==='stages'?{data:{id:'owned'},error:null}:mock.read,single:async()=>mock.saved,update:(v:unknown)=>{mock.update(v);return q;},insert:(v:unknown)=>{mock.insert(v);return q;}};return q;});
+ mock.from.mockImplementation((table:string)=>{let writing=false;const q: {select:()=>typeof q;eq:()=>typeof q;is:()=>typeof q;maybeSingle:()=>Promise<Result>;single:()=>Promise<Result>;update:(v:unknown)=>typeof q;insert:(v:unknown)=>typeof q}={select:()=>q,eq:()=>q,is:()=>q,maybeSingle:async()=>table==='stages'?{data:{id:'owned'},error:null}:writing?mock.saved:mock.read,single:async()=>mock.saved,update:(v:unknown)=>{writing=true;mock.update(v);return q;},insert:(v:unknown)=>{mock.insert(v);return q;}};return q;});
 });
 it('updates note activity without overwriting progress status',async()=>{expect(await savePracticeNote(form())).toEqual({ok:true});expect(mock.update).toHaveBeenCalledWith({updated_at:expect.any(String),practice_check:{description:'Keep challenge',user_submission:'My notes',submitted_at:expect.any(String)}});});
 it('creates missing progress instead of silently saving zero rows',async()=>{mock.read={data:null,error:null};expect((await savePracticeNote(form())).ok).toBe(true);expect(mock.insert).toHaveBeenCalled();});
@@ -17,7 +17,7 @@ it('does not overwrite notes when the read fails',async()=>{mock.read={data:null
 it('returns an inline error for a failed write',async()=>{mock.saved={data:null,error:{message:'timeout'}};expect((await savePracticeNote(form())).ok).toBe(false);});
 
 it('rejects inaccessible stages before writing notes',async()=>{
- mock.from.mockImplementation(()=>{const q={select:()=>q,eq:()=>q,maybeSingle:async()=>({data:null,error:null})};return q;});
+ mock.from.mockImplementation(()=>{const q={select:()=>q,eq:()=>q,is:()=>q,maybeSingle:async()=>({data:null,error:null})};return q;});
  expect((await savePracticeNote(form())).ok).toBe(false);
  expect(mock.update).not.toHaveBeenCalled();expect(mock.insert).not.toHaveBeenCalled();
 });

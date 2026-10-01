@@ -61,3 +61,21 @@
 @media (prefers-reduced-motion: reduce) {
   .stage, .stage::before { transition: none; animation: none; }
 }
+
+.topics { margin-top:24px; padding:22px; border:1px solid #3d5648; border-radius:16px; background:#12251d; }
+.topicHeader { display:flex; justify-content:space-between; gap:12px; align-items:baseline; }
+.topicHeader h3,.completionCriteria h3 { margin:0; font-size:16px; color:#eeeede; }
+.topicHeader>span { font-size:12px; color:#c4d4a4; white-space:nowrap; }
+.topicHint,.completionCriteria p { font-size:12px; line-height:1.6; color:#aabcae; margin:10px 0 16px; }
+.topics ul { list-style:none; padding:0; margin:0; }
+.topics li+li { border-top:1px solid #30483b; }
+.topics label { display:flex; gap:12px; padding:14px 0; cursor:pointer; align-items:flex-start; }
+.topics input { width:18px; height:18px; margin-top:3px; accent-color:#c8dbaa; flex-shrink:0; }
+.topics input:focus-visible { outline:2px solid #d2b675; outline-offset:4px; }
+.topics label>span { display:grid; gap:5px; }
+.topics strong { font-size:14px; color:#e6ecdc; }
+.topics label span span { font-size:13px; color:#b2c1b8; line-height:1.6; }
+.topics [role=alert] { color:#f2c48b; font-size:13px; }
+.completionCriteria { margin-top:24px; padding:20px 0; border-top:1px solid #3d5648; }
+.completionCriteria ul { padding-left:20px; font-size:13px; color:#bdcdbf; line-height:1.8; margin-top:12px; }
+@media(max-width:600px){.topics{padding:16px}.topicHeader{flex-wrap:wrap}}
