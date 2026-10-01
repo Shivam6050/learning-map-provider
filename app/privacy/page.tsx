@@ -7,7 +7,7 @@ export default function PrivacyPage() {
         <h1 className="font-serif text-3xl font-bold text-white sm:text-4xl">
           Privacy Policy
         </h1>
-        <p className="text-xs text-slate-400">Last updated: September 2026</p>
+        <p className="text-xs text-slate-400">Last updated: October 2026</p>
 
         <div className="space-y-6 text-sm text-slate-300 leading-relaxed">
           <section>
@@ -38,6 +38,13 @@ export default function PrivacyPage() {
             <p className="mt-1 text-slate-400">
               We use strictly necessary HTTP cookies for authentication sessions. Row Level Security (RLS) is enforced in our database to isolate user records.
             </p>
+          </section>
+          <section>
+            <h2 className="text-lg font-bold text-white">5. Google Calendar</h2>
+            <p className="mt-1 text-slate-400">Connecting Google Calendar is optional and separate from signing in. With your permission, LearningMap creates timed study sessions in your primary Google calendar when you select Add sessions. We send Google the learning field, stage title and description, session times, time zone, and identifiers used to prevent duplicate imports. When retrying an import, we read the matching event to confirm it belongs to that roadmap. We do not scan your calendar for unrelated events.</p>
+            <p className="mt-2 text-slate-400">The requested permission allows access to events on calendars you own. Our implementation uses it only for the study schedule you request. Your Google access token is kept in an encrypted, HTTP-only connection cookie for at most one hour. We do not store a refresh token or provide ongoing calendar sync.</p>
+            <p className="mt-2 text-slate-400">Google Calendar data is not sent to Gemini, used to train AI models, sold, or used for advertising. LearningMap’s use and transfer of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy" className="underline">Google API Services User Data Policy</a>, including its Limited Use requirements.</p>
+            <p className="mt-2 text-slate-400">You can revoke access through <a href="https://myaccount.google.com/connections" className="underline">your Google Account connections</a> and delete imported study events in Google Calendar. Revoking access, clearing connection cookies, or deleting a LearningMap roadmap does not delete events already imported into Google Calendar. For privacy questions, contact <a href="mailto:60shivam50@gmail.com" className="underline">60shivam50@gmail.com</a>.</p>
           </section>
         </div>
       </div>
