@@ -46,10 +46,10 @@ async function checkOneResource(resource: {
 export async function verifyResourceLinks(
   resources: { id: string; url: string; platform: string }[],
   concurrency = 5
-): Promise<{ id: string; alive: boolean }[]> {
+): Promise<{ id: string; alive: boolean; status: LinkStatus }[]> {
   concurrency = Math.max(1, Math.min(10, Math.floor(concurrency) || 5));
   const service = createServiceClient();
-  const results: { id: string; alive: boolean }[] = [];
+  const results: { id: string; alive: boolean; status: LinkStatus }[] = [];
 
   for (let i = 0; i < resources.length; i += concurrency) {
     const batch = resources.slice(i, i + concurrency);
@@ -62,15 +62,16 @@ export async function verifyResourceLinks(
     results.push(...batchResults);
 
     await Promise.all(
-      batchResults.map(({ id, status }) =>
-        service
+      batchResults.map(async ({ id, status }) => {
+        const {error} = await service
           .from("resources")
           .update({
-            link_status: status === "unknown" ? "unchecked" : status,
+            ...(status === "unknown" ? {} : {link_status: status}),
             link_checked_at: new Date().toISOString(),
           })
-          .eq("id", id)
-      )
+          .eq("id", id);
+        if(error) throw new Error("Could not persist resource link check");
+      })
     );
   }
 

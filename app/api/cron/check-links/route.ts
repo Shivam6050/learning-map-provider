@@ -30,8 +30,9 @@ export async function GET(request: Request) {
   const { data: due, error } = await service
     .from("resources")
     .select("id, url, platform")
-    .neq("link_status", "broken") // already-known-dead don't need rechecking
     .or(`link_checked_at.is.null,link_checked_at.lt.${cutoff}`)
+    .order("link_checked_at", { ascending: true, nullsFirst: true })
+    .order("id")
     .limit(BATCH_SIZE);
 
   if (error) {
@@ -44,7 +45,7 @@ export async function GET(request: Request) {
   }
 
   const results = await verifyResourceLinks(due);
-  const brokenCount = results.filter((r) => !r.alive).length;
+  const brokenCount = results.filter((r) => r.status === "broken").length;
 
-  return NextResponse.json({ checked: results.length, broken: brokenCount });
+  return NextResponse.json({ checked: results.length, broken: brokenCount, unknown: results.filter(r => r.status === "unknown").length });
 }
