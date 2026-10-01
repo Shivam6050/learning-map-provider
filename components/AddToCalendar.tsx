@@ -1,7 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { fetchCalendar } from "@/lib/export/download-calendar";
+import { GoogleCalendarImport } from "./GoogleCalendarImport";
 import styles from "./AddToCalendar.module.css";
 
 const providers = [
@@ -15,10 +16,23 @@ export function AddToCalendar({ pathId }: { pathId: string }) {
  const [selected, setSelected] = useState("google");
  const [date,setDate]=useState("");
  const [time,setTime]=useState("09:00");
+ const [importing,setImporting]=useState(false);
  const [days,setDays]=useState([1,2,3,4,5]);
  const scheduleError = !date || !time ? "Choose a start date and time." : !days.length ? "Choose at least one study day." : "";
  const [downloading,setDownloading]=useState(false);
  const [downloadError,setDownloadError]=useState("");
+ useEffect(()=>{
+  const query=new URLSearchParams(window.location.search);
+  if(!query.has("calendar_connected") && !query.has("calendar_error"))return;
+  const frame=requestAnimationFrame(()=>{
+  try{const saved=JSON.parse(sessionStorage.getItem(`calendar-${pathId}`) ?? "null");if(saved && typeof saved.date==="string" && typeof saved.time==="string" && Array.isArray(saved.days)){setDate(saved.date);setTime(saved.time);setDays(saved.days);}}catch{}
+  if(query.has("calendar_error"))setDownloadError("Google Calendar could not connect. Please try connecting again or download your schedule.");
+  dialog.current?.showModal();
+  });
+  query.delete("calendar_connected");query.delete("calendar_error");
+  window.history.replaceState(null,"",window.location.pathname+(query.size?"?"+query:"")+window.location.hash);
+  return()=>cancelAnimationFrame(frame);
+ },[pathId]);
  const downloadLock=useRef(false);
  async function downloadSchedule() {
   if(scheduleError || downloadLock.current)return;
@@ -42,14 +56,14 @@ export function AddToCalendar({ pathId }: { pathId: string }) {
   <dialog ref={dialog} className={styles.dialog} aria-labelledby="calendar-title" onClick={event => { if(event.target === event.currentTarget) dialog.current?.close(); }}>
    <div className={styles.header}><div><p className={styles.eyebrow}>MAKE TIME TO LEARN</p><h2 id="calendar-title">Your roadmap, on your calendar.</h2></div><button className={styles.close} type="button" aria-label="Close calendar options" onClick={() => dialog.current?.close()}>×</button></div>
    <p className={styles.intro}>Schedule timed study sessions using your roadmap’s weekly hours. Time is shared across your selected days, in your calendar’s local time zone.</p>
-   <div className={styles.schedule}><label>Start date<input name="calendar-start-date" type="date" value={date} onChange={e=>setDate(e.target.value)}/></label><label>Daily start time<input name="calendar-start-time" type="time" value={time} onChange={e=>setTime(e.target.value)}/></label><fieldset><legend>Study days</legend>{['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((name,i)=><label key={name}><input name="calendar-study-days" value={i} type="checkbox" checked={days.includes(i)} onChange={()=>setDays(days.includes(i)?days.filter(d=>d!==i):[...days,i])}/>{name}</label>)}</fieldset></div>
+   <div className={styles.schedule}><label>Start date<input name="calendar-start-date" type="date" disabled={importing} value={date} onChange={e=>setDate(e.target.value)}/></label><label>Daily start time<input name="calendar-start-time" type="time" disabled={importing} value={time} onChange={e=>setTime(e.target.value)}/></label><fieldset><legend>Study days</legend>{['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((name,i)=><label key={name}><input name="calendar-study-days" value={i} type="checkbox" disabled={importing} checked={days.includes(i)} onChange={()=>setDays(days.includes(i)?days.filter(d=>d!==i):[...days,i])}/>{name}</label>)}</fieldset></div>
    {scheduleError && <p id="calendar-schedule-error" role="status" className={styles.validation}>{scheduleError}</p>}
    <div className={styles.providers} aria-label="Choose a calendar">
     {providers.map(item => <button type="button" key={item.id} aria-pressed={selected === item.id} onClick={() => setSelected(item.id)}><span aria-hidden="true" className={styles.mark}>{item.mark}</span>{item.name}<span aria-hidden="true" className={styles.check}>{selected === item.id ? "✓" : ""}</span></button>)}
    </div>
-   <section className={styles.instructions} aria-live="polite"><h3>Add to {provider.name}</h3><p>{provider.steps}</p><div className={styles.actions}><button type="button" className={styles.download} disabled={Boolean(scheduleError) || downloading} aria-busy={downloading} aria-describedby={scheduleError ? "calendar-schedule-error" : undefined} onClick={downloadSchedule}>{downloading ? "Preparing schedule…" : "Download timed schedule (.ics) ↓"}</button>{provider.url && <a href={provider.url} target="_blank" rel="noopener noreferrer">{provider.action} ↗</a>}</div></section>
+   <section className={styles.instructions} aria-live="polite"><h3>Add to {provider.name}</h3><p>{provider.steps}</p>{selected === "google" && <GoogleCalendarImport pathId={pathId} date={date} time={time} days={days} disabled={Boolean(scheduleError)} onBusyChange={setImporting} />}<div className={styles.actions}><button type="button" className={styles.download} disabled={Boolean(scheduleError) || downloading} aria-busy={downloading} aria-describedby={scheduleError ? "calendar-schedule-error" : undefined} onClick={downloadSchedule}>{downloading ? "Preparing schedule…" : "Download timed schedule (.ics) ↓"}</button>{provider.url && <a href={provider.url} target="_blank" rel="noopener noreferrer">{provider.action} ↗</a>}</div></section>
    {downloadError && <p role="alert" className={styles.validation}>{downloadError}</p>}
-   <p className={styles.note}>Google requires importing the downloaded file; opening its calendar does not save events automatically. This is a one-time import, not a live sync. Review your calendar before importing again to avoid duplicates. Calendar availability depends on your device.</p>
+   <p className={styles.note}>Connecting Google alone does not create events. Use Add sessions after connecting, or import the downloaded file. This is a one-time import, not a live sync. Review your calendar before importing again to avoid duplicates. Calendar availability depends on your device.</p>
   </dialog>
  </>;
 }
