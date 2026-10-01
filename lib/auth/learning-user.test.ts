@@ -4,3 +4,5 @@ vi.mock("next/navigation",()=>({redirect:(url:string)=>{throw new Error("redirec
 import {getLearningUser} from "./learning-user";
 it("requires a residence for a Google-only profile",async()=>{const client={auth:{getUser:async()=>({data:{user:{id:"u",user_metadata:{}} as User}})}};await expect(getLearningUser(client)).rejects.toThrow("/complete-profile");});
 it("preserves unauthenticated results",async()=>{const result={data:{user:null}};expect(await getLearningUser({auth:{getUser:async()=>result}})).toBe(result);});
+
+it("allows an email-verified resident without a phone while mobile verification is disabled",async()=>{vi.stubEnv("AUTH_CONTACT_VERIFICATION_ENABLED","true");vi.stubEnv("AUTH_MOBILE_VERIFICATION_ENABLED","false");const result={data:{user:{id:"u",email:"a@example.com",email_confirmed_at:"today",user_metadata:{country_of_residence:"IN"},app_metadata:{},aud:"authenticated",created_at:"2026-10-01T00:00:00Z"} as User}};try{expect(await getLearningUser({auth:{getUser:async()=>result}})).toBe(result)}finally{vi.unstubAllEnvs()}});

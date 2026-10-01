@@ -8,6 +8,7 @@ import { verifyEmail, resendEmail, sendPhoneCode, verifyPhone } from "./actions"
 export default async function VerifyContact({searchParams}:{searchParams:Promise<{error?:string;message?:string}>}) {
  const params=await searchParams;const client=await createClient();const {data:{user}}=await client.auth.getUser();
  const enabled=contactVerificationEnabled();
+ if(!enabled) redirect(user?.email_confirmed_at ? "/dashboard" : "/login?message=Check%20your%20email%20to%20confirm%20your%20account");
  if(enabled && hasVerifiedContacts(user)) redirect("/dashboard");
  const pending=(await cookies()).get("learning-map-pending-email")?.value;
  const emailVerified=Boolean(user?.email_confirmed_at);

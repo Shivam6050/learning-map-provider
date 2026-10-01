@@ -1,3 +1,5 @@
+> Mobile verification is paused. The retired `AUTH_CONTACT_VERIFICATION_ENABLED` flag is ignored. `AUTH_MOBILE_VERIFICATION_ENABLED` defaults to false; leave it disabled until SMS delivery is working. Email confirmation remains enabled in Supabase. Deploy this change to remove the existing production gate.
+
 # Google Calendar setup
 
 Enable Google Calendar API in the Google Cloud project owning GOOGLE_CLIENT_ID. Add the calendar.events.owned scope to the OAuth consent screen and configure required test users or verification for external publication.
@@ -18,4 +20,4 @@ The production callback was saved to the existing Learning-map OAuth client. Goo
 
 The OAuth audience remains External / Testing. Google lists two approved test users, and publication is disabled until branding configuration is completed. This integration is therefore not available to arbitrary Google accounts yet. Public release requires completing branding and Google's applicable consent verification, not merely deploying application code.
 
-The localhost callback above remains a setup instruction; only the production callback was configured during this session. Real user consent and event insertion remain unverified. The deployed application currently requires phone verification when AUTH_CONTACT_VERIFICATION_ENABLED=true; if SMS is deferred, that requirement can prevent unverified accounts from reaching the calendar connection flow.
+The localhost callback above remains a setup instruction; only the production callback was configured during this session. Real user consent and event insertion remain unverified. The deployed application currently requires phone verification when AUTH_MOBILE_VERIFICATION_ENABLED=true; if SMS is deferred, that requirement can prevent unverified accounts from reaching the calendar connection flow.
