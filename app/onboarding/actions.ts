@@ -17,7 +17,6 @@ import type { PathOption } from "@/lib/ai/build-options";
 import { buildPathOptions } from "@/lib/ai/build-options";
 import { discoverYoutubeForTopic } from "@/lib/youtube/discover";
 import { discoverUdemyCourses } from "@/lib/web-discovery/discover-udemy";
-import { impactConfigured } from "@/lib/web-discovery/impact-catalog";
 import { discoverWebForTopic } from "@/lib/web-discovery/discover";
 import { cookies } from "next/headers";
 import { CURRENCY_COOKIE } from "@/lib/currency/format";
@@ -200,7 +199,9 @@ export async function generatePath(formData: FormData) {
     });
 
     if (budgetTotal > 0) for (const option of options.slice(0, 2)) {
-      if (option.total_cost === 0) option.availability_note = "No relevant paid course or subscription with a verified cost fits this tier. Free resources remain available; a higher budget may unlock paid options.";
+      if (option.total_cost === 0) option.availability_note = paidCatalogFailed
+        ? "Some paid-course providers could not be reached. We could not confirm a paid option for this tier. You can use the free route now or try again later with the same budget."
+        : "No relevant paid course or subscription with a verified cost fits this tier. Free resources remain available. You can review optional courses below or try another budget.";
     }
     console.info("[roadmap-generation]", {source:template ? "template" : "discovery",templateVersion:template?.version ?? null,field:field!.slug,level:skillLevel,durationMs:Date.now()-generationStarted});
     // --- Persist the pending option set to the DATABASE ---
@@ -232,7 +233,6 @@ export async function generatePath(formData: FormData) {
       // rather than treating it as a real error.
       throw err;
     }
-    const message = err instanceof Error ? err.message : "Failed to generate learning path.";
     await logError("generatePath", err);
     redirect(`/onboarding?error=${encodeURIComponent("We could not complete generation. Please try again shortly.")}`);
   }
@@ -290,7 +290,6 @@ export async function confirmSelectedPath(formData: FormData) {
     redirect(`/paths/${pathId}`);
   } catch (err) {
     if (err && typeof err === "object" && "digest" in err) throw err;
-    const message = err instanceof Error ? err.message : "Failed to confirm path.";
     await logError("confirmSelectedPath", err);
     const purchased = formData.getAll("purchasedResourceId").map(String).join(",");
     redirect(`/onboarding/select?set=${encodeURIComponent(setId)}&optionId=${encodeURIComponent(optionId)}&purchased=${encodeURIComponent(purchased)}&error=${encodeURIComponent(err instanceof SelectionPriceError ? err.message : "Saving was interrupted. Please retry or generate a new path if your options expired.")}`);

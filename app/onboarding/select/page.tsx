@@ -9,7 +9,6 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { selectionReturnPath } from "@/lib/paths/selection-return";
-import { ensureHttpUrl } from "@/lib/link-check/url-safety";
 import { getFieldBySlug } from "@/lib/fields/catalog";
 
 export default async function OnboardingSelectPage({
