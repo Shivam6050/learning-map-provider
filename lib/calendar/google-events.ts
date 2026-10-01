@@ -12,6 +12,7 @@ export function googleEvents(pathId:string,fieldName:string,stages:StudyStage[],
  extendedProperties:{private:{learningmapPath:pathId,learningmapStage:session.stage.id}},
  }));
 }
+export class CalendarConnectionExpired extends Error {}
 export async function insertGoogleEvent(accessToken:string,event:ReturnType<typeof googleEvents>[number]) {
  const headers={Authorization:`Bearer ${accessToken}`,"Content-Type":"application/json"};
  const url="https://www.googleapis.com/calendar/v3/calendars/primary/events";
@@ -22,7 +23,7 @@ export async function insertGoogleEvent(accessToken:string,event:ReturnType<type
   if(previous.ok){const existing=await previous.json();if(existing.status!=="cancelled" && existing.extendedProperties?.private?.learningmapPath===event.extendedProperties.private.learningmapPath && existing.extendedProperties?.private?.learningmapStage===event.extendedProperties.private.learningmapStage)return "existing" as const;}
   throw new Error("An existing calendar event could not be verified. Review your calendar before retrying.");
  }
- if(response.status===401)throw new Error("Your Google connection expired. Connect again to continue.");
+ if(response.status===401)throw new CalendarConnectionExpired("Your Google connection expired. Connect again to continue.");
  if(response.status===403)throw new Error("Google denied calendar access. Check API activation and consent permissions.");
  if(response.status===429)throw new Error("Google is limiting requests. Wait a moment, then retry the same schedule.");
  throw new Error("Google could not add this session. Retry the same schedule to continue safely.");

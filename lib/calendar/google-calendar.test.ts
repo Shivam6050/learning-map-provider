@@ -26,3 +26,9 @@ it("verifies duplicate events before treating a retry as successful",async()=>{
  vi.stubGlobal("fetch",vi.fn().mockResolvedValueOnce(new Response(null,{status:409})).mockResolvedValueOnce(Response.json({...event,status:"confirmed"})));
  await expect(insertGoogleEvent("secret",event)).resolves.toBe("existing");
 });
+
+it("signals a revoked Google connection for reconnection",async()=>{
+ const event=googleEvents("p","Backend",[{id:"s",title:"APIs",description:"",estimated_hours:1}],1,"2026-10-01","09:00",[1],"Asia/Kolkata")[0];
+ vi.stubGlobal("fetch",vi.fn().mockResolvedValue(new Response(null,{status:401})));
+ await expect(insertGoogleEvent("revoked",event)).rejects.toThrow("connection expired");
+});

@@ -4,13 +4,13 @@ import {getLearningUser} from "@/lib/auth/learning-user";
 import {getRequestOrigin} from "@/lib/site";
 import {requireUuid} from "@/lib/security/validation";
 import {calendarConfigured,sameOrigin,TOKEN_COOKIE,openCalendar,type CalendarToken} from "@/lib/calendar/google-session";
-import {googleEvents,insertGoogleEvent} from "@/lib/calendar/google-events";
+import {googleEvents,insertGoogleEvent,CalendarConnectionExpired} from "@/lib/calendar/google-events";
 export const maxDuration=60;
 const reply=(data:unknown,status=200)=>Response.json(data,{status,headers:{"Cache-Control":"private, no-store"}});
 export async function GET() {
  const client=await createClient();const {data:{user}}=await client.auth.getUser();
  const token=openCalendar<CalendarToken>((await cookies()).get(TOKEN_COOKIE)?.value);
- return reply({configured:calendarConfigured(),connected:Boolean(user && token?.userId===user.id)});
+ return reply({configured:calendarConfigured(),connected:Boolean(user && token?.userId===user.id && typeof token.accessToken==="string" && token.accessToken)});
 }
 export async function DELETE(request:Request) {
  if(!sameOrigin(request,getRequestOrigin(request)))return reply({error:"Invalid request origin"},403);
@@ -38,7 +38,7 @@ export async function POST(request:Request,{params}:{params:Promise<{id:string}>
  let added=0,existing=0;const stop=Math.min(offset+2,events.length);
  for(let i=offset;i<stop;i++){
   try{const outcome=await insertGoogleEvent(token.accessToken,events[i]);if(outcome==="added")added++;else existing++;}
-  catch(error){return reply({error:error instanceof Error?error.message:"Calendar import interrupted",nextOffset:i,total:events.length,added,existing},502);}
+  catch(error){const expired=error instanceof CalendarConnectionExpired;if(expired)(await cookies()).delete(TOKEN_COOKIE);return reply({error:error instanceof Error?error.message:"Calendar import interrupted",reconnect:expired,nextOffset:i,total:events.length,added,existing},expired?401:502);}
  }
  return reply({added,existing,total:events.length,nextOffset:stop,complete:stop===events.length});
 }

@@ -11,3 +11,11 @@ Configure GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_CALENDAR_COOKIE_KEY
 Users connect separately from sign-in, then explicitly add timed sessions. The connection uses an encrypted, user-bound HttpOnly cookie and expires within one hour. No refresh token or ongoing sync is stored. Events go into the consenting Google account's primary calendar. Retrying the same schedule preserves existing matching events rather than duplicating them. Changing the schedule creates different events; remove obsolete events manually. Downloaded ICS imports do not share the Google API duplicate protection.
 
 Verify consent, denied consent, connection expiry, two different user accounts, partial import retry, and the displayed study hours against real Google Calendar before releasing. Provider configuration and live event insertion remain unverified until these checks complete.
+
+## Configuration verified on 2026-10-02
+
+The production callback was saved to the existing Learning-map OAuth client. Google Calendar API is enabled and calendar.events.owned was added to the consent configuration. GOOGLE_CALENDAR_COOKIE_KEY was saved as a Vercel Production secret; redeploy to load it. The private local key was rotated before saving after accessibility output exposed the previous, undeployed value.
+
+The OAuth audience remains External / Testing. Google lists two approved test users, and publication is disabled until branding configuration is completed. This integration is therefore not available to arbitrary Google accounts yet. Public release requires completing branding and Google's applicable consent verification, not merely deploying application code.
+
+The localhost callback above remains a setup instruction; only the production callback was configured during this session. Real user consent and event insertion remain unverified. The deployed application currently requires phone verification when AUTH_CONTACT_VERIFICATION_ENABLED=true; if SMS is deferred, that requirement can prevent unverified accounts from reaching the calendar connection flow.
