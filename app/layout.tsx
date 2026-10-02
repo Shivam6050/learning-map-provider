@@ -6,7 +6,7 @@ import { CurrencyProvider, CurrencySwitcher } from "@/components/CurrencyProvide
 import { CURRENCIES, CURRENCY_COOKIE, isCurrency } from "@/lib/currency/format";
 import { getConversionRate } from "@/lib/currency/convert";
 import type { Metadata } from "next";
-import Link from "next/link";
+import { IntentLink as Link } from "@/components/IntentLink";
 import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
 import { getRenderContext, getRenderProfile } from "@/lib/auth/render-context";

@@ -72,7 +72,7 @@ export function DashboardWorkspace({ name, paths, loadError }: { name: string; p
       </aside>
 
       <div className={styles.content} id="overview">
-        <header className={styles.pageHeader}><div><p className={styles.eyebrow}>YOUR LEARNING STUDIO</p><h1>{paths.length ? "Keep your momentum." : "A fresh page. A new possibility."}</h1><p>Welcome back, <strong>{name}</strong>. {paths.length ? "Let’s turn a little focus into your next milestone." : "Your next chapter starts with a little direction."}</p></div><Link href="/onboarding" className={styles.headerAction}>New learning path <span aria-hidden="true">＋</span></Link></header>
+        <header className={styles.pageHeader}><div><p className={styles.eyebrow}>YOUR LEARNING STUDIO</p><h1>{paths.length ? "Keep your momentum." : "A fresh page. A new possibility."}</h1><p>Welcome back, <strong>{name}</strong>. {paths.length ? "Let’s turn a little focus into your next milestone." : "Your next chapter starts with a little direction."}</p></div><IntentLink href="/onboarding" className={styles.headerAction}>New learning path <span aria-hidden="true">＋</span></IntentLink></header>
 
         {loadError && <div className={styles.error} role="alert">We couldn’t load your paths. Your saved work is still there. <a href="/dashboard">Try again</a></div>}
 
@@ -84,7 +84,7 @@ export function DashboardWorkspace({ name, paths, loadError }: { name: string; p
             <div className={styles.focusFooter}><Link href={`/paths/${resume.path.id}#stage-${resume.id}`} className={styles.primary}>{resume.status === "in_progress" ? "Continue learning" : "Start this milestone"}<Arrow/></Link><span>One step closer.</span></div>
             <div className={styles.stageTrack} role="img" aria-label={`${resume.path.stages.filter(stage => stage.status === "completed").length} of ${resume.path.stages.length} milestones completed`}>{resume.path.stages.map(stage => <span key={stage.id} data-complete={stage.status === "completed"} data-current={stage.id === resume.id}/>)}</div>
           </div> : <div className={styles.startCard}>
-            <div className={styles.startCopy}><p className={styles.eyebrow}>{paths.length ? "ROOM FOR WHAT’S NEXT" : "YOUR FIRST CHAPTER"}</p><h2>{paths.length ? <>A finish line.<br/><em>A new beginning.</em></> : <>Big ambitions.<br/><em>Small first steps.</em></>}</h2><p>{paths.length ? "You’ve completed your milestones. Choose a new field or go deeper into the skills you love." : "Choose what you want to learn. We’ll help you find the right starting point and a path that fits your life."}</p><Link href="/onboarding" className={styles.primary}>{paths.length ? "Explore my next path" : "Build my first path"}<Arrow/></Link><small>No perfect plan needed. Just a little curiosity.</small></div>
+            <div className={styles.startCopy}><p className={styles.eyebrow}>{paths.length ? "ROOM FOR WHAT’S NEXT" : "YOUR FIRST CHAPTER"}</p><h2>{paths.length ? <>A finish line.<br/><em>A new beginning.</em></> : <>Big ambitions.<br/><em>Small first steps.</em></>}</h2><p>{paths.length ? "You’ve completed your milestones. Choose a new field or go deeper into the skills you love." : "Choose what you want to learn. We’ll help you find the right starting point and a path that fits your life."}</p><IntentLink href="/onboarding" className={styles.primary}>{paths.length ? "Explore my next path" : "Build my first path"}<Arrow/></IntentLink><small>No perfect plan needed. Just a little curiosity.</small></div>
             <JourneyIllustration/>
           </div>}
 
@@ -99,7 +99,7 @@ export function DashboardWorkspace({ name, paths, loadError }: { name: string; p
           <div className={styles.sectionHeading}><div><span className={styles.eyebrow}>FOLLOW YOUR CURIOSITY</span><h2>Where do you want to go?</h2></div><span className={styles.sectionAside}>Six fields. Plenty of possibilities.</span></div>
           <div className={styles.fields}>{FIELD_CATALOG.map((field, index) => <IntentLink key={field.slug} href={`/onboarding?field=${field.slug}`} className={styles.fieldCard}><div className={styles.fieldTop}><FieldIcon index={index}/><Arrow diagonal/></div><h3>{field.name}</h3><p>{["APIs, systems & the logic behind it all", "Interfaces that people love to use", "Bring the whole experience together", "Build with data and intelligence", "Turn questions into clear insights", "Ship, scale & keep things running"][index]}</p><span>Explore this field <Arrow/></span></IntentLink>)}</div>
         </section>
-        <div className={styles.bottomNote}><span aria-hidden="true">↳</span><p>A path built around <strong>your level, your time, your budget.</strong> Free resources are always an option.</p><Link href="/onboarding">Make it personal <Arrow diagonal/></Link></div>
+        <div className={styles.bottomNote}><span aria-hidden="true">↳</span><p>A path built around <strong>your level, your time, your budget.</strong> Free resources are always an option.</p><IntentLink href="/onboarding">Make it personal <Arrow diagonal/></IntentLink></div>
       </div>
     </div>
   </div>;

@@ -2,7 +2,7 @@
 
 import { GeneratePathIcon } from "@/components/GeneratePathIcon";
 
-import Link from "next/link";
+import { IntentLink as Link } from "./IntentLink";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
