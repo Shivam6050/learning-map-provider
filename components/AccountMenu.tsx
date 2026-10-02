@@ -2,11 +2,10 @@
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { ProfileAvatar } from "./ProfileAvatar";
 import { LogoutButton } from "./LogoutButton";
 import { logout } from "@/app/auth/actions";
 import styles from "./AccountMenu.module.css";
-export function AccountMenu({ avatarId, displayName }: { avatarId?: string; displayName: string }) {
+export function AccountMenu({ avatar, displayName }: { avatar?: React.ReactNode; displayName: string }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null), trigger = useRef<HTMLButtonElement>(null);
   const panelId = useId(), pathname = usePathname();
@@ -20,7 +19,7 @@ export function AccountMenu({ avatarId, displayName }: { avatarId?: string; disp
     return () => { document.removeEventListener("pointerdown", outside); document.removeEventListener("keydown", escape); };
   }, [open]);
   return <div className={styles.account}>
-    <div className={styles.identity} title={displayName}><ProfileAvatar id={avatarId} size={34}/><span className={styles.displayName}>{displayName}</span></div>
+    <div className={styles.identity} title={displayName}>{avatar}<span className={styles.displayName}>{displayName}</span></div>
     <div className={styles.dropdown} ref={root} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}>
       <button ref={trigger} type="button" className={styles.trigger} aria-expanded={open} aria-controls={panelId} onClick={() => setOpen(value => !value)}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><circle cx="9" cy="6" r="2" fill="#182923" stroke="currentColor" strokeWidth="1.5"/><circle cx="15" cy="12" r="2" fill="#182923" stroke="currentColor" strokeWidth="1.5"/><circle cx="9" cy="18" r="2" fill="#182923" stroke="currentColor" strokeWidth="1.5"/></svg>

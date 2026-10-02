@@ -2,7 +2,7 @@ import { getLearningUser } from "@/lib/auth/learning-user";
 import { createServiceClient } from "@/lib/supabase/service";
 import { getFieldBySlug } from "@/lib/fields/catalog";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getRenderContext, getRenderProfile } from "@/lib/auth/render-context";
 import { DashboardWorkspace, type DashboardPath } from "@/components/DashboardWorkspace";
 
 type StoredStage = {
@@ -22,12 +22,12 @@ type StoredPath = {
 };
 
 export default async function DashboardPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await getLearningUser(supabase);
+  const { supabase, auth } = await getRenderContext();
+  const { data: { user } } = await getLearningUser({ auth: { getUser: async () => auth } });
   if (!user) redirect("/login?redirectedFrom=/dashboard");
 
   const [profileResult, pathsResult] = await Promise.all([
-    supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle(),
+    getRenderProfile(),
     supabase.from("learning_paths").select(`
       id, field_id, skill_level, fields(name, slug),
       stages (id, title, order_index, estimated_hours, stage_progress (status, updated_at))

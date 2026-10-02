@@ -1,5 +1,5 @@
 import { BrandLogo } from "@/components/BrandLogo";
-import Link from "next/link";
+import { IntentLink as Link } from "./IntentLink";
 
 export function Footer() {
   return (

@@ -11,11 +11,11 @@ import { AccountMenu } from "@/components/AccountMenu";
 
 export function NavbarNav({
   user,
-  avatarId,
+  avatar,
   displayName = "Learner",
 }: {
   user: {id:string} | null;
-  avatarId?: string;
+  avatar?: React.ReactNode;
   displayName?: string;
 }) {
   const pathname = usePathname();
@@ -80,7 +80,7 @@ export function NavbarNav({
             )}
           </Link>
 
-          <AccountMenu avatarId={avatarId} displayName={displayName} />
+          <AccountMenu avatar={avatar} displayName={displayName} />
         </>
       ) : (
         <>

@@ -1,6 +1,6 @@
 "use client";
 import {resumeStage} from "@/lib/paths/resume";
-import Link from "next/link";
+import { IntentLink as Link } from "./IntentLink";
 import { useState, useMemo } from "react";
 import { DeletePathButton } from "./DeletePathButton";
 import type { DashboardPath } from "./DashboardWorkspace";

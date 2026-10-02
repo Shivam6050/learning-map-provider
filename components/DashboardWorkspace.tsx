@@ -2,6 +2,7 @@
 
 import {resumeStage} from "@/lib/paths/resume";
 import Link from "next/link";
+import { IntentLink } from "./IntentLink";
 
 import { DashboardPathList } from "./DashboardPathList";
 import { FIELD_CATALOG } from "@/lib/fields/catalog";
@@ -67,7 +68,7 @@ export function DashboardWorkspace({ name, paths, loadError }: { name: string; p
           <a href="#explore-fields"><span aria-hidden="true">↗</span> Explore fields</a>
         </nav>
         <div className={styles.sidebarNote}><span>THE LONG VIEW</span><p>Little by little,<br/><em>a little becomes a lot.</em></p><div className={styles.noteLine}/><small>One milestone at a time.</small></div>
-        <Link href="/settings" className={styles.preferences}>Learning preferences <Arrow diagonal/></Link>
+        <IntentLink href="/settings" className={styles.preferences}>Learning preferences <Arrow diagonal/></IntentLink>
       </aside>
 
       <div className={styles.content} id="overview">
@@ -96,7 +97,7 @@ export function DashboardWorkspace({ name, paths, loadError }: { name: string; p
 
         <section id="explore-fields" className={styles.exploreSection}>
           <div className={styles.sectionHeading}><div><span className={styles.eyebrow}>FOLLOW YOUR CURIOSITY</span><h2>Where do you want to go?</h2></div><span className={styles.sectionAside}>Six fields. Plenty of possibilities.</span></div>
-          <div className={styles.fields}>{FIELD_CATALOG.map((field, index) => <Link key={field.slug} href={`/onboarding?field=${field.slug}`} className={styles.fieldCard}><div className={styles.fieldTop}><FieldIcon index={index}/><Arrow diagonal/></div><h3>{field.name}</h3><p>{["APIs, systems & the logic behind it all", "Interfaces that people love to use", "Bring the whole experience together", "Build with data and intelligence", "Turn questions into clear insights", "Ship, scale & keep things running"][index]}</p><span>Explore this field <Arrow/></span></Link>)}</div>
+          <div className={styles.fields}>{FIELD_CATALOG.map((field, index) => <IntentLink key={field.slug} href={`/onboarding?field=${field.slug}`} className={styles.fieldCard}><div className={styles.fieldTop}><FieldIcon index={index}/><Arrow diagonal/></div><h3>{field.name}</h3><p>{["APIs, systems & the logic behind it all", "Interfaces that people love to use", "Bring the whole experience together", "Build with data and intelligence", "Turn questions into clear insights", "Ship, scale & keep things running"][index]}</p><span>Explore this field <Arrow/></span></IntentLink>)}</div>
         </section>
         <div className={styles.bottomNote}><span aria-hidden="true">↳</span><p>A path built around <strong>your level, your time, your budget.</strong> Free resources are always an option.</p><Link href="/onboarding">Make it personal <Arrow diagonal/></Link></div>
       </div>

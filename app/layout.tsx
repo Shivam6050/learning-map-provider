@@ -1,5 +1,6 @@
 import { residenceCurrency, validCountry } from "@/lib/profile/residence";
 import { BrandLogo } from "@/components/BrandLogo";
+import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { cookies } from "next/headers";
 import { CurrencyProvider, CurrencySwitcher } from "@/components/CurrencyProvider";
 import { CURRENCIES, CURRENCY_COOKIE, isCurrency } from "@/lib/currency/format";
@@ -8,8 +9,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
-import { createClient } from "@/lib/supabase/server";
-import { getAvatarEmoji } from "@/lib/profile/avatars";
+import { getRenderContext, getRenderProfile } from "@/lib/auth/render-context";
 import { Footer } from "@/components/Footer";
 import { NavbarNav } from "@/components/NavbarNav";
 
@@ -29,10 +29,7 @@ export default async function RootLayout({
   const savedCurrency = (await cookies()).get(CURRENCY_COOKIE)?.value;
 
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { auth: { data: { user } } } = await getRenderContext();
 
   // Public/auth pages contain no personal course prices. Do not block them on FX services.
   const rateEntriesPromise = user
@@ -44,11 +41,7 @@ export default async function RootLayout({
 
   let profile: { avatar_id?: string; display_name?: string } | null = null;
   if (user) {
-    const { data: pData, error: pErr } = await supabase
-      .from("profiles")
-      .select("avatar_id, display_name")
-      .eq("id", user.id)
-      .maybeSingle();
+    const { data: pData, error: pErr } = await getRenderProfile();
     if (!pErr) profile = pData;
   }
 
@@ -76,7 +69,7 @@ export default async function RootLayout({
             </Link>
 
             <CurrencySwitcher />
-            <NavbarNav user={user} avatarId={effectiveAvatarId} displayName={profile?.display_name?.trim() || user?.user_metadata?.display_name?.trim() || "Learner"} />
+            <NavbarNav user={user ? { id: user.id } : null} avatar={user ? <ProfileAvatar id={effectiveAvatarId} size={34} /> : null} displayName={profile?.display_name?.trim() || user?.user_metadata?.display_name?.trim() || "Learner"} />
           </div>
         </header>
 
