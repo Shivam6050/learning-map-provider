@@ -1,3 +1,4 @@
+import {curriculumUnit,topicDefinitions} from "./authored-curriculum";
 export type LearningTopic = {id:string;title:string;criterion:string};
 // Original topic guidance. Match the stage itself, never infer coverage from a course title.
 const catalog: [string,RegExp,string,string][] = [
@@ -11,8 +12,10 @@ const catalog: [string,RegExp,string,string][] = [
  ["analysis",/dataset|statistics|machine learning|prediction model|analysis|metric|prediction/i,"Evidence and assumptions","Explain the assumptions and show evidence supporting the result, including its limitations."],
 ];
 export function stageTopics(title:string,description:string|null):LearningTopic[] {
+ const authored=curriculumUnit(title);
+ if(authored)return authored.topicIds.map(id=>({id,title:topicDefinitions[id][0],criterion:topicDefinitions[id][1]}));
  const text=title+" "+(description??"");
  const matches=catalog.filter(([,pattern])=>pattern.test(text)).slice(0,5).map(([id,,name,criterion])=>({id,title:name,criterion}));
- return matches.length?matches:[{id:"foundations",title:"Understand the core concepts",criterion:"Explain this stageâ€™s main concepts in your own words and demonstrate one relevant example."}];
+ return matches.length?matches:[{id:"foundations",title:"Understand the core concepts",criterion:"Explain the main concepts of this stage in your own words and demonstrate one relevant example."}];
 }
 export const projectCriteria = ["Demonstrate this stage’s outcome through a relevant example or practice project.","Include reproducible steps or checks showing that the result works.","Explain one decision, limitation, or tradeoff in your project notes."];

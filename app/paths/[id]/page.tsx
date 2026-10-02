@@ -9,6 +9,8 @@ import { Money, RememberCurrency } from "@/components/CurrencyProvider";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import {resumeStage} from "@/lib/paths/resume";
+import {ResumeLearning} from "@/components/ResumeLearning";
 import { PathBoard } from "@/components/PathBoard";
 import { FilteredStageList } from "@/components/FilteredStageList";
 
@@ -51,7 +53,7 @@ export default async function PathPage({
         order_index,
         resources ( id, title, url, platform, resource_type, price, currency, rating, link_status, signals )
       ),
-      stage_progress ( status, completed_at, practice_check )
+      stage_progress ( status, completed_at, practice_check, updated_at )
     `
     )
     .eq("path_id", id)
@@ -68,7 +70,7 @@ export default async function PathPage({
           order_index,
           resources ( id, title, url, platform, resource_type, price, currency, rating, signals )
         ),
-        stage_progress ( status, completed_at, practice_check )
+        stage_progress ( status, completed_at, practice_check, updated_at )
       `
       )
       .eq("path_id", id)
@@ -150,6 +152,7 @@ export default async function PathPage({
     id: stage.id,
     order_index: stage.order_index,
     title: stage.title,
+    updatedAt: stage.stage_progress?.[0]?.updated_at,
     status: (stage.stage_progress?.[0]?.status ?? "not_started") as
       | "not_started"
       | "in_progress"
@@ -179,7 +182,7 @@ export default async function PathPage({
   const stageTimelineRecord: Record<string, { startWeek: number; endWeek: number }> =
     Object.fromEntries(stageTimeline);
 
-  const nextStage = boardStages.find((stage: { status: string }) => stage.status === "in_progress") ?? boardStages.find((stage: { status: string }) => stage.status !== "completed");
+  const nextStage = resumeStage(boardStages);
   return <main className={styles.page}>
     <RememberCurrency value={path.currency} />
     <div className={styles.shell}>
@@ -189,7 +192,9 @@ export default async function PathPage({
         <div className={styles.progress}><div className={styles.progressNumber}>{progressPct}<span>%</span></div><p>{completedStages} of {totalStages} stages completed<br/>{nextStage ? "One focused session at a time." : "Every stage completed. Well done."}</p><div className={styles.track} role="progressbar" aria-label="Roadmap completion" aria-valuenow={progressPct} aria-valuemin={0} aria-valuemax={100}><div style={{width:progressPct+"%"}}/></div></div>
       </header>
       <dl className={styles.stats}><div className={styles.stat}><dt>Learning pace</dt><dd>{path.weekly_hours} <small>hrs / week</small></dd></div><div className={styles.stat}><dt>Estimated timeline</dt><dd>{totalWeeks} <small>weeks</small></dd></div><div className={styles.stat}><dt>Your budget</dt><dd><Money amount={path.budget_total} currency={path.currency}/></dd></div><div className={styles.stat}><dt>New purchases estimate</dt><dd>{(stages ?? []).some(stage => stage.stage_resources.some(({resources: resource}) => resource.signals?.price_unverified && !resource.signals?.already_owned)) ? <>Price confirmation needed</> : <Money amount={totalCost} currency={path.currency} freeLabel/>}</dd></div></dl>
-      <div className={styles.layout}><aside className={styles.sidebar}><h2 className={styles.sideHeading}>The route <span>{String(totalStages).padStart(2,"0")} stages</span></h2><PathBoard stages={boardStages}/></aside><section className={styles.content} aria-label="Learning stages"><h2 className={styles.contentHeading}>Your next steps, laid out.</h2><p className={styles.contentIntro}>Learn the concepts. Apply them in the practice task. Mark the stage complete when you’re ready.</p><FilteredStageList stages={stages ?? []} stageTimeline={stageTimelineRecord} path={path} myRatingByResource={myRatingByResource}/></section></div>
+      <ResumeLearning stages={stages ?? []} pathId={path.id} viewerId={user.id} />
+      <PathBoard stages={boardStages} overview />
+      <div className={styles.layout}><aside className={styles.sidebar}><h2 className={styles.sideHeading}>The route <span>{String(totalStages).padStart(2,"0")} stages</span></h2><PathBoard stages={boardStages}/></aside><section className={styles.content} aria-label="Learning stages"><h2 className={styles.contentHeading}>Your next steps, laid out.</h2><p className={styles.contentIntro}>Learn the concepts. Apply them in the practice task. Mark the stage complete when you’re ready.</p><FilteredStageList viewerId={user.id} stages={stages ?? []} stageTimeline={stageTimelineRecord} path={path} myRatingByResource={myRatingByResource}/></section></div>
       <footer className={styles.disclosures}>{hiddenResources > 0 && <p>{hiddenResources} resources are temporarily hidden while their links or prices cannot be verified. Your progress is preserved.</p>}{(stages ?? []).some(stage => stage.stage_resources.some(({resources: resource}) => resource.signals?.price_unverified && !resource.signals?.already_owned)) && <p>Some regional prices could not be verified. Check your country in Settings and confirm those prices with the provider. Unverified amounts are excluded from the estimate. One Scrimba Pro subscription covers multiple eligible courses.</p>}<p>Costs use the last verified course prices and are planning estimates. Availability and prices may change; confirm with the provider before purchasing.</p>{billing.subscriptions.map(plan=><p key={plan.provider}>Scrimba Pro: {plan.periods} {plan.billing_interval === "year" ? "year(s), billed upfront" : "month(s)"} included, counted once across courses. Start access at the first paid stage; cancel renewal when finished.</p>)}{refreshed.some(resource=>courseLink(resource.url,resource.signals?.affiliate===true).affiliate)&&<p>Some course links are affiliate links. LearningMap may earn a commission if you purchase through them.</p>}</footer>
     </div>
   </main>;

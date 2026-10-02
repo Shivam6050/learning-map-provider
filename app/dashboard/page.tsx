@@ -10,7 +10,7 @@ type StoredStage = {
   title: string;
   order_index: number;
   estimated_hours: number;
-  stage_progress: { status: string }[] | null;
+  stage_progress: { status: string; updated_at?:string|null }[] | null;
 };
 
 type StoredPath = {
@@ -30,7 +30,7 @@ export default async function DashboardPage() {
     supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle(),
     supabase.from("learning_paths").select(`
       id, field_id, skill_level, fields(name, slug),
-      stages (id, title, order_index, estimated_hours, stage_progress (status))
+      stages (id, title, order_index, estimated_hours, stage_progress (status, updated_at))
     `).eq("user_id", user.id).order("created_at", { ascending: false }),
   ]);
 
@@ -56,6 +56,7 @@ export default async function DashboardPage() {
         title: stage.title,
         hours: stage.estimated_hours,
         status: stage.stage_progress?.[0]?.status ?? "not_started",
+        updatedAt: stage.stage_progress?.[0]?.updated_at,
       })),
   }));
 

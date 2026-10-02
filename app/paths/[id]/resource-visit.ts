@@ -2,28 +2,26 @@
 import {createClient} from "@/lib/supabase/server";
 import {getLearningUser} from "@/lib/auth/learning-user";
 import {requireUuid} from "@/lib/security/validation";
-import {stageTopics} from "@/lib/paths/topics";
-import {projectMilestones} from "@/lib/paths/milestones";
+import {courseLink} from "@/lib/affiliates/links";
 import {revalidatePath} from "next/cache";
-export async function saveTopicCompletion(pathId:string,stageId:string,topicId:string,completed:boolean):Promise<{ok:boolean;error?:string}> {
- return saveCheck(pathId,stageId,topicId,completed,"topic_completion");
-}
-export async function saveMilestoneCompletion(pathId:string,stageId:string,milestoneId:string,completed:boolean):Promise<{ok:boolean;error?:string}> {
- return saveCheck(pathId,stageId,milestoneId,completed,"milestone_completion");
-}
-async function saveCheck(pathId:string,stageId:string,topicId:string,completed:boolean,field:"topic_completion"|"milestone_completion"):Promise<{ok:boolean;error?:string}> {
+export async function saveResourceVisit(pathId:string,stageId:string,resourceId:string):Promise<{ok:boolean;error?:string}> {
  try {
- requireUuid(pathId);requireUuid(stageId);
- if(typeof completed!=="boolean" || typeof topicId!=="string")return {ok:false,error:"Invalid topic update."};
+ requireUuid(pathId);requireUuid(stageId);requireUuid(resourceId);
  const client=await createClient();const {data:{user}}=await getLearningUser(client);
- if(!user)return {ok:false,error:"Sign in again to save your learning progress."};
- const {data:stage,error:stageError}=await client.from("stages").select("id,title,description").eq("id",stageId).eq("path_id",pathId).maybeSingle();
- if(stageError || !stage || !(field==="topic_completion"?stageTopics(stage.title,stage.description):projectMilestones(stage.title,stage.description)).some(t=>t.id===topicId))return {ok:false,error:"This learning topic is unavailable."};
+ if(!user)return {ok:false,error:"Sign in again to sync your resource history."};
+ const {data:stage,error:stageError}=await client.from("stages").select("id").eq("id",stageId).eq("path_id",pathId).maybeSingle();
+ if(stageError||!stage)return {ok:false,error:"This stage is unavailable."};
+ const {data:linked,error:linkError}=await client.from("stage_resources").select("resource_id, resources(url,link_status)").eq("stage_id",stageId).eq("resource_id",resourceId).maybeSingle();
+ const resource=Array.isArray(linked?.resources)?linked.resources[0]:linked?.resources;
+ if(linkError||!resource||resource.link_status==="broken"||!courseLink(resource.url).href)return {ok:false,error:"This resource is unavailable."};
+ const openedAt=new Date().toISOString();
  for(let attempt=0;attempt<3;attempt++) {
  const {data:existing,error:readError}=await client.from("stage_progress").select("practice_check").eq("stage_id",stageId).eq("user_id",user.id).maybeSingle();
  if(readError)return {ok:false,error:"Could not load your learning progress. Please retry."};
  const prior=existing?.practice_check ?? {};
- const practice_check={...prior,[field]:{...(prior[field]??{}),[topicId]:completed}};
+ // An earlier request must not replace a later visit after losing the document comparison.
+ if(Date.parse(prior.resource_visit?.opened_at??"")>Date.parse(openedAt))return {ok:true};
+ const practice_check={...prior,resource_visit:{resource_id:resourceId,opened_at:openedAt}};
  if(!existing){
  const {error}=await client.from("stage_progress").insert({stage_id:stageId,user_id:user.id,status:"not_started",practice_check,updated_at:new Date().toISOString()}).select("stage_id").single();
  if(!error){revalidatePath("/paths/"+pathId);return {ok:true};}
@@ -38,5 +36,5 @@ async function saveCheck(pathId:string,stageId:string,topicId:string,completed:b
  if(saved){revalidatePath("/paths/"+pathId);return {ok:true};}
  }
  return {ok:false,error:"Your progress changed in another tab. Please retry."};
- }catch{return {ok:false,error:"Learning progress could not be saved. Please retry."};}
+ }catch{return {ok:false,error:"Your resource opened, but history could not sync. Please retry."};}
 }

@@ -1,6 +1,12 @@
 "use client";
+import {resumeStage} from "@/lib/paths/resume";
+import {saveResourceVisit} from "@/app/paths/[id]/resource-visit";
+import {rememberResource} from "@/lib/paths/last-resource";
+import {StagePreparation} from "./StagePreparation";
 import {TopicChecklist} from "./TopicChecklist";
-import {projectCriteria} from "@/lib/paths/topics";
+import {resourceGuidance,resourcePurpose} from "@/lib/paths/resource-guidance";
+import {ProjectMilestones} from "./ProjectMilestones";
+import {CourseCoverage} from "./CourseCoverage";
 import type {RoadmapStage} from "@/lib/paths/stage";
 import { ActionButton } from "@/components/ActionButton";
 import styles from "./Roadmap.module.css";
@@ -11,7 +17,7 @@ import { providerName } from "@/lib/web-discovery/providers";
 import { useState, useTransition, useEffect, useRef } from "react";
 import { StageFilterBar, type StageFilter } from "@/components/StageFilterBar";
 import { updateStageProgress, rateResource, savePracticeNote } from "@/app/paths/[id]/actions";
-import { isSafeHttpUrl, ensureHttpUrl } from "@/lib/link-check/url-safety";
+import { isSafeHttpUrl } from "@/lib/link-check/url-safety";
 
 const STATUS_LABEL: Record<string, string> = {
   not_started: "Not started",
@@ -19,24 +25,20 @@ const STATUS_LABEL: Record<string, string> = {
   completed: "Completed",
 };
 
-const STATUS_STYLE: Record<string, string> = {
-  not_started: "bg-slate-800/80 text-slate-400 border border-slate-700",
-  in_progress: "bg-amber-500/10 text-amber-300 border border-amber-500/30",
-  completed: "bg-emerald-500/10 text-emerald-300 border border-emerald-500/30",
-};
-
 export function FilteredStageList({
   stages,
   stageTimeline,
   path,
   myRatingByResource,
+  viewerId,
 }: {
+  viewerId:string;
   stages: RoadmapStage[];
   stageTimeline: Record<string, { startWeek: number; endWeek: number }>;
-  path: {id:string;currency:string};
+  path: {id:string;currency:string;skill_level?:string};
   myRatingByResource: Record<string, number>;
 }) {
-  const [openStage, setOpenStage] = useState<string | null>(() => stages.find(s => s.stage_progress?.[0]?.status === "in_progress")?.id ?? stages.find(s => s.stage_progress?.[0]?.status !== "completed")?.id ?? stages[0]?.id ?? null);
+  const [openStage, setOpenStage] = useState<string | null>(() => resumeStage([...stages].sort((a,b)=>a.order_index-b.order_index).map(stage=>({...stage,status:stage.stage_progress?.[0]?.status??"not_started",updatedAt:stage.stage_progress?.[0]?.updated_at})))?.id ?? stages[0]?.id ?? null);
   const [activeFilter, setActiveFilter] = useState<StageFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [editingNoteStageId, setEditingNoteStageId] = useState<string | null>(null);
@@ -64,6 +66,12 @@ export function FilteredStageList({
     return () => { window.removeEventListener("roadmap-navigate", navigate); window.removeEventListener("hashchange", followHash); };
   }, [stages]);
 
+  const [resourceSyncError,setResourceSyncError]=useState("");
+  async function trackResource(stageId:string,resourceId:string){
+    rememberResource(viewerId,path.id,stageId,resourceId);setResourceSyncError("");
+    try{const result=await saveResourceVisit(path.id,stageId,resourceId);if(!result.ok)setResourceSyncError(result.error??"Resource history could not sync.");}
+    catch{setResourceSyncError("Your resource opened, but history could not sync. Open the resource again to retry.");}
+  }
   const [progressError, setProgressError] = useState("");
   async function saveProgress(formData: FormData) {
     setProgressError("");
@@ -89,6 +97,7 @@ export function FilteredStageList({
     not_started: stages.filter((s) => (s.stage_progress?.[0]?.status ?? "not_started") === "not_started").length,
   };
 
+  const sequence = [...stages].sort((a,b)=>a.order_index-b.order_index);
   const filteredStages = stages.filter((stage) => {
     const status = stage.stage_progress?.[0]?.status ?? "not_started";
     if (activeFilter !== "all" && status !== activeFilter) {
@@ -108,6 +117,7 @@ export function FilteredStageList({
 
   return (
     <div className={styles.stageList + " space-y-6"}>
+      {resourceSyncError&&<p role="status" className={styles.syncNotice}>{resourceSyncError} Your learning progress is unchanged.</p>}
       {progressError && <p role="alert" className="rounded-xl border border-amber-500/40 p-3 text-sm text-amber-200">{progressError}</p>}
       <StageFilterBar key={filterVersion}
         onFilterChange={setActiveFilter}
@@ -125,6 +135,7 @@ export function FilteredStageList({
             const progress = stage.stage_progress?.[0];
             const status = progress?.status ?? "not_started";
             const timeline = stageTimeline[stage.id];
+            const guidance = resourceGuidance(stage.stage_resources ?? []);
             const practiceCheck = progress?.practice_check as
               | { description?: string; user_submission?: string; submitted_at?: string }
               | undefined;
@@ -145,17 +156,17 @@ export function FilteredStageList({
                 <div id={`stage-panel-${stage.id}`} hidden={openStage !== stage.id} className={styles.stagePanel} role="region" aria-labelledby={`stage-toggle-${stage.id}`}>
                 <p className="mt-3 text-sm text-slate-300 leading-relaxed">{stage.description}</p>
 
+                <StagePreparation stage={stage} previous={sequence[sequence.findIndex(item=>item.id===stage.id)-1]} level={path.skill_level} />
                 <TopicChecklist key={stage.id} pathId={path.id} stageId={stage.id} title={stage.title} description={stage.description} initial={progress?.practice_check?.topic_completion ?? {}} />
                 {/* Stage Resources */}
                 {stage.stage_resources?.length ? (
                   <div className="mt-5 border-t border-slate-800/80 pt-4">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
-                      Curated Learning Resources
+                      Your learning resources
                     </h4>
+                    <p className={styles.resourceHint}>{guidance.start ? "Begin with the highlighted resource. Use references when you need an explanation; choose an alternative if another format suits you better. You do not need to finish every resource." : "No usable starting link is available for this stage. Check another stage or return after the links have been updated."}</p>
                     <ul className="space-y-2.5">
-                      {[...stage.stage_resources]
-                        .sort((a, b) => a.order_index - b.order_index)
-                        .map((sr, i: number) => {
+                      {guidance.ordered.map((sr, i: number) => {
                           const resource = Array.isArray(sr.resources) ? sr.resources[0] : sr.resources;
                           if (!resource) return null;
                           const isBroken = resource.link_status === "broken";
@@ -165,27 +176,26 @@ export function FilteredStageList({
                           
                           const p = (resource.platform || "").toLowerCase();
                           const t = (resource.resource_type || "").toLowerCase();
-                          let icon = "📰";
-                          let label = resource.platform || "Guide";
+                                                    let label = resource.platform || "Guide";
                           let action = "Read Guide";
                           if (p === "youtube" || t === "video") {
-                            icon = "🎥"; label = "YouTube"; action = "Watch Video";
+                            label = "YouTube"; action = "Watch Video";
                           } else if (p === "udemy" || p === "coursera" || t === "course") {
-                            icon = "🎓"; label = p === "udemy" ? "Udemy" : providerName(resource.url); action = "Open Course";
+                            label = p === "udemy" ? "Udemy" : providerName(resource.url); action = "Open Course";
                           } else if (p === "docs" || p === "mslearn" || t === "docs") {
-                            icon = "📄"; label = "Docs"; action = "Read Docs";
+                            label = "Docs"; action = "Read Docs";
                           }
 
                           return (
                             <li
                               key={i}
-                              className={styles.course + " flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border text-sm"}
+                              className={styles.course + (sr === guidance.start ? " " + styles.startResource : "") + " flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border text-sm"}
                             >
                               <div className="flex flex-col gap-1 min-w-0">
                                 <div className="flex items-center gap-2">
-                                  {sr.is_primary && !isBroken && isValidLink && (
-                                    <span className="shrink-0 rounded-md bg-indigo-500/20 px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase text-indigo-300 border border-indigo-500/30">
-                                      Primary
+                                  {!isBroken && isValidLink && (
+                                    <span className={styles.resourcePurpose}>
+                                      {resourcePurpose(sr, guidance.start)}
                                     </span>
                                   )}
                                   <span className="text-[10px] font-semibold text-slate-400 flex items-center gap-1">
@@ -203,6 +213,7 @@ export function FilteredStageList({
                                 ) : (
                                   <a
                                     href={safeUrl}
+                                    onClick={()=>void trackResource(stage.id,resource.id)}
                                     target="_blank"
                                     rel={outgoing.affiliate ? "sponsored noopener noreferrer" : "noopener noreferrer"}
                                     className="font-bold text-sm text-indigo-300 hover:text-white transition hover:underline truncate"
@@ -220,6 +231,7 @@ export function FilteredStageList({
                                 {isValidLink && !isBroken && (
                                   <a
                                     href={safeUrl}
+                                    onClick={()=>void trackResource(stage.id,resource.id)}
                                     target="_blank"
                                     rel={outgoing.affiliate ? "sponsored noopener noreferrer" : "noopener noreferrer"}
                                     className="rounded-lg bg-indigo-600/80 hover:bg-indigo-500 text-white text-xs font-semibold px-3 py-1.5 shadow-sm transition flex items-center gap-1 shrink-0"
@@ -238,6 +250,7 @@ export function FilteredStageList({
                   <p className="mt-4 text-xs text-slate-400">No resources linked to this stage yet.</p>
                 )}
 
+                <CourseCoverage stage={stage} />
                 {/* Resource Rating Actions */}
                 {stage.stage_resources?.length ? (
                   <div className="mt-4 flex flex-wrap gap-3 border-t border-slate-800/80 pt-3">
@@ -316,7 +329,7 @@ export function FilteredStageList({
                   </section>
                 )}
 
-                <section className={styles.completionCriteria}><h3>Before you complete this stage</h3><ul>{projectCriteria.map(criterion=><li key={criterion}>{criterion}</li>)}</ul><p>Choose a relevant resource above. A resource recommendation is not a claim that it covers every topic.</p></section>
+                <ProjectMilestones pathId={path.id} stageId={stage.id} title={stage.title} description={stage.description} initial={progress?.practice_check?.milestone_completion ?? {}} />
                 {/* Stage Progress Action */}
                 <div className="mt-5 flex items-center gap-3 border-t border-slate-800/80 pt-4">
                   {status !== "completed" && (

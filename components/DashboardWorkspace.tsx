@@ -1,5 +1,6 @@
 
 
+import {resumeStage} from "@/lib/paths/resume";
 import Link from "next/link";
 
 import { DashboardPathList } from "./DashboardPathList";
@@ -10,7 +11,7 @@ export type DashboardPath = {
   id: string;
   name: string;
   level: string;
-  stages: { id: string; title: string; hours: number; status: string }[];
+  stages: { id: string; title: string; hours: number; status: string; updatedAt?:string|null }[];
 };
 
 function Arrow({ diagonal = false }: { diagonal?: boolean }) {
@@ -52,7 +53,7 @@ export function DashboardWorkspace({ name, paths, loadError }: { name: string; p
   const completed = allStages.filter(stage => stage.status === "completed").length;
   const inProgress = allStages.filter(stage => stage.status === "in_progress").length;
   // Prefer work already in progress, even when a newer path has unstarted stages.
-  const resume = allStages.find(stage => stage.status === "in_progress") ?? allStages.find(stage => stage.status !== "completed");
+  const resume = resumeStage(allStages);
   const finished = (path: DashboardPath) => path.stages.length > 0 && path.stages.every(stage => stage.status === "completed");
   const finishedCount = paths.filter(finished).length;
 

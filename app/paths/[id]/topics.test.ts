@@ -3,7 +3,7 @@ const mock=vi.hoisted(()=>({from:vi.fn(),writes:[] as Record<string,unknown>[],r
 vi.mock("@/lib/supabase/server",()=>({createClient:async()=>({auth:{getUser:async()=>({data:{user:{id:"owner",user_metadata:{country_of_residence:"IN"}}}})},from:mock.from})}));
 vi.mock("@/lib/supabase/service",()=>({createServiceClient:vi.fn()}));
 vi.mock("next/cache",()=>({revalidatePath:vi.fn()}));
-import {saveTopicCompletion} from "./topics";
+import {saveTopicCompletion,saveMilestoneCompletion} from "./topics";
 import {savePracticeNote} from "./actions";
 const path="22222222-2222-4222-8222-222222222222",stage="11111111-1111-4111-8111-111111111111";
 const result=(practice_check:unknown)=>({data:{practice_check},error:null});
@@ -46,3 +46,18 @@ it("returns an inline error after repeated conflicts",async()=>{
 it("does not write after a failed progress read",async()=>{
  mock.reads=[{data:null,error:{message:"timeout"}}];expect((await saveTopicCompletion(path,stage,"http",true)).ok).toBe(false);expect(mock.writes).toHaveLength(0);
 });
+
+it("saves milestones separately from topic progress and notes",async()=>{
+ mock.reads=[result({topic_completion:{http:true},user_submission:"Notes",owned_resource_ids:["course"]})];
+ expect((await saveMilestoneCompletion(path,stage,"build",true)).ok).toBe(true);
+ expect(mock.writes[0].practice_check).toEqual({topic_completion:{http:true},user_submission:"Notes",owned_resource_ids:["course"],milestone_completion:{build:true}});
+});
+it("rejects forged milestone identifiers before writing",async()=>{
+ expect((await saveMilestoneCompletion(path,stage,"forged",true)).ok).toBe(false);expect(mock.writes).toHaveLength(0);
+});
+it("preserves another tab's milestone after a concurrent update",async()=>{
+ mock.reads.push(result({milestone_completion:{verify:true},user_submission:"Another tab"}));mock.results.push({data:null,error:null});
+ expect((await saveMilestoneCompletion(path,stage,"build",true)).ok).toBe(true);
+ expect(mock.writes[1].practice_check).toEqual({milestone_completion:{verify:true,build:true},user_submission:"Another tab"});
+});
+it("rejects milestones on inaccessible stages",async()=>{mock.owned=false;expect((await saveMilestoneCompletion(path,stage,"build",true)).ok).toBe(false);expect(mock.writes).toHaveLength(0);});
