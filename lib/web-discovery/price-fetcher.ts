@@ -14,6 +14,7 @@ export type LivePriceResult = {
   price: number | null;
   currency: string;
   isRealtime: boolean;
+  verifiedCountry?: string;
   title?: string;
   headline?: string;
   rating?: number;
@@ -104,7 +105,7 @@ export async function fetchUdemyApiPrice(
           return {
             price: converted,
             currency: currUpper,
-            isRealtime: rawCurrency.toUpperCase() === currUpper,
+            isRealtime: false,
             title,
             headline,
             rating,
@@ -137,7 +138,7 @@ export async function fetchRealtimePrice(url: string, targetCurrency = "INR", co
     if (!offer) return unknown;
     const rate = await getConversionRate(offer.currency, currency);
     if (!rate || !Number.isFinite(rate)) return unknown;
-    return { price: Math.round(offer.amount * rate * 100) / 100, currency, isRealtime: host === "geeksforgeeks.org" && Boolean(country) && offer.currency === currency, title: offer.title };
+    return { price: Math.round(offer.amount * rate * 100) / 100, currency, isRealtime: host === "geeksforgeeks.org" && Boolean(country) && offer.currency === currency, verifiedCountry: host === "geeksforgeeks.org" && country && offer.currency === currency ? country : undefined, title: offer.title };
   }
   // Free tutorial access is separate from paid certificates.
   const freeHosts = ["youtube.com", "youtu.be", "freecodecamp.org", "developer.mozilla.org", "react.dev", "nextjs.org", "nodejs.org", "expressjs.com", "postgresql.org", "docs.python.org", "learn.microsoft.com", "pandas.pydata.org", "scikit-learn.org", "kubernetes.io", "testing-library.com", "w3schools.com"];

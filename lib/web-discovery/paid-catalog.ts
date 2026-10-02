@@ -31,12 +31,13 @@ export function parseScrimbaPlan(html: string, currency: string) {
  return null;
 }
 export const scrimbaPlanQuote = cache(async (currency: string, country?: string) => {
+ if (!country || !/^[A-Z]{2}$/.test(country)) return null;
  const response = await fetch(SCRIMBA_PRICE_SOURCE, { signal: AbortSignal.timeout(8000), cache: "no-store" }).catch(()=>null);
  if (!response?.ok) return null;
  const html = await response.text();
  // The public page can differ from a signed-in, geolocated checkout.
  // Only accept a market when the page explicitly identifies that market.
- if (country && !scrimbaMatchesMarket(html, country)) return null;
+ if (!country || !scrimbaMatchesMarket(html, country)) return null;
  return parseScrimbaPlan(html, currency);
 });
 

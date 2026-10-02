@@ -67,7 +67,7 @@ describe("Udemy API & Realtime Price Fetcher", () => {
     expect(res).toEqual({
       price: 14.99,
       currency: "USD",
-      isRealtime: true,
+      isRealtime: false,
       title: "The Complete Node.js Developer Course",
       headline: "Learn Node.js by building real-world applications",
       rating: 4.7,

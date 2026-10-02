@@ -15,7 +15,7 @@ it("rejects a fresh converted estimate",async()=>{
  expect(await currentQuote("https://example.com/course","INR","IN")).toBeNull();
 });
 it("accepts a verified same-market quote",async()=>{
- mocks.fetch.mockResolvedValue({price:100,currency:"INR",isRealtime:true});
+ mocks.fetch.mockResolvedValue({price:100,currency:"INR",isRealtime:true,verifiedCountry:"IN"});
  expect(await currentQuote("https://example.com/course","INR","IN")).toMatchObject({price:100,currency:"INR"});
 });
 it.each([
@@ -29,4 +29,13 @@ it.each([
 it.each([NaN,Infinity,-1])("rejects invalid amounts: %s",async price=>{
  mocks.quote.mockResolvedValue({price,currency:"USD",signals:{price_country:"IN",price_checked_at:"2026-10-01T11:59:00Z"}});
  expect(await currentQuote("https://scrimba.com/a","USD","IN")).toBeNull();
+});
+
+it("rejects currency-only evidence even when a provider labels it realtime",async()=>{
+ mocks.fetch.mockResolvedValue({price:100,currency:"INR",isRealtime:true});
+ expect(await currentQuote("https://example.com/course","INR","IN")).toBeNull();
+});
+it("does not relabel another market's quote",async()=>{
+ mocks.fetch.mockResolvedValue({price:100,currency:"USD",isRealtime:true,verifiedCountry:"US"});
+ expect(await currentQuote("https://example.com/course","USD","IN")).toBeNull();
 });

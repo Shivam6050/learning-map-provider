@@ -11,9 +11,10 @@ const cachedQuote = unstable_cache(async (url:string, currency:string, country:s
   }
   const quote=await fetchRealtimePrice(url,currency,country);
   if (quote.price===null || !Number.isFinite(quote.price) || quote.price<0) return null;
-  return {...quote, signals:{price_country:country,price_checked_at:new Date().toISOString(),price_estimate:!quote.isRealtime}};
+  if (!quote.isRealtime || quote.verifiedCountry !== country) return null;
+  return {...quote, signals:{price_country:quote.verifiedCountry,price_checked_at:new Date().toISOString(),price_estimate:!quote.isRealtime}};
  } catch { return null; }
-}, ["regional-public-course-quotes-v2"], {revalidate:300});
+}, ["regional-public-course-quotes-v3"], {revalidate:300});
 
 export async function currentQuote(url:string,currency:string,country:string) {
  const quote=await cachedQuote(url,currency.toUpperCase(),country.toUpperCase());

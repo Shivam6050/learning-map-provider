@@ -84,36 +84,18 @@ export async function rateResource(formData: FormData) {
 
   if (!user) redirect("/login");
 
-  const resourceId = String(formData.get("resourceId"));
+  const resourceId = requireUuid(String(formData.get("resourceId")));
   const pathId = requireUuid(String(formData.get("pathId")));
   const rating = Number(formData.get("rating"));
-
   if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
-    throw new Error(`Invalid rating: ${rating}`);
+    throw new Error("Choose a rating from 1 to 5.");
   }
-
-  const { error } = await supabase
-    .from("resource_ratings")
-    .upsert(
-      { resource_id: resourceId, user_id: user.id, rating },
-      { onConflict: "resource_id,user_id" }
-    );
-
-  if (error) throw new Error(`Failed to save rating: ${error.message}`);
-
-  const service = createServiceClient();
-  const { data: allRatings } = await service
-    .from("resource_ratings")
-    .select("rating")
-    .eq("resource_id", resourceId);
-
-  if (allRatings?.length) {
-    const avg = allRatings.reduce((sum: number, r: {rating:number}) => sum + r.rating, 0) / allRatings.length;
-    await service
-      .from("resources")
-      .update({ rating: Math.round(avg * 100) / 100 })
-      .eq("id", resourceId);
-  }
+  // One transaction validates ownership/membership, saves the vote and updates
+  // the average while holding the resource lock. Never aggregate in JavaScript.
+  const { error } = await createServiceClient().rpc("save_roadmap_rating", {
+    p_user: user.id, p_path: pathId, p_resource: resourceId, p_rating: rating,
+  });
+  if (error) throw new Error("Could not save this rating. Check that the course belongs to your roadmap and try again.");
 
   revalidatePath(`/paths/${pathId}`);
 }

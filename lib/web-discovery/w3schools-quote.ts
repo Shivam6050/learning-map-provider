@@ -20,6 +20,6 @@ export async function w3schoolsQuote(url: string, currency: string) {
     const amount = parseW3Product(product, match[2]);
     if (!amount || !["USD", "INR", "EUR", "GBP", "CAD", "AUD"].includes(cart.currency)) return null;
     const rate = await getConversionRate(cart.currency, currency);
-    return rate ? { price: Math.round(amount * rate * 100) / 100, currency, isRealtime: cart.currency === currency, title: product.title } : null;
+    return rate ? { price: Math.round(amount * rate * 100) / 100, currency, isRealtime: false, title: product.title } : null;
   } catch { return null; }
 }
