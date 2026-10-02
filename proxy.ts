@@ -1,3 +1,4 @@
+import { contentSecurityPolicy } from "@/lib/security/content-security-policy";
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -17,7 +18,21 @@ function isValidUrl(urlString?: string) {
 }
 
 export async function proxy(request: NextRequest) {
-  let response = NextResponse.next({ request });
+  const isPage = !request.nextUrl.pathname.startsWith("/api/");
+  const policy = isPage ? contentSecurityPolicy(
+    Buffer.from(crypto.randomUUID()).toString("base64"),
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NODE_ENV === "development",
+  ) : null;
+  if (policy) {
+    // Override incoming values: only our newly generated nonce may authorize scripts.
+    request.headers.set("Content-Security-Policy", policy);
+  }
+  const secure = (result: NextResponse) => {
+    if (policy) result.headers.set("Content-Security-Policy", policy);
+    return result;
+  };
+  let response = secure(NextResponse.next({ request }));
   if (request.nextUrl.pathname === "/api/health" || request.nextUrl.pathname === "/auth/callback") return response;
   // Recover a PKCE response sent to the Site URL instead of the callback.
   if (request.nextUrl.pathname === "/" && request.nextUrl.searchParams.has("code")) {
@@ -27,7 +42,7 @@ export async function proxy(request: NextRequest) {
     const redirect = NextResponse.redirect(callback);
     redirect.headers.set("Cache-Control", "private, no-store");
     redirect.headers.set("Referrer-Policy", "no-referrer");
-    return redirect;
+    return secure(redirect);
   }
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
@@ -66,7 +81,7 @@ export async function proxy(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           );
-          response = NextResponse.next({ request });
+          response = secure(NextResponse.next({ request }));
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options)
           );
@@ -87,7 +102,7 @@ export async function proxy(request: NextRequest) {
       redirectUrl.searchParams.set("next", request.nextUrl.pathname);
       const loginResponse = NextResponse.redirect(redirectUrl);
       response.cookies.getAll().forEach(cookie => loginResponse.cookies.set(cookie));
-      return loginResponse;
+      return secure(loginResponse);
     }
   } catch {
     // If Supabase network call fails or times out, pass through safely

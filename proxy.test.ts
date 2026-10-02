@@ -1,7 +1,7 @@
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
-const { getUser } = vi.hoisted(() => ({ getUser: vi.fn() }));
-vi.mock("@supabase/ssr", () => ({ createServerClient: () => ({ auth: { getUser } }) }));
+const { getUser, cookieHooks } = vi.hoisted(() => ({ getUser: vi.fn(), cookieHooks: { setAll: null as null | ((cookies: {name:string;value:string;options:Record<string,unknown>}[]) => void) } }));
+vi.mock("@supabase/ssr", () => ({ createServerClient: (...args: unknown[]) => { cookieHooks.setAll = (args[2] as {cookies:{setAll:NonNullable<typeof cookieHooks.setAll>}}).cookies.setAll; return { auth: { getUser } }; } }));
 import { proxy } from "./proxy";
 beforeEach(() => {
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://test-project.supabase.co");
@@ -30,4 +30,26 @@ it("still redirects a genuinely unauthenticated request", async () => {
   getUser.mockResolvedValue({data:{user:null},error:null});
   const result = await proxy(new NextRequest("http://localhost:3102/dashboard"));
   expect(result.headers.get("location")).toBe("http://localhost:3102/login?next=%2Fdashboard");
+});
+it("overrides injected policies and supplies a fresh nonce for every page render", async () => {
+  getUser.mockResolvedValue({data:{user:null},error:null});
+  const first = await proxy(new NextRequest("http://localhost:3102/login", {headers:{"Content-Security-Policy":"script-src *"}}));
+  const second = await proxy(new NextRequest("http://localhost:3102/login"));
+  const policy = first.headers.get("content-security-policy")!;
+  expect(policy).toContain("'strict-dynamic'");
+  expect(policy).not.toContain("script-src *");
+  expect(first.headers.get("x-middleware-request-content-security-policy")).toBe(policy);
+  expect(second.headers.get("content-security-policy")).not.toBe(policy);
+});
+
+it("retains the CSP and refreshed session cookies when auth rebuilds the response", async () => {
+  getUser.mockImplementation(async () => {
+    cookieHooks.setAll!([{name:"refreshed-session",value:"test-session",options:{httpOnly:true}}]);
+    return {data:{user:{id:"owner"}},error:null};
+  });
+  const result = await proxy(new NextRequest("http://localhost:3102/dashboard"));
+  expect(result.cookies.get("refreshed-session")?.value).toBe("test-session");
+  const policy = result.headers.get("content-security-policy");
+  expect(policy).toContain("'strict-dynamic'");
+  expect(result.headers.get("x-middleware-request-content-security-policy")).toBe(policy);
 });
