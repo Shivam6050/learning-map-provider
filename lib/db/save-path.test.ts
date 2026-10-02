@@ -41,3 +41,10 @@ it("persists self-reported ownership in user stage data",async()=>{
  await savePath({rpc:async(_name,args)=>{payload=args;return {error:null};}},"user","set",{field_id:"f",skill_level:"beginner",weekly_hours:5,budget_total:50,currency:"USD"},owned);
  expect(payload.p_progress).toEqual(expect.arrayContaining([expect.objectContaining({practice_check:{description:"Build a project",owned_resource_ids:["course-0"]}})]));
 });
+
+it("persists the curated identity and version alongside existing practice data",async()=>{
+ const curated=structuredClone(option);curated.stages[0].title="SQL & Relational Database Modeling";
+ let payload:Record<string,unknown>={};
+ await savePath({rpc:async(_name,args)=>{payload=args;return{error:null};}},"user","set",{field_id:"f",skill_level:"beginner",weekly_hours:5,budget_total:50,currency:"USD"},curated);
+ expect(payload.p_progress).toEqual(expect.arrayContaining([expect.objectContaining({practice_check:expect.objectContaining({description:"Build a project",curriculum_ref:{id:expect.any(String),version:1}})})]));
+});

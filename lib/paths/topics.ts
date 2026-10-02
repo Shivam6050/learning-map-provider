@@ -1,3 +1,4 @@
+import type {CurriculumRef} from "./authored-curriculum";
 import {curriculumUnit,topicDefinitions} from "./authored-curriculum";
 export type LearningTopic = {id:string;title:string;criterion:string};
 // Original topic guidance. Match the stage itself, never infer coverage from a course title.
@@ -11,8 +12,9 @@ const catalog: [string,RegExp,string,string][] = [
  ["interface",/react|frontend|interface|accessib|\bcss\b|\bhtml\b/i,"Interface behaviour","Demonstrate the intended interaction, including a small-screen or keyboard check."],
  ["analysis",/dataset|statistics|machine learning|prediction model|analysis|metric|prediction/i,"Evidence and assumptions","Explain the assumptions and show evidence supporting the result, including its limitations."],
 ];
-export function stageTopics(title:string,description:string|null):LearningTopic[] {
- const authored=curriculumUnit(title);
+export function stageTopics(title:string,description:string|null,reference?:CurriculumRef):LearningTopic[] {
+ const authored=curriculumUnit(title,reference);
+ if(reference&&!authored)return [];
  if(authored)return authored.topicIds.map(id=>({id,title:topicDefinitions[id][0],criterion:topicDefinitions[id][1]}));
  const text=title+" "+(description??"");
  const matches=catalog.filter(([,pattern])=>pattern.test(text)).slice(0,5).map(([id,,name,criterion])=>({id,title:name,criterion}));

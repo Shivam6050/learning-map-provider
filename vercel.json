@@ -13,6 +13,10 @@
     {
       "path": "/api/cron/refresh-templates",
       "schedule": "0 4 * * 0"
+    },
+    {
+      "path": "/api/cron/review-coverage",
+      "schedule": "0 5 * * 0"
     }
   ]
 }

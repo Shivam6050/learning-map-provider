@@ -2,7 +2,7 @@
 
 Status: not submitted; Google approval is outstanding.
 
-Current project branding is Google Workspace MCP Servers, with domains and scopes for other integrations. Do not rename or remove scopes until project ownership and reuse are confirmed. A dedicated LearningMap project avoids changing other clients.
+The project was repurposed for LearningMap with user approval. Branding and scopes were updated and the OAuth audience published. Google approval remains outstanding; the dated observations below describe the last verified hosted state.
 
 Required preparation:
 - LearningMap branding and verified support/developer email.

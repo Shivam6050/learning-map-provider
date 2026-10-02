@@ -1,8 +1,10 @@
+import type {CurriculumRef} from "./authored-curriculum";
 import {curriculumUnit} from "./authored-curriculum";
 import {stageTopics} from "./topics";
-export function projectMilestones(title:string,description:string|null) {
- const unit=curriculumUnit(title);
- const topics=stageTopics(title,description);
+export function projectMilestones(title:string,description:string|null,reference?:CurriculumRef) {
+ const unit=curriculumUnit(title,reference);
+ if(reference&&!unit)return [];
+ const topics=stageTopics(title,description,reference);
  return [
   {id:"build",title:"Build a demonstrable outcome",criterion:unit?.project??("Complete the stage challenge, or create a small example demonstrating "+title+". Keep the output or a link to your work.")},
   {id:"verify",title:"Verify the result",criterion:"Record reproducible steps showing the expected result and one failure or boundary case. "+topics[0].criterion},

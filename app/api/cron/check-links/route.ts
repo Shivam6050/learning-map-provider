@@ -1,51 +1,37 @@
-import { NextResponse } from "next/server";
-import { createServiceClient } from "@/lib/supabase/service";
-import { verifyResourceLinks } from "@/lib/link-check/verify-resources";
-import { logError } from "@/lib/monitoring/log-error";
-
-const RECHECK_AFTER_DAYS = 14;
-const BATCH_SIZE = 100;
-
-/**
- * Discovery-time checks (see lib/youtube/discover.ts,
- * lib/web-discovery/discover.ts) only cover resources a NEW path
- * generation touches. A resource already sitting in someone's saved
- * path, that nobody else's topic search happens to hit again, would
- * never get re-verified without this — link rot doesn't announce
- * itself, so this is the only thing standing between "was real when
- * discovered" and "still real six months later".
- *
- * Vercel Cron calls this on the schedule in vercel.json. Protected by
- * CRON_SECRET so it can't be triggered by anyone who finds the URL.
- */
-export async function GET(request: Request) {
-  const authHeader = request.headers.get("authorization");
-  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+import {createServiceClient} from "@/lib/supabase/service";
+import {verifyResourceLinks} from "@/lib/link-check/verify-resources";
+import {logError} from "@/lib/monitoring/log-error";
+export const maxDuration=60;
+const RECHECK_AFTER_DAYS=14;
+export async function GET(request:Request) {
+ if(!process.env.CRON_SECRET||request.headers.get("authorization")!==`Bearer ${process.env.CRON_SECRET}`)return Response.json({error:"Unauthorized"},{status:401});
+ const service=createServiceClient(),started=Date.now(),deadline=started+40000;
+ const cutoff=new Date(started-RECHECK_AFTER_DAYS*86400000).toISOString();
+ const dueFilter=`link_checked_at.is.null,link_checked_at.lt.${cutoff}`;
+ const configured=Number(process.env.MAX_LINK_CHECKS_PER_RUN??1000);
+ const limit=Number.isInteger(configured)&&configured>0?Math.min(configured,5000):1000;
+ let checked=0,broken=0,unknown=0;
+ try {
+  const {count:total,error:countError}=await service.from("resources").select("id",{count:"exact",head:true}).abortSignal(AbortSignal.timeout(3000));
+  if(countError)throw new Error("Could not count link maintenance resources");
+  while(Date.now()<deadline&&checked<limit){
+   const {data:due,error}=await service.from("resources").select("id,url,platform")
+    .or(dueFilter).order("link_checked_at",{ascending:true,nullsFirst:true}).order("id")
+    .limit(Math.min(50,limit-checked)).abortSignal(AbortSignal.timeout(3000));
+   if(error)throw new Error("Could not load link maintenance candidates");
+   if(!due?.length)break;
+   const results=await verifyResourceLinks(due,5,deadline);
+   checked+=results.length;broken+=results.filter(r=>r.status==="broken").length;unknown+=results.filter(r=>r.status==="unknown").length;
+   if(results.length<due.length)break;
   }
-
-  const service = createServiceClient();
-  const cutoff = new Date(Date.now() - RECHECK_AFTER_DAYS * 24 * 60 * 60 * 1000).toISOString();
-
-  const { data: due, error } = await service
-    .from("resources")
-    .select("id, url, platform")
-    .or(`link_checked_at.is.null,link_checked_at.lt.${cutoff}`)
-    .order("link_checked_at", { ascending: true, nullsFirst: true })
-    .order("id")
-    .limit(BATCH_SIZE);
-
-  if (error) {
-    await logError("cron/check-links", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  if (!due || due.length === 0) {
-    return NextResponse.json({ checked: 0, broken: 0 });
-  }
-
-  const results = await verifyResourceLinks(due);
-  const brokenCount = results.filter((r) => r.status === "broken").length;
-
-  return NextResponse.json({ checked: results.length, broken: brokenCount, unknown: results.filter(r => r.status === "unknown").length });
+  const {count:remaining,error}=await service.from("resources").select("id",{count:"exact",head:true}).or(dueFilter).abortSignal(AbortSignal.timeout(3000));
+  if(error)throw new Error("Could not measure link maintenance backlog");
+  const dailyTarget=Math.ceil((total??0)/RECHECK_AFTER_DAYS);
+  const capacityWarning=(remaining??0)>0&&checked<dailyTarget;
+  if(capacityWarning)console.warn("[cron/check-links] Capacity below maintenance target",{checked,remaining,dailyTarget});
+  return Response.json({checked,broken,unknown,remaining:remaining??0,dailyTarget,capacityWarning,incomplete:(remaining??0)>0,elapsedMs:Date.now()-started},{headers:{"Cache-Control":"no-store"}});
+ }catch(error){
+  await logError("cron/check-links",error);
+  return Response.json({error:"Link maintenance could not finish",checked,broken,unknown,incomplete:true},{status:503});
+ }
 }

@@ -5,7 +5,9 @@ vi.mock("./check-url",()=>({inspectUrl:m.inspect}));
 vi.mock("@/lib/youtube/client",()=>({getVideoStats:vi.fn()}));
 import {verifyResourceLinks} from "./verify-resources";
 const resources=[{id:"r",url:"https://example.com/course",platform:"docs"}];
-beforeEach(()=>{vi.resetAllMocks();m.update.mockImplementation(()=>({eq:m.write}));m.write.mockResolvedValue({error:null});});
+beforeEach(()=>{vi.resetAllMocks();m.update.mockImplementation(()=>({eq:m.write}));m.write.mockImplementation(()=>({abortSignal:async()=>({error:null})}));});
 it("restores a recovered link",async()=>{m.inspect.mockResolvedValue({status:"ok"});await verifyResourceLinks(resources);expect(m.update).toHaveBeenCalledWith({link_status:"ok",link_checked_at:expect.any(String)});});
 it("preserves previous status on inconclusive checks",async()=>{m.inspect.mockResolvedValue({status:"unknown"});const result=await verifyResourceLinks(resources);expect(m.update).toHaveBeenCalledWith({link_checked_at:expect.any(String)});expect(result[0].status).toBe("unknown");});
-it("reports persistence failures",async()=>{m.inspect.mockResolvedValue({status:"ok"});m.write.mockResolvedValue({error:{message:"failed"}});await expect(verifyResourceLinks(resources)).rejects.toThrow("persist");});
+it("reports persistence failures",async()=>{m.inspect.mockResolvedValue({status:"ok"});m.write.mockImplementation(()=>({abortSignal:async()=>({error:{message:"failed"}})}));await expect(verifyResourceLinks(resources)).rejects.toThrow("persist");});
+
+it("does not start new requests after the deadline",async()=>{const result=await verifyResourceLinks(resources,5,Date.now()-1);expect(result).toEqual([]);expect(m.inspect).not.toHaveBeenCalled();expect(m.update).not.toHaveBeenCalled();});

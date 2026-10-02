@@ -19,5 +19,22 @@ export function reviewedCoverage(rawUrl:string,linkStatus:string,now=Date.now())
  const url=new URL(safe);const key=url.origin+url.pathname.replace(/\/+$/,"");
  const review=coverageReviews[key];if(!review)return null;
  const age=now-Date.parse(review.checkedAt+"T00:00:00Z");
- return age>=0&&age<=90*86400000?review:null;
+ return age>=0&&age<=COVERAGE_REVIEW_DAYS*86400000?review:null;
+}
+
+export const COVERAGE_REVIEW_DAYS=90;
+export const COVERAGE_NOTICE_DAYS=14;
+/** Read-only editorial queue. A working URL does not renew a syllabus review. */
+export function coverageReviewQueue(now=Date.now()) {
+ return Object.entries(coverageReviews).map(([url,review])=>{
+  const checked=Date.parse(review.checkedAt+"T00:00:00Z"),expires=checked+COVERAGE_REVIEW_DAYS*86400000;
+  const daysRemaining=Math.floor((expires-now)/86400000);
+  return {url,source:review.source,checkedAt:review.checkedAt,expiresAt:Number.isFinite(expires)?new Date(expires).toISOString():null,daysRemaining,
+   status:!Number.isFinite(checked)||checked>now?"invalid":daysRemaining<0?"expired":daysRemaining<=COVERAGE_NOTICE_DAYS?"due":"current"};
+ }).sort((a,b)=>a.daysRemaining-b.daysRemaining||a.url.localeCompare(b.url));
+}
+export function coverageReviewState(rawUrl:string,now=Date.now()) {
+ const safe=courseLink(rawUrl).href;if(!safe)return "unreviewed";
+ const url=new URL(safe),key=url.origin+url.pathname.replace(/\/+$/,"");
+ return coverageReviewQueue(now).find(item=>item.url===key)?.status??"unreviewed";
 }

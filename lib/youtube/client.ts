@@ -63,7 +63,7 @@ export async function getVideoStats(
   url.searchParams.set("id", videoIds.slice(0, 50).join(","));
   url.searchParams.set("key", key());
 
-  const res = await fetch(url.toString());
+  const res = await fetch(url.toString(), {signal:AbortSignal.timeout(6000)});
   if (!res.ok) throw new Error(`YouTube videos.list failed: ${res.status}`);
   const data = await res.json();
 

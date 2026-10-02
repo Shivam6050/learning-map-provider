@@ -1,5 +1,5 @@
 import {expect,it} from "vitest";
-import {reviewedCoverage} from "./coverage";
+import {reviewedCoverage,coverageReviewQueue,coverageReviewState} from "./coverage";
 const now=Date.parse("2026-10-02T12:00:00Z");
 it("matches only reviewed URLs while tolerating referral parameters",()=>{expect(reviewedCoverage("https://scrimba.com/learn-react-c0e?via=u4355626","ok",now)?.topics).toEqual(["interface","react.components","react.state"]);});
 it("does not infer a course curriculum from a host or title",()=>{expect(reviewedCoverage("https://scrimba.com/advanced-react-c02h","ok",now)).toBeNull();expect(reviewedCoverage("https://scrimba.com.evil.test/learn-react-c0e","ok",now)).toBeNull();});
@@ -10,4 +10,10 @@ it("maps reviewed paid resources only to specific supported concepts",()=>{
  expect(reviewedCoverage("https://campus.w3schools.com/products/sql-course","ok",now)?.topics).toEqual(["sql.schema","sql.queries"]);
  expect(reviewedCoverage("https://www.geeksforgeeks.org/courses/mern-full-stack-live-course-ibm-certifications","ok",now)?.topics).toContain("react.state");
  expect(reviewedCoverage("https://www.geeksforgeeks.org/courses/mern-full-stack-live-course-ibm-certifications","ok",now)?.topics).not.toContain("sql.transactions");
+});
+
+it("queues editorial reviews before expiry without renewing them",()=>{
+ const due=coverageReviewQueue(Date.parse("2026-12-20T12:00:00Z"));expect(due.length).toBeGreaterThan(0);expect(due.every(item=>item.status==="due")).toBe(true);
+ expect(coverageReviewState("https://react.dev/learn",Date.parse("2027-02-01"))).toBe("expired");
+ expect(coverageReviewState("https://example.com/unknown",now)).toBe("unreviewed");
 });

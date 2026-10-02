@@ -45,13 +45,15 @@ async function checkOneResource(resource: {
  */
 export async function verifyResourceLinks(
   resources: { id: string; url: string; platform: string }[],
-  concurrency = 5
+  concurrency = 5,
+  deadline = Infinity
 ): Promise<{ id: string; alive: boolean; status: LinkStatus }[]> {
   concurrency = Math.max(1, Math.min(10, Math.floor(concurrency) || 5));
   const service = createServiceClient();
   const results: { id: string; alive: boolean; status: LinkStatus }[] = [];
 
   for (let i = 0; i < resources.length; i += concurrency) {
+    if (Date.now() >= deadline) break;
     const batch = resources.slice(i, i + concurrency);
     const batchResults = await Promise.all(
       batch.map(async (resource) => {
@@ -69,7 +71,7 @@ export async function verifyResourceLinks(
             ...(status === "unknown" ? {} : {link_status: status}),
             link_checked_at: new Date().toISOString(),
           })
-          .eq("id", id);
+          .eq("id", id).abortSignal(AbortSignal.timeout(5000));
         if(error) throw new Error("Could not persist resource link check");
       })
     );

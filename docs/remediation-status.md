@@ -1,58 +1,38 @@
-# Remediation status — 25 September 2026
+# Current remediation status — 2 October 2026
 
-## Implemented
+This is the current checklist. Older dated audit reports are historical evidence, not the deployed release status. Local implementation, hosted configuration and live verification are separate.
 
-- Atomic, retry-safe roadmap persistence; database rollback and retry verification passed.
-- Owner-scoped stage progress saves and note timestamps.
-- OAuth country completion, stronger profile-save errors, and reauthentication for deletion.
-- Currency changes require a new budget; regional course lookup retains subscription billing periods.
-- Server-side assessment grading, eight questions per field including applied scenarios, and distinct intermediate/advanced curricula.
-- Eighteen curricula published to Supabase; weekly refresh endpoint prepared for deployment.
-- DNS-pinned public resource requests, bounded response sizes, and redirect validation.
-- Reminder opt-out and database delivery claims to suppress duplicate sends.
-- Database-aware health endpoint, stricter typing, CI checks, and bounded build workers.
+## Implemented locally
 
-## Verification
+- Owner-scoped, retry-safe roadmap persistence and progress/notes saves.
+- Three budget tiers; paid offers must match explicit country and currency evidence. Unverified offers remain unknown and are excluded from budgets. Scrimba annual access is counted as an upfront shared subscription.
+- Topic checks, project milestones, course coverage, resumable learning and roadmap overview. New saved canonical stages persist a curriculum ID and version; title-only lookup remains for legacy paths. Custom stages retain clearly labelled general guidance.
+- Transactional rating save with ownership/membership checks and a serialized average. The rating SQL migration is prepared and verified in a rolled-back test, not permanently applied.
+- Link maintenance runs multiple bounded batches, prioritizes oldest checks, persists each check, and reports backlog, daily target and insufficient capacity. Weekly editorial coverage maintenance reports reviews due within 14 days and expired reviews without renewing claims automatically.
+- Google Calendar timed-session insertion with retry-safe event IDs, plus ICS export for other calendar applications. This is an import, not ongoing synchronization.
+- Authentication email configuration and Brevo application email support. Mobile verification is intentionally paused at the user's request.
 
-- Original application unit suite: 28 files; 113 passed, one live-provider test skipped. Nested .kilo worktree copies are excluded from discovery.
-- Atomic-save rollback, stable retry IDs and preserved completion verified in a rolled-back database transaction.
-- Three new database migrations applied to the linked project.
-- Database security advisor confirms trigger-function permission and search-path findings resolved.
+## Previously observed hosted configuration
 
-## Remaining release work
+Supabase quota RPC and relevant roadmap columns were verified read-only. Brevo configuration, Google Calendar API/callback and calendar cookie key were configured in earlier work. Google OAuth audience was published with approval and Search Console ownership was verified. Google branding/sensitive-scope approval remains outstanding; publishing is not verification. Current delivery and configuration must be retested before a public release.
 
-- Application edits are local, not deployed. Deploy only after reviewing changes and passing the final build.
-- Configure a verified Resend sender domain; the current test sender is unsuitable for general public delivery.
-- Apply supabase/templates/magic-link.html to the Supabase magic-link email template and test the account-deletion email-code flow. Preparing the file does not configure the hosted Auth service.
-- Remove production SMS test OTP entries before enabling public phone verification. The CLI did not apply the attempted expiry setting.
-- Review leaked-password protection and MFA options. The is_admin function remains callable intentionally because RLS policies require it; it only reports the current caller's admin status.
-- Authenticated browser regression checks, real email/SMS delivery and destructive account deletion have not been exercised. Browser automation was unavailable.
-- Calendar support is an ICS import, not automatic Google Calendar insertion or ongoing sync.
-- Regional checkout prices cannot be guaranteed without provider-supported regional feeds. Unknown quotes must not be presented as confirmed prices.
-- No high-concurrency capacity claim is supported by these tests. Reminder processing remains bounded per invocation and needs a durable cursor/queue before a large backlog.
+## Verification evidence
 
-## Additional release checks
+See `roadmap-verification.md` for actual component tests at 1440, 390 and 320 pixels and their limitations. See `rating-and-regional-pricing-release.md` for the rating migration and market-evidence changes. Tests and build results are reported for the current candidate after each change; older counts are not current release gates.
 
-- Production dependency audit: zero known vulnerabilities (`npm audit --omit=dev`).
-- Email delivery now requires an explicit non-test sender; reminders skip unverified email addresses.
-- Account deletion revokes refresh sessions before deleting the identity and stops if revocation fails. Access JWTs still expire normally; this does not claim immediate JWT invalidation.
-- Six focused email/deletion regression tests passed without sending mail or deleting users.
-- The live Scrimba provider check was explicitly run and FAILED: the public pricing HTML returned HTTP 200 but contained neither the required annual billing amount nor the regional price marker. Do not claim live Scrimba price synchronization works. The quote remains unknown rather than using a fabricated price.
+Interactive authenticated browser tooling is unavailable on this machine. Fixture browser tests and mocked provider tests do not establish live account, calendar, email, cross-device or provider behavior.
 
-## Hosted Auth configuration handoff
+## Remaining release gates
 
-Browser automation could not initialize on this machine. CLI configuration diff did not recognize the email body or SMS test-code expiry patch; neither was applied.
+1. Review and deploy this candidate with its required rating migration in a coordinated window. New maintenance schedules require deployment; no new schema is needed for the medium-priority maintenance changes.
+2. Test signup/email confirmation, Google sign-in, password recovery, notes/progress, owned courses, cross-account denial, cross-device resume and actual Calendar insertion using dedicated test accounts.
+3. Verify Brevo authentication/reminder delivery and cron authorization/configuration. SMS testing remains deferred.
+4. Finish Google verification when branding/reviewer requirements are met; never represent it as approved prematurely.
+5. Confirm regional provider evidence and personalized-offer limitations. No supported personalized checkout feed has been configured.
+6. Establish operational capacity through staging tests, provider allowance checks, backups/restore and monitoring. The application still performs synchronous generation; no claim of lakhs or crores of concurrent users is supported.
 
-1. In Supabase Authentication > Email Templates > Magic Link, paste the contents of `supabase/templates/magic-link.html` and save. It includes both the one-time token and the existing sign-in link.
-2. In Authentication > Providers > Phone, remove all test phone/OTP entries before public phone verification is enabled. Keep the existing real Twilio credentials private.
-3. Verify a sending domain in Resend, then configure a sender on that domain in Supabase SMTP and in Vercel `EMAIL_FROM_ADDRESS`. Keep `RESEND_API_KEY` server-only. Merely setting a non-test address does not prove domain verification.
-4. Check signup email, password reset, Google callback and deletion-code delivery using a dedicated test account. Check SMS delivery only when configured; it may consume provider credits.
-5. Deploy the reviewed candidate and repeat authenticated flows. Do not remove email confirmation to work around delivery problems.
+## Editorial workflow
 
-- Final release build passed compilation, TypeScript and static page generation.
-- Read-only local production smoke checks: login/signup HTTP 200; dashboard anonymous redirect; settings streamed login redirect with no profile form; health HTTP 200 with no-store; unauthenticated reminders endpoint HTTP 401. Temporary server stopped after checks.
-- These HTTP checks do not replace authenticated interactive browser testing.
+The protected `/api/cron/review-coverage` endpoint runs weekly and returns due/expired provider-source URLs. Inspect Vercel cron logs or call it with server-side CRON_SECRET. Review the actual provider syllabus, update only supported topic mappings and checkedAt in `lib/paths/coverage.ts`, run tests, then deploy. Do not update dates merely because a page responds successfully. Expired reviews remain visibly labelled and their mappings are withheld.
 
-## No-domain email alternative
-
-Brevo support is implemented for application reminders; five email tests pass. See `docs/brevo-setup.md` for Supabase SMTP and sender verification. The user has no domain, so the verified Resend-domain plan is superseded by Brevo Free with temporary sender rewriting. Provider activation, credentials, hosted configuration and live delivery are still pending.
+Keep curriculum IDs unchanged when renaming titles. For materially changed outcomes, retain the old unit/version and publish a new version; do not silently reinterpret existing completed checks. New saves retain the chosen ID/version in owner-scoped practice data. Legacy paths are not rewritten automatically.

@@ -18,11 +18,13 @@ async function saveCheck(pathId:string,stageId:string,topicId:string,completed:b
  const client=await createClient();const {data:{user}}=await getLearningUser(client);
  if(!user)return {ok:false,error:"Sign in again to save your learning progress."};
  const {data:stage,error:stageError}=await client.from("stages").select("id,title,description").eq("id",stageId).eq("path_id",pathId).maybeSingle();
- if(stageError || !stage || !(field==="topic_completion"?stageTopics(stage.title,stage.description):projectMilestones(stage.title,stage.description)).some(t=>t.id===topicId))return {ok:false,error:"This learning topic is unavailable."};
+ if(stageError || !stage)return {ok:false,error:"This learning topic is unavailable."};
  for(let attempt=0;attempt<3;attempt++) {
  const {data:existing,error:readError}=await client.from("stage_progress").select("practice_check").eq("stage_id",stageId).eq("user_id",user.id).maybeSingle();
  if(readError)return {ok:false,error:"Could not load your learning progress. Please retry."};
  const prior=existing?.practice_check ?? {};
+ const reference=prior.curriculum_ref;
+ if(!(field==="topic_completion"?stageTopics(stage.title,stage.description,reference):projectMilestones(stage.title,stage.description,reference)).some(t=>t.id===topicId))return {ok:false,error:"This learning topic is unavailable."};
  const practice_check={...prior,[field]:{...(prior[field]??{}),[topicId]:completed}};
  if(!existing){
  const {error}=await client.from("stage_progress").insert({stage_id:stageId,user_id:user.id,status:"not_started",practice_check,updated_at:new Date().toISOString()}).select("stage_id").single();

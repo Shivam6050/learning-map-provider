@@ -197,7 +197,8 @@ export const topicDefinitions:Record<string,[string,string]>={
   "Reproduce a result using versioned inputs and document rollback limits."
  ]
 };
-export type CurriculumUnit={field:string;level:string;title:string;topicIds:string[];project:string;prerequisiteIds:string[]};
+export type CurriculumRef={id:string;version:number};
+export type CurriculumUnit={id:string;version:number;field:string;level:string;title:string;topicIds:string[];project:string;prerequisiteIds:string[]};
 export const curriculumUnits:CurriculumUnit[]=[
  {
   "field": "frontend-development",
@@ -208,7 +209,9 @@ export const curriculumUnits:CurriculumUnit[]=[
    "css.layout"
   ],
   "project": "Create a responsive reading-list page with semantic headings, a labelled form and a keyboard-accessible navigation.",
-  "prerequisiteIds": []
+  "prerequisiteIds": [],
+  "id": "frontend-development.beginner.web-html-css-fundamentals",
+  "version": 1
  },
  {
   "field": "frontend-development",
@@ -222,7 +225,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "html.semantic",
    "css.layout"
-  ]
+  ],
+  "id": "frontend-development.beginner.javascript-es6-core-principles",
+  "version": 1
  },
  {
   "field": "frontend-development",
@@ -236,7 +241,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "js.functions",
    "js.async"
-  ]
+  ],
+  "id": "frontend-development.beginner.react-component-architecture-state",
+  "version": 1
  },
  {
   "field": "frontend-development",
@@ -250,7 +257,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "react.components",
    "react.state"
-  ]
+  ],
+  "id": "frontend-development.beginner.modern-styling-tailwind-css",
+  "version": 1
  },
  {
   "field": "frontend-development",
@@ -264,7 +273,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "css.layout",
    "ui.system"
-  ]
+  ],
+  "id": "frontend-development.beginner.next-js-full-stack-app-router-ssr",
+  "version": 1
  },
  {
   "field": "frontend-development",
@@ -278,7 +289,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "web.rendering",
    "web.caching"
-  ]
+  ],
+  "id": "frontend-development.beginner.frontend-testing-deployment",
+  "version": 1
  },
  {
   "field": "backend-development",
@@ -289,7 +302,9 @@ export const curriculumUnits:CurriculumUnit[]=[
    "api.contracts"
   ],
   "project": "Implement a tiny HTTP service with a successful response, a not-found response and documented request examples.",
-  "prerequisiteIds": []
+  "prerequisiteIds": [],
+  "id": "backend-development.beginner.http-protocol-web-architecture",
+  "version": 1
  },
  {
   "field": "backend-development",
@@ -303,7 +318,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "http.methods",
    "api.contracts"
-  ]
+  ],
+  "id": "backend-development.beginner.node-js-core-runtime-modules",
+  "version": 1
  },
  {
   "field": "backend-development",
@@ -317,7 +334,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "node.runtime",
    "js.async"
-  ]
+  ],
+  "id": "backend-development.beginner.restful-api-design-express-framework",
+  "version": 1
  },
  {
   "field": "backend-development",
@@ -332,7 +351,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "api.validation",
    "api.contracts"
-  ]
+  ],
+  "id": "backend-development.beginner.sql-relational-database-modeling",
+  "version": 1
  },
  {
   "field": "backend-development",
@@ -347,7 +368,9 @@ export const curriculumUnits:CurriculumUnit[]=[
    "sql.schema",
    "sql.queries",
    "sql.transactions"
-  ]
+  ],
+  "id": "backend-development.beginner.authentication-authorization-security",
+  "version": 1
  },
  {
   "field": "backend-development",
@@ -362,7 +385,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "auth.sessions",
    "auth.ownership"
-  ]
+  ],
+  "id": "backend-development.beginner.system-architecture-caching-deployment",
+  "version": 1
  },
  {
   "field": "full-stack-development",
@@ -373,7 +398,9 @@ export const curriculumUnits:CurriculumUnit[]=[
    "http.methods"
   ],
   "project": "Build a static reading-list page and diagram how a browser request reaches an API and database.",
-  "prerequisiteIds": []
+  "prerequisiteIds": [],
+  "id": "full-stack-development.beginner.full-stack-web-foundations",
+  "version": 1
  },
  {
   "field": "full-stack-development",
@@ -387,7 +414,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "html.semantic",
    "http.methods"
-  ]
+  ],
+  "id": "full-stack-development.beginner.server-development-with-node-js-express",
+  "version": 1
  },
  {
   "field": "full-stack-development",
@@ -401,7 +430,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "api.validation",
    "node.runtime"
-  ]
+  ],
+  "id": "full-stack-development.beginner.react-frontend-state-management",
+  "version": 1
  },
  {
   "field": "full-stack-development",
@@ -415,7 +446,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "react.components",
    "react.state"
-  ]
+  ],
+  "id": "full-stack-development.beginner.database-integration-prisma-orm",
+  "version": 1
  },
  {
   "field": "full-stack-development",
@@ -429,7 +462,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "sql.schema",
    "sql.queries"
-  ]
+  ],
+  "id": "full-stack-development.beginner.user-auth-full-stack-security",
+  "version": 1
  },
  {
   "field": "full-stack-development",
@@ -443,7 +478,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "auth.sessions",
    "auth.ownership"
-  ]
+  ],
+  "id": "full-stack-development.beginner.production-ci-cd-cloud-deployment",
+  "version": 1
  },
  {
   "field": "ai-machine-learning",
@@ -454,7 +491,9 @@ export const curriculumUnits:CurriculumUnit[]=[
    "data.cleaning"
   ],
   "project": "Write a Python tool that loads a small public dataset, validates columns and summarizes missing values.",
-  "prerequisiteIds": []
+  "prerequisiteIds": [],
+  "id": "ai-machine-learning.beginner.python-for-data-ai-engineering",
+  "version": 1
  },
  {
   "field": "ai-machine-learning",
@@ -468,7 +507,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "python.collections",
    "data.cleaning"
-  ]
+  ],
+  "id": "ai-machine-learning.beginner.mathematical-computing-with-numpy-pandas",
+  "version": 1
  },
  {
   "field": "ai-machine-learning",
@@ -482,7 +523,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "data.arrays",
    "data.cleaning"
-  ]
+  ],
+  "id": "ai-machine-learning.beginner.supervised-machine-learning-algorithms",
+  "version": 1
  },
  {
   "field": "ai-machine-learning",
@@ -496,7 +539,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "ml.splits",
    "ml.baselines"
-  ]
+  ],
+  "id": "ai-machine-learning.beginner.deep-learning-neural-networks-with-pytorch",
+  "version": 1
  },
  {
   "field": "ai-machine-learning",
@@ -510,7 +555,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "ml.neural",
    "ml.baselines"
-  ]
+  ],
+  "id": "ai-machine-learning.beginner.transformers-large-language-models-llms",
+  "version": 1
  },
  {
   "field": "data-science",
@@ -521,7 +568,9 @@ export const curriculumUnits:CurriculumUnit[]=[
    "data.cleaning"
   ],
   "project": "Build a Python notebook that loads a public dataset and records cleaning decisions.",
-  "prerequisiteIds": []
+  "prerequisiteIds": [],
+  "id": "data-science.beginner.python-data-analysis-foundations",
+  "version": 1
  },
  {
   "field": "data-science",
@@ -535,7 +584,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "python.collections",
    "data.cleaning"
-  ]
+  ],
+  "id": "data-science.beginner.sql-data-extraction-transformation",
+  "version": 1
  },
  {
   "field": "data-science",
@@ -549,7 +600,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "sql.queries",
    "data.cleaning"
-  ]
+  ],
+  "id": "data-science.beginner.exploratory-data-analysis-visualization",
+  "version": 1
  },
  {
   "field": "data-science",
@@ -563,7 +616,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "data.visuals",
    "stats.uncertainty"
-  ]
+  ],
+  "id": "data-science.beginner.statistical-modeling-predictive-analytics",
+  "version": 1
  },
  {
   "field": "devops-cloud",
@@ -574,7 +629,9 @@ export const curriculumUnits:CurriculumUnit[]=[
    "ops.observability"
   ],
   "project": "Write a least-privilege shell script that checks a local service and reports a clear failure.",
-  "prerequisiteIds": []
+  "prerequisiteIds": [],
+  "id": "devops-cloud.beginner.linux-system-administration-shell-scripting",
+  "version": 1
  },
  {
   "field": "devops-cloud",
@@ -588,7 +645,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "linux.permissions",
    "ops.observability"
-  ]
+  ],
+  "id": "devops-cloud.beginner.docker-containerization-essentials",
+  "version": 1
  },
  {
   "field": "devops-cloud",
@@ -602,7 +661,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "docker.images",
    "ops.recovery"
-  ]
+  ],
+  "id": "devops-cloud.beginner.automated-ci-cd-workflows",
+  "version": 1
  },
  {
   "field": "devops-cloud",
@@ -616,7 +677,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "ci.gates",
    "ops.recovery"
-  ]
+  ],
+  "id": "devops-cloud.beginner.kubernetes-orchestration-infrastructure-as-code",
+  "version": 1
  },
  {
   "field": "frontend-development",
@@ -630,7 +693,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "ui.accessibility",
    "ci.gates"
-  ]
+  ],
+  "id": "frontend-development.intermediate.build-accessible-interaction-patterns",
+  "version": 1
  },
  {
   "field": "frontend-development",
@@ -644,7 +709,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "html.semantic",
    "ui.accessibility"
-  ]
+  ],
+  "id": "frontend-development.intermediate.manage-asynchronous-interface-state",
+  "version": 1
  },
  {
   "field": "frontend-development",
@@ -658,7 +725,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "react.state",
    "ui.races"
-  ]
+  ],
+  "id": "frontend-development.intermediate.create-a-reusable-component-system",
+  "version": 1
  },
  {
   "field": "frontend-development",
@@ -672,7 +741,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "ui.system",
    "css.layout"
-  ]
+  ],
+  "id": "frontend-development.intermediate.measure-and-ship-a-complete-interface",
+  "version": 1
  },
  {
   "field": "frontend-development",
@@ -686,7 +757,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "web.performance",
    "ui.accessibility"
-  ]
+  ],
+  "id": "frontend-development.advanced.design-rendering-and-data-boundaries",
+  "version": 1
  },
  {
   "field": "frontend-development",
@@ -700,7 +773,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "web.rendering",
    "web.caching"
-  ]
+  ],
+  "id": "frontend-development.advanced.profile-interaction-performance",
+  "version": 1
  },
  {
   "field": "frontend-development",
@@ -714,7 +789,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "web.performance",
    "ui.accessibility"
-  ]
+  ],
+  "id": "frontend-development.advanced.engineer-resilient-interface-contracts",
+  "version": 1
  },
  {
   "field": "frontend-development",
@@ -728,7 +805,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "api.contracts",
    "ui.races"
-  ]
+  ],
+  "id": "frontend-development.advanced.audit-and-evolve-a-design-system",
+  "version": 1
  },
  {
   "field": "backend-development",
@@ -743,7 +822,9 @@ export const curriculumUnits:CurriculumUnit[]=[
    "web.caching",
    "docker.images",
    "ops.recovery"
-  ]
+  ],
+  "id": "backend-development.intermediate.build-a-validated-service",
+  "version": 1
  },
  {
   "field": "backend-development",
@@ -757,7 +838,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "api.validation",
    "api.contracts"
-  ]
+  ],
+  "id": "backend-development.intermediate.model-reliable-data-writes",
+  "version": 1
  },
  {
   "field": "backend-development",
@@ -771,7 +854,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "sql.transactions",
    "sql.schema"
-  ]
+  ],
+  "id": "backend-development.intermediate.enforce-ownership-and-sessions",
+  "version": 1
  },
  {
   "field": "backend-development",
@@ -785,7 +870,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "auth.sessions",
    "auth.ownership"
-  ]
+  ],
+  "id": "backend-development.intermediate.ship-and-observe-the-service",
+  "version": 1
  },
  {
   "field": "backend-development",
@@ -799,7 +886,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "ops.observability",
    "ops.recovery"
-  ]
+  ],
+  "id": "backend-development.advanced.design-consistency-boundaries",
+  "version": 1
  },
  {
   "field": "backend-development",
@@ -813,7 +902,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "distributed.outbox",
    "distributed.idempotency"
-  ]
+  ],
+  "id": "backend-development.advanced.investigate-database-contention",
+  "version": 1
  },
  {
   "field": "backend-development",
@@ -827,7 +918,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "sql.plans",
    "sql.transactions"
-  ]
+  ],
+  "id": "backend-development.advanced.bound-overload-and-dependency-failures",
+  "version": 1
  },
  {
   "field": "backend-development",
@@ -842,7 +935,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "ops.backpressure",
    "web.performance"
-  ]
+  ],
+  "id": "backend-development.advanced.threat-model-and-operate-a-service",
+  "version": 1
  },
  {
   "field": "full-stack-development",
@@ -857,7 +952,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "ci.gates",
    "ops.recovery"
-  ]
+  ],
+  "id": "full-stack-development.intermediate.deliver-a-complete-user-journey",
+  "version": 1
  },
  {
   "field": "full-stack-development",
@@ -872,7 +969,9 @@ export const curriculumUnits:CurriculumUnit[]=[
    "api.validation",
    "react.state",
    "sql.queries"
-  ]
+  ],
+  "id": "full-stack-development.intermediate.protect-shared-application-data",
+  "version": 1
  },
  {
   "field": "full-stack-development",
@@ -886,7 +985,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "auth.sessions",
    "auth.ownership"
-  ]
+  ],
+  "id": "full-stack-development.intermediate.handle-failures-across-boundaries",
+  "version": 1
  },
  {
   "field": "full-stack-development",
@@ -900,7 +1001,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "distributed.idempotency",
    "ui.races"
-  ]
+  ],
+  "id": "full-stack-development.intermediate.release-with-end-to-end-evidence",
+  "version": 1
  },
  {
   "field": "full-stack-development",
@@ -914,7 +1017,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "ci.gates",
    "ops.recovery"
-  ]
+  ],
+  "id": "full-stack-development.advanced.design-multi-tenant-boundaries",
+  "version": 1
  },
  {
   "field": "full-stack-development",
@@ -928,7 +1033,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "auth.ownership",
    "security.threats"
-  ]
+  ],
+  "id": "full-stack-development.advanced.coordinate-distributed-state",
+  "version": 1
  },
  {
   "field": "full-stack-development",
@@ -942,7 +1049,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "distributed.outbox",
    "distributed.idempotency"
-  ]
+  ],
+  "id": "full-stack-development.advanced.establish-performance-budgets",
+  "version": 1
  },
  {
   "field": "full-stack-development",
@@ -956,7 +1065,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "web.performance",
    "web.caching"
-  ]
+  ],
+  "id": "full-stack-development.advanced.practice-safe-system-evolution",
+  "version": 1
  },
  {
   "field": "ai-machine-learning",
@@ -970,7 +1081,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "ml.transformers",
    "ml.errors"
-  ]
+  ],
+  "id": "ai-machine-learning.intermediate.establish-a-leakage-free-baseline",
+  "version": 1
  },
  {
   "field": "ai-machine-learning",
@@ -984,7 +1097,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "ml.splits",
    "ml.baselines"
-  ]
+  ],
+  "id": "ai-machine-learning.intermediate.evaluate-and-tune-responsibly",
+  "version": 1
  },
  {
   "field": "ai-machine-learning",
@@ -998,7 +1113,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "ml.errors",
    "stats.uncertainty"
-  ]
+  ],
+  "id": "ai-machine-learning.intermediate.train-a-reproducible-neural-model",
+  "version": 1
  },
  {
   "field": "ai-machine-learning",
@@ -1012,7 +1129,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "ml.neural",
    "ml.governance"
-  ]
+  ],
+  "id": "ai-machine-learning.intermediate.serve-and-monitor-predictions",
+  "version": 1
  },
  {
   "field": "ai-machine-learning",
@@ -1026,7 +1145,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "ml.inference",
    "ops.observability"
-  ]
+  ],
+  "id": "ai-machine-learning.advanced.design-a-rigorous-evaluation-suite",
+  "version": 1
  },
  {
   "field": "ai-machine-learning",
@@ -1040,7 +1161,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "ml.errors",
    "stats.uncertainty"
-  ]
+  ],
+  "id": "ai-machine-learning.advanced.investigate-model-failure-modes",
+  "version": 1
  },
  {
   "field": "ai-machine-learning",
@@ -1054,7 +1177,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "ml.errors",
    "ml.neural"
-  ]
+  ],
+  "id": "ai-machine-learning.advanced.optimize-constrained-inference",
+  "version": 1
  },
  {
   "field": "ai-machine-learning",
@@ -1068,7 +1193,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "ml.inference",
    "ml.baselines"
-  ]
+  ],
+  "id": "ai-machine-learning.advanced.operate-a-governed-model-release",
+  "version": 1
  },
  {
   "field": "data-science",
@@ -1082,7 +1209,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "ml.baselines",
    "stats.uncertainty"
-  ]
+  ],
+  "id": "data-science.intermediate.build-a-trustworthy-analysis-dataset",
+  "version": 1
  },
  {
   "field": "data-science",
@@ -1096,7 +1225,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "data.cleaning",
    "sql.queries"
-  ]
+  ],
+  "id": "data-science.intermediate.answer-a-decision-with-uncertainty",
+  "version": 1
  },
  {
   "field": "data-science",
@@ -1110,7 +1241,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "stats.uncertainty",
    "data.visuals"
-  ]
+  ],
+  "id": "data-science.intermediate.validate-a-predictive-analysis",
+  "version": 1
  },
  {
   "field": "data-science",
@@ -1124,7 +1257,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "ml.splits",
    "ml.baselines"
-  ]
+  ],
+  "id": "data-science.intermediate.communicate-a-reproducible-recommendation",
+  "version": 1
  },
  {
   "field": "data-science",
@@ -1138,7 +1273,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "ml.governance",
    "data.visuals"
-  ]
+  ],
+  "id": "data-science.advanced.design-an-experiment-for-a-decision",
+  "version": 1
  },
  {
   "field": "data-science",
@@ -1152,7 +1289,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "stats.experiments",
    "stats.uncertainty"
-  ]
+  ],
+  "id": "data-science.advanced.evaluate-causal-assumptions",
+  "version": 1
  },
  {
   "field": "data-science",
@@ -1166,7 +1305,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "stats.causality",
    "stats.uncertainty"
-  ]
+  ],
+  "id": "data-science.advanced.analyze-drift-and-segmented-uncertainty",
+  "version": 1
  },
  {
   "field": "data-science",
@@ -1180,7 +1321,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "ml.errors",
    "ml.splits"
-  ]
+  ],
+  "id": "data-science.advanced.build-a-reviewable-analytical-product",
+  "version": 1
  },
  {
   "field": "devops-cloud",
@@ -1194,7 +1337,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "k8s.workloads",
    "iac.environments"
-  ]
+  ],
+  "id": "devops-cloud.intermediate.package-a-repeatable-environment",
+  "version": 1
  },
  {
   "field": "devops-cloud",
@@ -1208,7 +1353,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "docker.images",
    "linux.permissions"
-  ]
+  ],
+  "id": "devops-cloud.intermediate.build-a-guarded-delivery-pipeline",
+  "version": 1
  },
  {
   "field": "devops-cloud",
@@ -1222,7 +1369,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "ci.gates",
    "ops.recovery"
-  ]
+  ],
+  "id": "devops-cloud.intermediate.provision-infrastructure-reproducibly",
+  "version": 1
  },
  {
   "field": "devops-cloud",
@@ -1236,7 +1385,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "iac.environments",
    "security.threats"
-  ]
+  ],
+  "id": "devops-cloud.intermediate.observe-and-recover-a-workload",
+  "version": 1
  },
  {
   "field": "devops-cloud",
@@ -1250,7 +1401,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "ops.observability",
    "ops.recovery"
-  ]
+  ],
+  "id": "devops-cloud.advanced.design-reliability-targets",
+  "version": 1
  },
  {
   "field": "devops-cloud",
@@ -1264,7 +1417,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "ops.slo",
    "ops.backpressure"
-  ]
+  ],
+  "id": "devops-cloud.advanced.harden-workload-and-supply-chain-access",
+  "version": 1
  },
  {
   "field": "devops-cloud",
@@ -1278,7 +1433,9 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "ops.supplychain",
    "linux.permissions"
-  ]
+  ],
+  "id": "devops-cloud.advanced.exercise-failure-and-disaster-recovery",
+  "version": 1
  },
  {
   "field": "devops-cloud",
@@ -1293,7 +1450,14 @@ export const curriculumUnits:CurriculumUnit[]=[
   "prerequisiteIds": [
    "ops.recovery",
    "ops.slo"
-  ]
+  ],
+  "id": "devops-cloud.advanced.evolve-infrastructure-safely",
+  "version": 1
  }
 ];
-export function curriculumUnit(title:string){return curriculumUnits.find(unit=>unit.title===title);}
+// IDs are authored constants: keep them when renaming titles. Retain prior
+// versions when changing outcomes so saved progress keeps its original meaning.
+export function curriculumUnit(title:string,reference?:CurriculumRef) {
+ if(reference)return curriculumUnits.find(unit=>unit.id===reference.id&&unit.version===reference.version);
+ return curriculumUnits.find(unit=>unit.title===title);
+}

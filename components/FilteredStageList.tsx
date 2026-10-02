@@ -157,7 +157,7 @@ export function FilteredStageList({
                 <p className="mt-3 text-sm text-slate-300 leading-relaxed">{stage.description}</p>
 
                 <StagePreparation stage={stage} previous={sequence[sequence.findIndex(item=>item.id===stage.id)-1]} level={path.skill_level} />
-                <TopicChecklist key={stage.id} pathId={path.id} stageId={stage.id} title={stage.title} description={stage.description} initial={progress?.practice_check?.topic_completion ?? {}} />
+                <TopicChecklist key={stage.id} pathId={path.id} stageId={stage.id} title={stage.title} description={stage.description} reference={progress?.practice_check?.curriculum_ref} initial={progress?.practice_check?.topic_completion ?? {}} />
                 {/* Stage Resources */}
                 {stage.stage_resources?.length ? (
                   <div className="mt-5 border-t border-slate-800/80 pt-4">
@@ -329,7 +329,7 @@ export function FilteredStageList({
                   </section>
                 )}
 
-                <ProjectMilestones pathId={path.id} stageId={stage.id} title={stage.title} description={stage.description} initial={progress?.practice_check?.milestone_completion ?? {}} />
+                <ProjectMilestones pathId={path.id} stageId={stage.id} title={stage.title} description={stage.description} reference={progress?.practice_check?.curriculum_ref} initial={progress?.practice_check?.milestone_completion ?? {}} />
                 {/* Stage Progress Action */}
                 <div className="mt-5 flex items-center gap-3 border-t border-slate-800/80 pt-4">
                   {status !== "completed" && (

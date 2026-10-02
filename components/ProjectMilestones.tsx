@@ -4,10 +4,11 @@ import {useRef,useState} from "react";
 import {curriculumUnit} from "@/lib/paths/authored-curriculum";
 import {projectMilestones} from "@/lib/paths/milestones";
 import {saveMilestoneCompletion} from "@/app/paths/[id]/topics";
+import type {CurriculumRef} from "@/lib/paths/authored-curriculum";
 import styles from "./Roadmap.module.css";
-export function ProjectMilestones({pathId,stageId,title,description,initial}:{pathId:string;stageId:string;title:string;description:string|null;initial:Record<string,boolean>}) {
- const unit=curriculumUnit(title);
- const milestones=projectMilestones(title,description);
+export function ProjectMilestones({pathId,stageId,title,description,initial,reference}:{pathId:string;stageId:string;title:string;description:string|null;initial:Record<string,boolean>;reference?:CurriculumRef}) {
+ const unit=curriculumUnit(title,reference);
+ const milestones=projectMilestones(title,description,reference);
  const [saved,setSaved]=useState(initial),[busy,setBusy]=useState(false),[error,setError]=useState("");const lock=useRef(false);
  const count=milestones.filter(m=>saved[m.id]===true).length;
  async function toggle(id:string) {
@@ -18,8 +19,9 @@ export function ProjectMilestones({pathId,stageId,title,description,initial}:{pa
  }
  return <section className={styles.topics} aria-labelledby={"milestones-"+stageId} aria-busy={busy}>
  <div className={styles.topicHeader}><h3 id={"milestones-"+stageId}>Project milestones</h3><span aria-live="polite">{count} / {milestones.length} recorded</span></div>
+ {reference&&!unit&&<p role="status" className={styles.topicHint}>This saved curriculum version is unavailable. Your milestone progress is preserved; editorial review is required.</p>}
  <p className={styles.topicHint}>Use your stage challenge as the brief. Record each deliverable when ready; these are self-reported checks, not automatic assessment.</p>
- {unit&&<div className={styles.projectBrief}><span>{unit.level==="advanced"?"Advanced":unit.level==="intermediate"?"Intermediate":"Beginner"} project · {unit.field.replaceAll("-"," ")}</span><h4>Your project brief</h4><p>{unit.project}</p><h4>Acceptance criteria</h4><ul>{stageTopics(title,description).map(topic=><li key={topic.id}>{topic.criterion}</li>)}<li>Provide reproducible steps, evidence of a failure case, and notes explaining limitations.</li></ul></div>}
+ {unit&&<div className={styles.projectBrief}><span>{unit.level==="advanced"?"Advanced":unit.level==="intermediate"?"Intermediate":"Beginner"} project · {unit.field.replaceAll("-"," ")}</span><h4>Your project brief</h4><p>{unit.project}</p><h4>Acceptance criteria</h4><ul>{stageTopics(title,description,reference).map(topic=><li key={topic.id}>{topic.criterion}</li>)}<li>Provide reproducible steps, evidence of a failure case, and notes explaining limitations.</li></ul></div>}
  <ul>{milestones.map((m,index)=><li key={m.id}><label><input type="checkbox" name={"milestone-"+stageId+"-"+m.id} checked={saved[m.id]===true} disabled={busy} onChange={()=>toggle(m.id)}/><span><strong>{String(index+1).padStart(2,"0")} / {m.title}</strong><span>{m.criterion}</span></span></label></li>)}</ul>
  {busy&&<p className={styles.topicHint} role="status">Saving milestone...</p>}{error&&<p role="alert">{error}</p>}
  </section>;

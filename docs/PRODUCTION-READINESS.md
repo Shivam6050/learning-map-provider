@@ -1,30 +1,21 @@
-# Production release gates
+# Production release gates — 2 October 2026
 
-Status: NOT cleared for production or high concurrency. No capacity claim has been established.
+Production readiness is not cleared by unit tests alone. The current status lives in [remediation-status.md](remediation-status.md); previous audit reports remain historical.
 
-## Implemented in this hardening pass
-- Authenticated generation; pending options require the signed-in owner and a valid expiry for both reads and confirmation.
-- Production generation quota uses an atomic server-only SQL function. Apply migration 008 before deployment. Missing function fails closed. Development keeps the previous count check.
-- Cron endpoints reject requests if CRON_SECRET is absent.
-- Monitoring webhook has a three-second deadline; recoverable route error screen added.
-- CI type checking and unit tests; read-only load probe with explicit remote target authorization.
+## Implemented protections
 
-## Required before launch
-1. Apply migrations on staging and verify cross-account RLS and SQL quota races with two test users. Migration 008 has NOT been applied or integration-tested by this change.
-2. Move generation into durable jobs with a dedicated worker, leases, idempotent completion, bounded retries, and status polling. Current generation still runs inside a server action and can exceed hosting deadlines. Do not claim large-scale readiness while this remains.
-3. Add a global provider concurrency/cost budget and edge IP abuse limits. Per-user quotas do not stop account farms. Set MAX_GENERATIONS_PER_DAY deliberately (suggest starting at 10).
-4. Configure MONITORING_WEBHOOK_URL, CRON_SECRET, provider budgets and production-only secrets. Exercise an alert; verify webhook redaction before sending sensitive production diagnostics.
-5. Validate database backups with a restore rehearsal, RLS tests, query plans and connection limits. Record RPO/RTO and incident ownership.
-6. Build and deploy a staging production artifact. Smoke-test login, settings, generation, selection, saving, ownership denial, progress and calendar export.
-7. Load-test authenticated dashboard and roadmap reads on staging at 10, 50, then 100 concurrent clients. Use multiple test accounts; monitor database, provider quotas, errors and memory. Establish capacity only for measured infrastructure and traffic mix.
-8. Roll out gradually with alerts and rollback to the preceding deployment; do not roll back additive schema while deployed code depends on it.
+Authenticated generation, owner-scoped pending options, server-side assessment grading, atomic per-user/global attempt quotas, source URL validation, regional quote checks, retry-safe roadmap writes, explicit cron authorization, bounded maintenance and reminder checkpoints are implemented. Quota installation was verified previously; do not treat old “migration not applied” notes as current evidence. The new atomic rating migration is still staged for coordinated deployment.
 
-## Load probe
-Run node scripts/load-test.mjs for a tiny local liveness baseline. It does not establish user capacity.
-Set LOAD_BASE_URL, LOAD_ALLOW_REMOTE (exact staging origin), LOAD_PATHS, LOAD_CONCURRENCY and LOAD_REQUESTS for authorized staging runs. LOAD_COOKIE can hold a test-account session cookie in the environment; do not commit or print it. Redirects are failures so login redirects cannot masquerade as successful authenticated traffic. Default p95 gate is 2000 ms; adjust LOAD_P95_MS for an agreed SLO.
+## Required release checks
 
-The probe downloads HTML only: it does not emulate client JavaScript, database mutations or AI generation. Use browser journey tests and a job/provider test environment to cover those separately. Never stress a production database or paid generation API as a capacity experiment.
+- Deploy the reviewed production build with the rating migration; verify the actual deployed commit and all maintenance schedules.
+- Run dedicated authenticated journeys covering email confirmation, Google callback, recovery, generation/selection, saved path ownership, notes/progress, course ownership, resume and calendar insertion. Check actual email delivery and reminder opt-out. SMS verification remains intentionally disabled.
+- Verify cron secrets, maintenance backlog, editorial due reports, reminder checkpoints and provider allowances. A timeout-bounded daily worker has finite capacity: increase capacity or use additional authorized runs/a worker when reported throughput falls below the maintenance target.
+- Complete Google's branding and Calendar scope verification; a published OAuth app is not an approved app.
+- Perform backup/restore rehearsal, cross-user RLS tests and staging query/concurrency checks. Record incident ownership and recovery targets.
+- Use staged authenticated load tests at agreed traffic levels with multiple accounts. Current generation is synchronous; durable jobs/workers and measured provider budgets are still needed before a large-scale claim.
+- Roll out gradually and retain a compatible rollback build. Do not undo additive database contracts while running code depends on them.
 
+## Load probe limitations
 
-## Verification — 2026-09-14
-User applied migrations 008 and 009. Live REST checks confirmed reserve_launch_generation is installed, rejects invalid inputs, and denies anonymous execution. Both quota tables are readable by the service role and block anonymous access. No quota was consumed. Concurrency, authenticated cross-user isolation, and end-to-end generation tests remain outstanding.
+`scripts/load-test.mjs` downloads HTML; it does not emulate JavaScript, AI generation or database writes. A successful liveness probe does not establish real user capacity. Use staging and explicit test accounts; avoid experiments against production provider credits or personal data. Keep session cookies private.

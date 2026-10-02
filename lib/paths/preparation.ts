@@ -1,3 +1,4 @@
+import type {CurriculumRef} from "./authored-curriculum";
 import {stageTopics} from "./topics";
 export type OptionalExercise={title:string;description:string};
 const extensions:Record<string,OptionalExercise>={
@@ -10,9 +11,9 @@ const extensions:Record<string,OptionalExercise>={
  interface:{title:"Check an unfamiliar interaction",description:"Try your example with keyboard navigation and a narrow screen, then record one improvement."},
  analysis:{title:"Challenge an assumption",description:"Change one assumption or inspect a subset of the data and explain how the conclusion changes."},
 };
-export function optionalExercises(title:string,description:string|null):OptionalExercise[]{
+export function optionalExercises(title:string,description:string|null,reference?:CurriculumRef):OptionalExercise[]{
  const groups:Record<string,string>={http:"http",api:"http",sql:"data",auth:"auth",security:"auth",ci:"delivery",docker:"delivery",ops:"delivery",iac:"delivery",k8s:"delivery",web:"performance",react:"interface",ui:"interface",html:"interface",css:"interface",data:"analysis",stats:"analysis",ml:"analysis"};
- const selected=stageTopics(title,description).flatMap(topic=>{const extension=extensions[topic.id]??extensions[groups[topic.id.split(".")[0]]];return extension?[extension]:[];});
+ const selected=stageTopics(title,description,reference).flatMap(topic=>{const extension=extensions[topic.id]??extensions[groups[topic.id.split(".")[0]]];return extension?[extension]:[];});
  return selected.filter((item,index)=>selected.findIndex(other=>other.title===item.title)===index).slice(0,2);
 }
 export function startingGuidance(level:string|undefined):string {
