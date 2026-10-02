@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 
 interface GoogleSignInButtonProps {
   nextParam?: string;
@@ -19,6 +18,7 @@ export function GoogleSignInButton({ nextParam, className }: GoogleSignInButtonP
 
     try {
       const targetNext = nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : "/dashboard";
+      const { createClient } = await import("@/lib/supabase/client");
       const supabase = createClient();
       const origin = typeof window !== "undefined" ? window.location.origin : "";
       const redirectUrl = `${origin}/auth/callback?next=${encodeURIComponent(targetNext)}`;
