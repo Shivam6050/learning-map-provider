@@ -8,3 +8,5 @@ it("rejects login HTML instead of downloading it",async()=>{reply("<html>Sign in
 it("rejects truncated calendar files",async()=>{reply("BEGIN:VCALENDAR",200,"text/calendar");await expect(fetchCalendar("/calendar")).rejects.toThrow("incomplete");});
 it("handles expired sessions",async()=>{reply("",401,"application/json");await expect(fetchCalendar("/calendar")).rejects.toThrow("session may have expired");});
 it("does not expose server error details",async()=>{reply("private database error",500,"text/plain");await expect(fetchCalendar("/calendar")).rejects.toThrow("Please try again shortly");});
+
+it("explains why a roadmap with no stages cannot be downloaded",async()=>{reply(JSON.stringify({error:"This roadmap has no learning stages to schedule."}),409,"application/json");await expect(fetchCalendar("/calendar")).rejects.toThrow("no learning stages to schedule");});

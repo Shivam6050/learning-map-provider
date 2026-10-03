@@ -1,6 +1,7 @@
 "use server";
 
 import { cookies } from "next/headers";
+import { safeRedirectPath } from "@/lib/security/validation";
 import { TOKEN_COOKIE, STATE_COOKIE } from "@/lib/calendar/google-session";
 import { validCountry, internationalPhone, residenceCurrency } from "@/lib/profile/residence";
 import { contactVerificationEnabled } from "@/lib/auth/contact-verification";
@@ -84,6 +85,7 @@ export async function signup(formData: FormData) {
 }
 
 export async function login(formData: FormData) {
+  const next = safeRedirectPath(String(formData.get("next") ?? "/dashboard"));
   const supabase = await createClient();
 
   const email = String(formData.get("email") ?? "").trim();
@@ -124,11 +126,11 @@ export async function login(formData: FormData) {
   }
 
   if (errorMessage) {
-    redirect(`/login?error=${encodeURIComponent(errorMessage)}`);
+    redirect(`/login?${new URLSearchParams({ error: errorMessage, next }).toString()}`);
   }
 
   revalidatePath("/", "layout");
-  redirect("/dashboard");
+  redirect(next);
 }
 
 export async function logout() {

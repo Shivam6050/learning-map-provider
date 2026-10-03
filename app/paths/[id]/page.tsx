@@ -28,7 +28,7 @@ export default async function PathPage({
   const { id } = await params;
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) notFound();
   const supabase = await createClient();
-  const { data: { user } } = await getLearningUser(supabase);
+  const { data: { user } } = await getLearningUser(supabase, `/paths/${id}`);
 
   if (!user) redirect("/login?next=" + encodeURIComponent(`/paths/${id}`));
 

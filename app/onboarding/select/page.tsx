@@ -17,14 +17,15 @@ export default async function OnboardingSelectPage({
   searchParams: Promise<{ error?: string; purchased?: string; set?: string; optionId?: string; autoConfirm?: string; field?: string; quizScore?: string; quizImplied?: string; selfReported?: string; finalLevel?: string }>;
 }) {
   const { error, purchased, set, optionId, field: fieldParam } = await searchParams;
+  const next = selectionReturnPath(set ?? "", optionId, (purchased ?? "").split(","));
   const service = createServiceClient();
 
   const supabase = await createClient();
   const {
     data: { user },
-  } = await getLearningUser(supabase);
+  } = await getLearningUser(supabase, next);
 
-  if (!user) redirect("/login?next=" + encodeURIComponent(selectionReturnPath(set ?? "", optionId, (purchased ?? "").split(","))));
+  if (!user) redirect("/login?next=" + encodeURIComponent(next));
 
   const { data: row, error: loadError } = set
     ? await service

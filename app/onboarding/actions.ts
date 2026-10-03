@@ -36,7 +36,7 @@ export async function generatePath(formData: FormData) {
   const supabase = await createClient();
   const {
     data: { user },
-  } = await getLearningUser(supabase);
+  } = await getLearningUser(supabase, "/onboarding");
 
   if (!user) redirect("/login?next=/onboarding");
   const effectiveUserId = user.id;
@@ -58,8 +58,8 @@ export async function generatePath(formData: FormData) {
   const selfReportedLevel: SkillLevel = rawSkillLevel === "unknown" ? "beginner" : rawSkillLevel as SkillLevel;
 
   const weeklyHours = Number(formData.get("weeklyHours"));
-  if (!Number.isFinite(weeklyHours) || weeklyHours < 1 || weeklyHours > 80) {
-    redirect("/onboarding?error=Weekly hours must be between 1 and 80");
+  if (!Number.isInteger(weeklyHours) || weeklyHours < 1 || weeklyHours > 80) {
+    redirect("/onboarding?error=Weekly hours must be a whole number between 1 and 80");
   }
 
   const budgetTotal = Number(formData.get("budgetTotal"));
@@ -239,16 +239,15 @@ export async function generatePath(formData: FormData) {
 }
 
 export async function confirmSelectedPath(formData: FormData) {
+  const setId = String(formData.get("setId") ?? "");
+  const optionId = String(formData.get("optionId") ?? "");
+  const nextPath = selectionReturnPath(setId, optionId, formData.getAll("purchasedResourceId").map(String));
   const supabase = await createClient();
   const {
     data: { user },
-  } = await getLearningUser(supabase);
-
-  const setId = String(formData.get("setId") ?? "");
-  const optionId = String(formData.get("optionId") ?? "");
+  } = await getLearningUser(supabase, nextPath);
 
   if (!user) {
-    const nextPath = selectionReturnPath(setId, optionId, formData.getAll("purchasedResourceId").map(String));
     redirect(`/login?next=${encodeURIComponent(nextPath)}`);
   }
 

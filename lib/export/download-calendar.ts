@@ -5,7 +5,7 @@ export async function fetchCalendar(url: string): Promise<Blob> {
   throw new Error("Your session may have expired. Sign in again, then retry the download.");
  }
  if (!response.ok) {
-  if (response.status === 400 && response.headers.get("content-type")?.includes("application/json")) {
+  if ((response.status === 400 || response.status === 409) && response.headers.get("content-type")?.includes("application/json")) {
    const body = await response.json().catch(() => null);
    if (typeof body?.error === "string" && body.error.length < 300) throw new Error(body.error);
   }
