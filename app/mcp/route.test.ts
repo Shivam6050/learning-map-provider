@@ -77,3 +77,19 @@ it("rejects malformed JSON and does not expose details", async () => {
   expect(response.status).toBe(400);
   expect(await response.text()).not.toContain("node_modules");
 });
+
+it("redirects ordinary browser visits to the connection guide without caching", async () => {
+  const response = await GET(new Request(url,{headers:{Accept:"text/html,application/xhtml+xml,*/*;q=0.8"}}));
+  expect(response.status).toBe(307);
+  expect(response.headers.get("Location")).toBe("/integrations");
+  expect(response.headers.get("Cache-Control")).toBe("no-store");
+  expect(response.headers.get("Vary")).toContain("Accept");
+});
+it.each([{}, {Accept:"text/event-stream"}, {Accept:"application/json"}, {Accept:"text/html", "MCP-Protocol-Version":"2025-11-25"}])("preserves the stateless MCP GET response for protocol clients: %j", async headers => {
+  const response = await GET(new Request(url,{headers:headers as Record<string,string>}));
+  expect(response.status).toBe(405);
+  expect(response.headers.has("Location")).toBe(false);
+});
+it("still checks browser origins before redirecting to the guide", async () => {
+  expect((await GET(new Request(url,{headers:{Accept:"text/html",Origin:"https://evil.example"}}))).status).toBe(403);
+});

@@ -10,6 +10,16 @@ async function handle(request: Request) {
   if (origin === false) return Response.json({error: "Origin not allowed"}, {status: 403, headers: {"Cache-Control": "no-store", "Vary": "Origin"}});
   const headers = mcpHeaders(origin);
   if (request.method === "OPTIONS") return new Response(null, {status: 204, headers});
+  // A browser navigation should explain how to connect; protocol clients retain
+  // the SDK's GET/SSE behavior and POST handling.
+  const accept = request.headers.get("accept") ?? "";
+  headers.set("Vary", "Origin, Accept");
+  if (request.method === "GET" && accept.includes("text/html") &&
+      !accept.includes("application/json") && !accept.includes("text/event-stream") &&
+      !request.headers.has("MCP-Protocol-Version")) {
+    headers.set("Location", "/integrations");
+    return new Response(null, {status: 307, headers});
+  }
   try {
     const response = await handler.fetch(request);
     headers.forEach((value,key) => response.headers.set(key,value));

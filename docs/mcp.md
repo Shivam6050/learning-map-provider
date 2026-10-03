@@ -16,7 +16,7 @@ For traffic protection use the hosting platform's firewall/rate limits for `/mcp
 
 ## Verification
 
-Run `npm test`, `npm run lint`, `npm run build`. MCP route tests exercise real SDK initialization, tool discovery/calls, resource reads, validation, origin controls, payload bounds and private-tool rejection. Production smoke test with a real MCP client after deployment. Browsing `/mcp` directly may return 405; clients must POST MCP messages. That is expected for stateless HTTP.
+Run `npm test`, `npm run lint`, `npm run build`. MCP route tests exercise real SDK initialization, tool discovery/calls, resource reads, validation, origin controls, payload bounds and private-tool rejection. Production smoke test with a real MCP client after deployment. Ordinary browser navigation to `/mcp` redirects to `/integrations`. Protocol GET/SSE requests still return 405 because this server is stateless; MCP clients use POST.
 
 Future personal access requires user-granted, revocable OAuth scopes and ownership checks for each tool. Do not expose a service-role key, reuse browser cookies in third-party clients, or make existing private roadmap routes public.
 
