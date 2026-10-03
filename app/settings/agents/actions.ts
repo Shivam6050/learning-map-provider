@@ -3,15 +3,20 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { generateAgentKey, hashAgentKey } from "@/lib/agents/keys";
+import { verifyAgentPassword } from "@/lib/agents/password";
 import { requireUuid } from "@/lib/security/validation";
 export type AgentKeyState = {error?:string; message?:string; key?:string};
 export async function createAgentKey(_previous:AgentKeyState, form:FormData):Promise<AgentKeyState> {
   const client = await createClient();
   const {data:{user},error} = await client.auth.getUser().catch(()=>({data:{user:null},error:true}));
-  if (error || !user || user.is_anonymous || !user.email_confirmed_at) return {error:"Sign in with a verified email before creating an agent key."};
+  if (error || !user || user.is_anonymous || !user.email_confirmed_at || !user.email) return {error:"Sign in with a verified email before creating an agent key."};
   const label = String(form.get("label") ?? "").trim();
   if (!label || label.length > 80 || /[\u0000-\u001f\u007f]/.test(label)) return {error:"Use an agent name between 1 and 80 characters."};
   if (form.get("consent") !== "on") return {error:"Confirm the read-only access before creating your key."};
+  const password = form.get("password");
+  if (typeof password !== "string" || !password || password.length > 128) return {error:"Confirm your account password to create an agent key."};
+  const verification = await verifyAgentPassword(user.id, user.email, password);
+  if (verification !== "verified") return {error: verification === "unavailable" ? "Password verification is temporarily unavailable. Please retry shortly." : "Could not verify your account password. Try again or reset your password."};
   const key = generateAgentKey();
   try {
     const result = await createServiceClient().rpc("create_agent_access_key",{p_user:user.id,p_label:label,p_hash:hashAgentKey(key)});

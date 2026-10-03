@@ -66,6 +66,7 @@ export function DashboardWorkspace({ name, paths, loadError }: { name: string; p
           <a href="#overview" className={styles.selected}><span aria-hidden="true">◫</span> Overview <span className={styles.currentDot}/></a>
           <a href="#learning-paths"><span aria-hidden="true">⌁</span> My learning paths <small>{paths.length}</small></a>
           <a href="#explore-fields"><span aria-hidden="true">↗</span> Explore fields</a>
+          <IntentLink href="/integrations"><span aria-hidden="true">↗</span> Connect a bot</IntentLink>
         </nav>
         <div className={styles.sidebarNote}><span>THE LONG VIEW</span><p>Little by little,<br/><em>a little becomes a lot.</em></p><div className={styles.noteLine}/><small>One milestone at a time.</small></div>
         <IntentLink href="/settings" className={styles.preferences}>Learning preferences <Arrow diagonal/></IntentLink>
@@ -94,6 +95,11 @@ export function DashboardWorkspace({ name, paths, loadError }: { name: string; p
         </section>
 
         <DashboardPathList paths={paths} loadError={loadError}/>
+
+        <section className={styles.agentCard} aria-labelledby="agent-access-heading">
+          <div><p className={styles.eyebrow}>LEARN WITH YOUR ASSISTANT</p><h2 id="agent-access-heading">Take LearningMap into your bot.</h2><p>Explore learning fields, course resources and curriculum previews through an MCP-compatible assistant. Connect from your verified account with a password-confirmed, read-only key.</p><small>Your notes, saved paths and progress stay private.</small></div>
+          <IntentLink href="/integrations" className={styles.agentLink}>See how to connect <Arrow/></IntentLink>
+        </section>
 
         <section id="explore-fields" className={styles.exploreSection}>
           <div className={styles.sectionHeading}><div><span className={styles.eyebrow}>FOLLOW YOUR CURIOSITY</span><h2>Where do you want to go?</h2></div><span className={styles.sectionAside}>Six fields. Plenty of possibilities.</span></div>

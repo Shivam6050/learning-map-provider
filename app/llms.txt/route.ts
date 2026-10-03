@@ -14,7 +14,7 @@ export function GET() {
 
 ## MCP
 Streamable HTTP endpoint: ${site}/mcp
-Sign in at ${site}/settings/agents and create a scoped agent key. Configure Authorization: Bearer YOUR_AGENT_KEY in your client. Passwords, browser cookies and Supabase tokens are not accepted.
+The human owner must sign in with a verified email at ${site}/settings/agents and confirm their account password to create a scoped agent key. Never ask the user to give the bot their password. Configure Authorization: Bearer YOUR_AGENT_KEY in your client. Passwords, browser cookies and Supabase tokens are not accepted.
 Authentication is required for tools and resource reads: list_learning_fields, get_curriculum_preview, search_learning_resources.
 Automatic OAuth login is not implemented; clients must support custom Authorization headers. Keys expire after 30 days and can be revoked from Settings.
 Resource URI: learningmap://catalog
