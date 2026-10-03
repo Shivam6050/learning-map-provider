@@ -13,7 +13,7 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-lg font-bold text-white">1. Data We Collect</h2>
             <ul className="mt-2 list-disc pl-5 space-y-1 text-slate-400">
-              <li><strong className="text-slate-200">Account Information:</strong> Email address, country of residence, mobile number when verification is enabled, display name, companion avatar, and encrypted password credentials managed by Supabase Auth.</li>
+              <li><strong className="text-slate-200">Account Information:</strong> Email address, country of residence, mobile number when verification is enabled, display name, companion avatar, and password credentials managed by Supabase Auth.</li>
               <li><strong className="text-slate-200">Roadmap Inputs:</strong> Target skill fields, self-reported experience level, weekly availability, budget limit, and quiz scores.</li>
               <li><strong className="text-slate-200">Progress Tracking:</strong> Marked stage completions, ratings, practice checks, and export timestamps.</li>
             </ul>
@@ -36,7 +36,7 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-lg font-bold text-white">4. Cookies & Security</h2>
             <p className="mt-1 text-slate-400">
-              We use strictly necessary HTTP cookies for authentication sessions. Row Level Security (RLS) is enforced in our database to isolate user records.
+              We use strictly necessary cookies for authentication. Session tokens are held in HTTP-only cookies, and private account responses are not cached. Database ownership rules isolate profiles, saved roadmaps, progress and notes from other users, including application administrators. Our trusted backend and infrastructure providers process account data to operate the service. Optional bots receive access only to the course catalog, never your profile or private learning records.
             </p>
           </section>
           <section>

@@ -1,3 +1,4 @@
+import { authCookieOptions } from "@/lib/auth/cookie-options";
 import { contentSecurityPolicy } from "@/lib/security/content-security-policy";
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
@@ -30,7 +31,15 @@ export async function proxy(request: NextRequest) {
     // Override incoming values: only our newly generated nonce may authorize scripts.
     request.headers.set("Content-Security-Policy", policy);
   }
+  const privatePrefixes = ["/dashboard", "/settings", "/paths", "/onboarding", "/complete-profile", "/verify-contact", "/auth", "/login", "/signup", "/forgot-password", "/reset-password", "/admin"];
+  const isPrivate = () => privatePrefixes.some(p => request.nextUrl.pathname === p || request.nextUrl.pathname.startsWith(p + "/"))
+    || request.cookies.getAll().some(c => /^sb-.+-auth-token(?:\.\d+)?$/.test(c.name));
   const secure = (result: NextResponse) => {
+    // Public pages can also contain the signed-in user's name in the navbar.
+    if (isPrivate()) {
+      result.headers.set("Cache-Control", "private, no-store");
+      result.headers.set("Referrer-Policy", "no-referrer");
+    }
     if (policy) result.headers.set("Content-Security-Policy", policy);
     return result;
   };
@@ -79,14 +88,17 @@ export async function proxy(request: NextRequest) {
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet, headers) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           );
           response = secure(NextResponse.next({ request }));
           cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
+            response.cookies.set(name, value, authCookieOptions(name, options))
           );
+          // Supabase SSR supplies anti-cache headers whenever it refreshes tokens.
+          Object.entries(headers ?? {}).forEach(([name, value]) => response.headers.set(name, value));
+          response.headers.set("Referrer-Policy", "no-referrer");
         },
       },
     });

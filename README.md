@@ -351,3 +351,7 @@ Next.js 16 shows a deprecation warning suggesting the file be renamed to
 `proxy.ts`. Still fully supported — not renamed here to avoid depending
 on an unverified convention change, worth revisiting on your next Next.js
 upgrade.
+
+### Private user data boundaries
+
+Apply the private_user_boundaries migration after earlier migrations. Profiles are owner-readable (including curator accounts); only display_name and avatar_id are client-editable. Trusted backend jobs retain their service-role permissions. Test supabase/tests/private_user_boundaries.sql and supabase/tests/agent_access_keys.sql using the Supabase CLI db query command. Both use isolated fixtures and roll back all test changes. Session cookies are server-only; the OAuth PKCE verifier remains browser-readable for Google sign-in. Re-sign in after deployment to replace older session cookies.

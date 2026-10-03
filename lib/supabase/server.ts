@@ -1,6 +1,7 @@
 import type {SupabaseClient} from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { authCookieOptions } from "@/lib/auth/cookie-options";
 
 function isValidUrl(urlString?: string) {
   if (!urlString) return false;
@@ -85,7 +86,7 @@ export async function createClient():Promise<SupabaseClient> {
       setAll(cookiesToSet) {
         try {
           cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
+            cookieStore.set(name, value, authCookieOptions(name, options))
           );
         } catch {
           // Called from a Server Component with no write access to

@@ -1,6 +1,6 @@
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
-const { getUser, cookieHooks } = vi.hoisted(() => ({ getUser: vi.fn(), cookieHooks: { setAll: null as null | ((cookies: {name:string;value:string;options:Record<string,unknown>}[]) => void) } }));
+const { getUser, cookieHooks } = vi.hoisted(() => ({ getUser: vi.fn(), cookieHooks: { setAll: null as null | ((cookies: {name:string;value:string;options:Record<string,unknown>}[], headers?: Record<string,string>) => void) } }));
 vi.mock("@supabase/ssr", () => ({ createServerClient: (...args: unknown[]) => { cookieHooks.setAll = (args[2] as {cookies:{setAll:NonNullable<typeof cookieHooks.setAll>}}).cookies.setAll; return { auth: { getUser } }; } }));
 import { proxy } from "./proxy";
 beforeEach(() => {
@@ -63,4 +63,27 @@ it("does not exempt similarly named private or future API routes", async () => {
   getUser.mockResolvedValue({data:{user:null},error:null});
   await proxy(new NextRequest("http://localhost:3102/api/public/catalog/private"));
   expect(getUser).toHaveBeenCalledOnce();
+});
+
+it.each(["/settings","/paths/test","/onboarding/select","/auth/callback","/reset-password"])("does not cache sensitive route %s", async path => {
+ getUser.mockResolvedValue({data:{user:null},error:null});
+ const result=await proxy(new NextRequest("http://localhost:3102"+path));
+ expect(result.headers.get("cache-control")).toBe("private, no-store");
+ expect(result.headers.get("referrer-policy")).toBe("no-referrer");
+});
+it("does not cache a signed-in navbar on public pages", async()=>{
+ getUser.mockResolvedValue({data:{user:{id:"owner"}},error:null});
+ const result=await proxy(new NextRequest("http://localhost:3102/privacy",{headers:{cookie:"sb-test-auth-token.0=fixture"}}));
+ expect(result.headers.get("cache-control")).toBe("private, no-store");
+});
+it("retains SDK anti-cache headers on token refresh and protects session cookies", async()=>{
+ vi.stubEnv("NODE_ENV","production");
+ getUser.mockImplementation(async()=>{
+  cookieHooks.setAll!([{name:"sb-test-auth-token",value:"fixture",options:{httpOnly:false,secure:false}}],{"Cache-Control":"private, no-cache, no-store, must-revalidate, max-age=0","Pragma":"no-cache","Expires":"0"});
+  return {data:{user:{id:"owner"}},error:null};
+ });
+ const result=await proxy(new NextRequest("https://example.com/privacy"));
+ expect(result.headers.get("cache-control")).toContain("no-store");
+ expect(result.headers.get("pragma")).toBe("no-cache");
+ expect(result.cookies.get("sb-test-auth-token")).toMatchObject({httpOnly:true,secure:true,sameSite:"lax"});
 });

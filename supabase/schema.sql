@@ -200,7 +200,8 @@ alter table public.resource_ratings enable row level security;
 create or replace function public.is_admin()
 returns boolean
 language sql
-security definer
+security invoker
+set search_path = ''
 stable
 as $$
   select exists (
@@ -213,17 +214,21 @@ create trigger trg_prevent_role_escalation
   before update on public.profiles
   for each row execute function public.prevent_role_escalation();
 
--- PROFILES: read own row (or any row, if admin). Update own row only,
--- with role changes blocked by the trigger above. No insert policy —
--- rows are only created by the handle_new_user trigger.
-create policy "profiles_select_own_or_admin"
-  on public.profiles for select
-  using (id = auth.uid() or public.is_admin());
+-- PROFILES: owner-only, including administrators. Profile creation and
+-- privileged account management stay on the trusted backend.
+create policy "profiles_select_own"
+  on public.profiles for select to authenticated
+  using (id = (select auth.uid()));
 
 create policy "profiles_update_own"
-  on public.profiles for update
-  using (id = auth.uid())
-  with check (id = auth.uid());
+  on public.profiles for update to authenticated
+  using (id = (select auth.uid()))
+  with check (id = (select auth.uid()));
+
+revoke all on public.profiles from public, anon, authenticated;
+grant select on public.profiles to authenticated;
+grant update(display_name) on public.profiles to authenticated;
+-- The private_user_boundaries migration adds avatar_id and other table grants.
 
 -- LEARNING_PATHS: strictly owner-only for every operation.
 create policy "learning_paths_owner_all"
@@ -256,7 +261,7 @@ create policy "trusted_sources_select_all"
   using (auth.role() = 'authenticated');
 
 create policy "trusted_sources_admin_write"
-  on public.trusted_sources for all
+  on public.trusted_sources for all to authenticated
   using (public.is_admin())
   with check (public.is_admin());
 
