@@ -1,9 +1,10 @@
+import { authorizeAgentRequest } from "@/lib/agents/http";
 import { createMcpHandler } from "@modelcontextprotocol/server";
 import { createLearningMapServer } from "@/lib/mcp/server";
 import { allowedBrowserOrigin, mcpHeaders } from "@/lib/mcp/http";
 
 export const runtime = "nodejs";
-export const maxDuration = 15;
+export const maxDuration = 30;
 const handler = createMcpHandler(createLearningMapServer, { legacy: "stateless", responseMode: "json", maxRequestBodySize: 16384, maxSubscriptions: 0 });
 async function handle(request: Request) {
   const origin = allowedBrowserOrigin(request);
@@ -20,6 +21,8 @@ async function handle(request: Request) {
     headers.set("Location", "/integrations");
     return new Response(null, {status: 307, headers});
   }
+  const denied = await authorizeAgentRequest(request);
+  if (denied) return denied;
   try {
     const response = await handler.fetch(request);
     headers.forEach((value,key) => response.headers.set(key,value));

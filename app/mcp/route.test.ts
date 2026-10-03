@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+vi.mock("@/lib/agents/keys", () => ({authenticateAgent:vi.fn(async()=>({status:"authorized",userId:"owner"}))}));
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { POST, GET, OPTIONS } from "./route";
 const url = "https://learningmap.example/mcp";

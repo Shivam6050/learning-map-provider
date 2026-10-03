@@ -1,30 +1,21 @@
-# LearningMap public MCP and bot access
+# LearningMap authenticated agent access
 
-After deployment, connect a remote MCP client to `https://learning-map-provider-bice.vercel.app/mcp` using Streamable HTTP, no authentication. Set `NEXT_PUBLIC_SITE_URL` to the canonical deployed origin. The official MCP SDK handles protocol negotiation and stateless requests; no Redis, paid AI call, database migration or new service credential is needed.
+Users sign in to LearningMap and create a named key under Settings → Agent access (`/settings/agents`). They must explicitly confirm read-only catalog access. Configure a remote MCP client with Streamable HTTP, endpoint `https://learning-map-provider-bice.vercel.app/mcp` and header `Authorization: Bearer YOUR_AGENT_KEY`. Clients must support a custom Authorization header. Automatic browser OAuth sign-in is not implemented; no OAuth discovery document is advertised. Do not select “no authentication”.
 
-Tools: `list_learning_fields`, `get_curriculum_preview` (field slug, beginner/intermediate/advanced level), `search_learning_resources` (query, optional limit 1–20). Resource: `learningmap://catalog`.
+Keys contain 256 random bits, expire in 30 days and are shown only in the creation response. Only SHA-256 hashes are stored. Users can have five active keys and create ten per rolling day, enforced atomically under a per-owner transaction lock. Keys can be revoked immediately for subsequent requests. Website logout does not revoke keys. Deleted accounts cascade keys; banned, anonymous and unverified identities are rejected. No key or password is logged or placed in a URL. Keep tokens in client secret storage; never paste them into chat.
 
-Ordinary web clients can GET `/api/public/catalog` and `/api/public/roadmap?field=backend-development&level=beginner`. Discovery is in `/llms.txt`, `/robots.txt`, `/sitemap.xml`, and the footer's `/integrations` guide. `llms.txt` is informational, not a universal registration protocol. No Dots/Grok compatibility or automatic indexing is claimed; each client must support remote MCP or ordinary web access.
+Tools: `list_learning_fields`, `get_curriculum_preview`, `search_learning_resources`. Resource: `learningmap://catalog`. These remain read-only catalog/preview tools. They do not expose personal paths, notes, progress, purchase actions, messages or calendars.
 
-## Boundaries
+Both JSON URLs (`/api/public/catalog`, `/api/public/roadmap?field=backend-development&level=beginner`) now require the same key; the historical URL name does not indicate anonymous access. Success and error responses are no-store and never rely on browser cookies. Browser Origin checks remain enforced; native clients may omit Origin. Browser clients need an exact `MCP_ALLOWED_ORIGINS` entry if hosted elsewhere. CORS has no credential/cookie support. Missing, expired or revoked keys return 401; database/auth failures return 503 and never grant access. Valid-shaped keys are checked in the database on each request; there is no stale authorization cache. An in-flight request authorized before revocation may finish.
 
-All responses project authored, repository-controlled public data. The endpoints do not fetch arbitrary URLs, call Gemini, read user cookies, refresh sessions, query personal tables or mutate anything. No live regional prices are exposed. Resource references are not asserted to have been verified in real time. All tools are annotated read-only and idempotent. Inputs are validated, requests are bounded to 16 KiB and resource results to 20. No long-lived subscriptions are offered.
+`/integrations`, `/llms.txt`, `/robots.txt` and `/sitemap.xml` remain publicly accessible discovery/help pages. Browser GET navigation to `/mcp` opens `/integrations`; actual MCP requests must authenticate. Resource links and free-access classifications are authored catalog data, not live regional price quotes.
 
-Native/server MCP clients may omit Origin. Browser callers must use the site origin or an exact origin listed in `MCP_ALLOWED_ORIGINS` (comma-separated, no wildcard; never put credentials there). CORS does not send cookies or allow credentials. Public JSON GET endpoints use wildcard CORS because they contain no private data. Robots rules are crawling preferences; existing authentication/RLS remains the protection for private pages.
+## Release
 
-For traffic protection use the hosting platform's firewall/rate limits for `/mcp` and `/api/public/*`; do not rely on per-process memory counters on serverless hosts. No global rate limiter is claimed by this implementation. Monitor invocation quotas before advertising broad crawler access. Do not exempt every request claiming to be a bot from firewall controls.
+Apply `supabase/migrations/20261003125424_agent_access_keys.sql` before deploying. It is additive and rerunnable, with RLS and owner-only metadata reads, no authenticated client writes, and service-role-only issuance RPC. Keep `SUPABASE_SERVICE_ROLE_KEY` exclusively on the server; agents never receive it. No new provider account or paid service is required. If the migration/configuration is missing the integration fails closed.
 
-## Verification
+Run tests, lint and production build. SQL tests in `supabase/tests/agent_access_keys.sql` use a rolled-back transaction for owner isolation, hash confidentiality, write restrictions, per-owner caps and rollback verification. Real account sign-in/key creation should be smoke-tested after deployment. Set hosting firewall/rate limits on machine endpoints; no distributed rate limiter is claimed here. Bots that support OAuth only will need a later dedicated OAuth integration with database isolation before issuing Supabase login tokens.
 
-Run `npm test`, `npm run lint`, `npm run build`. MCP route tests exercise real SDK initialization, tool discovery/calls, resource reads, validation, origin controls, payload bounds and private-tool rejection. Production smoke test with a real MCP client after deployment. Ordinary browser navigation to `/mcp` redirects to `/integrations`. Protocol GET/SSE requests still return 405 because this server is stateless; MCP clients use POST.
+## Verification (2026-10-03)
 
-Future personal access requires user-granted, revocable OAuth scopes and ownership checks for each tool. Do not expose a service-role key, reuse browser cookies in third-party clients, or make existing private roadmap routes public.
-
-## Verification recorded 2026-10-03
-
-- 359 tests passed; one existing live-provider test skipped.
-- Production build and TypeScript passed. Lint: zero errors, nine pre-existing unused-variable warnings.
-- Official current MCP client connected over real HTTP to the local production build and read a curriculum; route tests also cover legacy 2025-11-25 initialization.
-- Discovery and public JSON endpoints returned 200 without Set-Cookie. Integration guide: no browser errors or horizontal overflow at 1440, 390 and 320px.
-- Changes have not been deployed or registered with third-party bots by this task.
-- Dependency audit reports seven existing advisories (six in development tooling, one in Next 16.3.5's next/og ImageResponse). No MCP package advisory was reported. Repository search found no next/og or ImageResponse use; this does not establish whole-application security. Track the Next patch update and development dependency advisories separately; no forced framework downgrade was applied.
+The migration and rolled-back SQL security checks were applied successfully to the linked Supabase project. The suite passed 404 tests (one existing skip), production build passed, and lint completed with no errors (nine existing warnings). A local production build against the real Supabase backend passed all 14 smoke checks, including signed-in issuance, masked credentials, mobile widths, official MCP client access, anonymous rejection and immediate revocation across MCP and JSON endpoints. The isolated test account and its keys were deleted afterward. Redeploy the application code to activate these changes in production, then verify the hosted connection flow.

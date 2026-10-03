@@ -54,6 +54,7 @@ export default async function SettingsPage({
           <a href="#profile"><span>01</span> Profile & companion</a>
           <a href="#region"><span>02</span> Learning region</a>
           <a href="#account"><span>03</span> Account management</a>
+          <Link href="/settings/agents"><span>04</span> Agent access</Link>
         </nav>
         <div className={styles.identity}><span>SIGNED IN AS</span><p>{user.email}</p><small>Your email is used to sign in to LearningMap.</small></div>
       </aside>

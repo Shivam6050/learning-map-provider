@@ -12,9 +12,8 @@ export function mcpHeaders(origin: string | null) {
   if (origin) {
     headers.set("Access-Control-Allow-Origin", origin);
     headers.set("Access-Control-Allow-Methods", "POST, GET, DELETE, OPTIONS");
-    headers.set("Access-Control-Allow-Headers", "Content-Type, Accept, MCP-Protocol-Version, MCP-Session-Id");
-    headers.set("Access-Control-Expose-Headers", "MCP-Protocol-Version, MCP-Session-Id");
+    headers.set("Access-Control-Allow-Headers", "Authorization, Content-Type, Accept, MCP-Protocol-Version, MCP-Session-Id");
+    headers.set("Access-Control-Expose-Headers", "WWW-Authenticate, MCP-Protocol-Version, MCP-Session-Id");
   }
   return headers;
 }
-export const PUBLIC_CATALOG_HEADERS = { "Cache-Control": "public, max-age=300, s-maxage=3600", "Access-Control-Allow-Origin": "*", "X-Content-Type-Options": "nosniff" };

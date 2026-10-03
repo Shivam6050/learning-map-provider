@@ -5,16 +5,18 @@ export function GET() {
 
 > LearningMap provides learning roadmaps for six technology fields, adapted to experience, time and budget.
 
-## Public access
+## Discovery and sign-in
 - [Integration guide](${site}/integrations): MCP setup, capabilities and limits.
-- [Public catalog](${site}/api/public/catalog): fields, levels and curated resource references as JSON.
-- [Example curriculum](${site}/api/public/roadmap?field=backend-development&level=beginner): authored curriculum preview, not a personal saved path.
+- [Catalog API — authentication required](${site}/api/public/catalog): fields, levels and curated resource references as JSON.
+- [Example curriculum API — authentication required](${site}/api/public/roadmap?field=backend-development&level=beginner): authored curriculum preview, not a personal saved path.
 - [Privacy](${site}/privacy)
 - [Terms](${site}/terms)
 
 ## MCP
 Streamable HTTP endpoint: ${site}/mcp
-No authentication is needed for the public, read-only tools: list_learning_fields, get_curriculum_preview, search_learning_resources.
+Sign in at ${site}/settings/agents and create a scoped agent key. Configure Authorization: Bearer YOUR_AGENT_KEY in your client. Passwords, browser cookies and Supabase tokens are not accepted.
+Authentication is required for tools and resource reads: list_learning_fields, get_curriculum_preview, search_learning_resources.
+Automatic OAuth login is not implemented; clients must support custom Authorization headers. Keys expire after 30 days and can be revoked from Settings.
 Resource URI: learningmap://catalog
 
 ## Limits
