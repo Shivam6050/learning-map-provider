@@ -53,3 +53,14 @@ it("retains the CSP and refreshed session cookies when auth rebuilds the respons
   expect(policy).toContain("'strict-dynamic'");
   expect(result.headers.get("x-middleware-request-content-security-policy")).toBe(policy);
 });
+
+it.each(["/mcp", "/api/public/catalog", "/api/public/roadmap", "/llms.txt", "/robots.txt", "/sitemap.xml"])("serves public integration route %s without auth calls or session cookies", async path => {
+  const result = await proxy(new NextRequest("http://localhost:3102"+path,{headers:{cookie:"private=session"}}));
+  expect(getUser).not.toHaveBeenCalled();
+  expect(result.headers.has("set-cookie")).toBe(false);
+});
+it("does not exempt similarly named private or future API routes", async () => {
+  getUser.mockResolvedValue({data:{user:null},error:null});
+  await proxy(new NextRequest("http://localhost:3102/api/public/catalog/private"));
+  expect(getUser).toHaveBeenCalledOnce();
+});

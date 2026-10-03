@@ -25,6 +25,7 @@ export function Footer() {
                   Generate Roadmap
                 </Link>
               </li>
+              <li><Link href="/integrations" className="transition hover:text-white">Connect your assistant</Link></li>
               <li>
                 <Link href="/login" className="transition hover:text-white">
                   Sign In

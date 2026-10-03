@@ -18,6 +18,8 @@ function isValidUrl(urlString?: string) {
 }
 
 export async function proxy(request: NextRequest) {
+  // These exact routes contain only authored public data; never attach session cookies.
+  if (["/mcp", "/api/public/catalog", "/api/public/roadmap", "/llms.txt", "/robots.txt", "/sitemap.xml"].includes(request.nextUrl.pathname)) return NextResponse.next();
   const isPage = !request.nextUrl.pathname.startsWith("/api/");
   const policy = isPage ? contentSecurityPolicy(
     Buffer.from(crypto.randomUUID()).toString("base64"),
