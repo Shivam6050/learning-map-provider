@@ -183,7 +183,7 @@ export default async function PathPage({
     Object.fromEntries(stageTimeline);
 
   const nextStage = resumeStage(boardStages);
-  return <main className={styles.page}>
+  return <div className={styles.page}>
     <RememberCurrency value={path.currency} />
     <div className={styles.shell}>
       <a href="/dashboard" className={styles.breadcrumb}>← My learning paths <span>/</span> Your roadmap</a>
@@ -197,5 +197,5 @@ export default async function PathPage({
       <div className={styles.layout}><aside className={styles.sidebar}><h2 className={styles.sideHeading}>The route <span>{String(totalStages).padStart(2,"0")} stages</span></h2><PathBoard stages={boardStages}/></aside><section className={styles.content} aria-label="Learning stages"><h2 className={styles.contentHeading}>Your next steps, laid out.</h2><p className={styles.contentIntro}>Learn the concepts. Apply them in the practice task. Mark the stage complete when you’re ready.</p><FilteredStageList viewerId={user.id} stages={stages ?? []} stageTimeline={stageTimelineRecord} path={path} myRatingByResource={myRatingByResource}/></section></div>
       <footer className={styles.disclosures}>{hiddenResources > 0 && <p>{hiddenResources} resources are temporarily hidden while their links or prices cannot be verified. Your progress is preserved.</p>}{(stages ?? []).some(stage => stage.stage_resources.some(({resources: resource}) => resource.signals?.price_unverified && !resource.signals?.already_owned)) && <p>Some regional prices could not be verified. Check your country in Settings and confirm those prices with the provider. Unverified amounts are excluded from the estimate. One Scrimba Pro subscription covers multiple eligible courses.</p>}<p>Costs use the last verified course prices and are planning estimates. Availability and prices may change; confirm with the provider before purchasing.</p>{billing.subscriptions.map(plan=><p key={plan.provider}>Scrimba Pro: {plan.periods} {plan.billing_interval === "year" ? "year(s), billed upfront" : "month(s)"} included, counted once across courses. Start access at the first paid stage; cancel renewal when finished.</p>)}{refreshed.some(resource=>courseLink(resource.url,resource.signals?.affiliate===true).affiliate)&&<p>Some course links are affiliate links. LearningMap may earn a commission if you purchase through them.</p>}</footer>
     </div>
-  </main>;
+  </div>;
 }

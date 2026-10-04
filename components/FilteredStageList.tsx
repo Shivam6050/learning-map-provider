@@ -6,6 +6,7 @@ import {StagePreparation} from "./StagePreparation";
 import {TopicChecklist} from "./TopicChecklist";
 import {resourceGuidance,resourcePurpose} from "@/lib/paths/resource-guidance";
 import {ProjectMilestones} from "./ProjectMilestones";
+import {stagePracticeBrief} from "@/lib/paths/practice-brief";
 import {CourseCoverage} from "./CourseCoverage";
 import type {RoadmapStage} from "@/lib/paths/stage";
 import { ActionButton } from "@/components/ActionButton";
@@ -139,6 +140,8 @@ export function FilteredStageList({
             const practiceCheck = progress?.practice_check as
               | { description?: string; user_submission?: string; submitted_at?: string }
               | undefined;
+
+            const challenge = stagePracticeBrief(stage.title, practiceCheck?.description, progress?.practice_check?.curriculum_ref);
 
             return (
               <li
@@ -281,6 +284,8 @@ export function FilteredStageList({
                                   : "text-slate-600 hover:text-amber-400 text-sm"
                               }
                               title={`Rate ${n} star${n > 1 ? "s" : ""}`}
+                              aria-label={`Rate ${resource.title}: ${n} star${n > 1 ? "s" : ""}`}
+                              aria-pressed={myRating === n}
                             >
                               ★
                             </button>
@@ -291,18 +296,18 @@ export function FilteredStageList({
                   </div>
                 ) : null}
 
-                {practiceCheck?.description && (
+                {challenge && (
                   <section className={styles.practice} aria-labelledby={`practice-${stage.id}`}>
                     <div className={styles.practiceHeader}>
                       <span className={styles.practiceIcon} aria-hidden="true"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3 9 5-9 5-9-5 9-5ZM3 12l9 5 9-5M3 16l9 5 9-5"/></svg></span>
                       <div><span className={styles.practiceEyebrow}>THE WORKSHOP · {String(stage.order_index + 1).padStart(2, "0")}</span><h3 id={`practice-${stage.id}`}>Put it into practice</h3></div>
-                      {practiceCheck.user_submission && <span className={styles.savedNote}>✓ Notes saved</span>}
+                      {practiceCheck?.user_submission && <span className={styles.savedNote}>✓ Notes saved</span>}
                     </div>
-                    <div className={styles.practiceBrief}><span className={styles.practiceLabel}>Your challenge</span><p>{practiceCheck.description}</p></div>
-                    {practiceCheck.user_submission && editingNoteStageId !== stage.id ? (
+                    <div className={styles.practiceBrief}><span className={styles.practiceLabel}>Your challenge</span><p>{challenge}</p></div>
+                    {practiceCheck?.user_submission && editingNoteStageId !== stage.id ? (
                       <div className={styles.practiceNotes}>
                         <div className={styles.notesHeading}><span className={styles.practiceLabel}>Your project notes</span><button type="button" onClick={() => setEditingNoteStageId(stage.id)}>Edit notes ↗</button></div>
-                        <p className={styles.savedText}>{practiceCheck.user_submission}</p>
+                        <p className={styles.savedText}>{practiceCheck?.user_submission}</p>
                       </div>
                     ) : (
                       <form onSubmit={(event) => {
@@ -321,7 +326,7 @@ export function FilteredStageList({
                         <input type="hidden" name="pathId" value={path.id} />
                         <label className={styles.practiceLabel} htmlFor={`project-note-${stage.id}`}>Your project notes</label>
                         <p className={styles.notesHint} id={`note-hint-${stage.id}`}>Capture what you built, what you learned, or a link to your work.</p>
-                        <textarea disabled={isPending} aria-busy={isPending} id={`project-note-${stage.id}`} aria-describedby={`note-hint-${stage.id}`} name="submissionNote" maxLength={10000} rows={4} defaultValue={practiceCheck.user_submission ?? ""} placeholder="What did you try? What would you improve next?" className={styles.practiceInput} />
+                        <textarea disabled={isPending} aria-busy={isPending} id={`project-note-${stage.id}`} aria-describedby={`note-hint-${stage.id}`} name="submissionNote" maxLength={10000} rows={4} defaultValue={practiceCheck?.user_submission ?? ""} placeholder="What did you try? What would you improve next?" className={styles.practiceInput} />
                         {noteErrors[stage.id] && <p role="alert" className="text-sm text-amber-200">{noteErrors[stage.id]}</p>}
                         <div className={styles.notesFooter}><span>A small step. Something you can show.</span><button type="submit" disabled={isPending} className={styles.saveNote}><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M6 3h12v18l-6-4-6 4V3Z"/></svg>{isPending ? "Saving…" : "Save project notes"}</button></div>
                       </form>

@@ -12,7 +12,7 @@ Both JSON URLs (`/api/public/catalog`, `/api/public/roadmap?field=backend-develo
 
 ## Release
 
-Apply `supabase/migrations/20261003125424_agent_access_keys.sql` before deploying. It is additive and rerunnable, with RLS and owner-only metadata reads, no authenticated client writes, and service-role-only issuance RPC. Keep `SUPABASE_SERVICE_ROLE_KEY` exclusively on the server; agents never receive it. No new provider account or paid service is required. If the migration/configuration is missing the integration fails closed.
+Apply `supabase/migrations/20261003125424_agent_access_keys.sql` before deploying. It is additive and rerunnable, with RLS and owner-only metadata reads, no authenticated client writes, and service-role-only issuance RPC. Keep `SUPABASE_SECRET_KEY` exclusively on the server; agents never receive it. No new provider account or paid service is required. If the migration/configuration is missing the integration fails closed.
 
 Run tests, lint and production build. SQL tests in `supabase/tests/agent_access_keys.sql` use a rolled-back transaction for owner isolation, hash confidentiality, write restrictions, per-owner caps and rollback verification. Real account sign-in/key creation should be smoke-tested after deployment. Set hosting firewall/rate limits on machine endpoints; no distributed rate limiter is claimed here. Bots that support OAuth only will need a later dedicated OAuth integration with database isolation before issuing Supabase login tokens.
 

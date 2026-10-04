@@ -31,6 +31,6 @@ jobs:
       - name: Build
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://build-only.invalid
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_build_only
-          SUPABASE_SERVICE_ROLE_KEY: sb_secret_build_only
+          SUPABASE_PUBLISHABLE_KEY: sb_publishable_build_only
+          SUPABASE_SECRET_KEY: sb_secret_build_only
         run: npm run build

@@ -40,7 +40,7 @@ export default async function OnboardingSelectPage({
   if (loadError) {
     // Use a full navigation so retry cannot reuse a prefetched failed response.
     const retryHref = selectionReturnPath(set ?? "", optionId, (purchased ?? "").split(","));
-    return <main className="mx-auto flex min-h-[60vh] max-w-xl items-center px-6 py-16">
+    return <div className="mx-auto flex min-h-[60vh] max-w-xl items-center px-6 py-16">
       <section role="alert" className="glass-card w-full rounded-3xl border border-slate-700 p-8">
         <p className="text-xs uppercase tracking-widest text-slate-400">Your learning routes</p>
         <h1 className="mt-3 font-serif text-3xl text-white">We couldn’t load your options</h1>
@@ -50,7 +50,7 @@ export default async function OnboardingSelectPage({
           <Link href="/dashboard" className="text-sm text-slate-300 underline">Go to dashboard</Link>
         </div>
       </section>
-    </main>;
+    </div>;
   }
 
   let resolvedFieldName = Array.isArray(row?.fields) ? row?.fields[0]?.name : (row?.fields as unknown as {name?:string;slug?:string}|null)?.name;
