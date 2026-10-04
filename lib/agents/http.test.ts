@@ -1,3 +1,4 @@
+vi.mock("server-only",()=>({}));
 import {afterEach,beforeEach,expect,it,vi} from "vitest";
 const authentication=vi.hoisted(()=>vi.fn());
 vi.mock("./keys",()=>({authenticateAgent:authentication}));

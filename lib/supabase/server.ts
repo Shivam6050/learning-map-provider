@@ -1,39 +1,10 @@
+import "server-only";
+import { getSupabaseConfig } from "@/lib/supabase/config";
 import type {SupabaseClient} from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { enforceMfa } from "@/lib/auth/mfa";
 import { authCookieOptions } from "@/lib/auth/cookie-options";
-
-function isValidUrl(urlString?: string) {
-  if (!urlString) return false;
-  try {
-    const parsed = new URL(urlString);
-    if (parsed.hostname.includes("your-project-ref") || parsed.hostname.includes("example.com")) {
-      return false;
-    }
-    return parsed.protocol === "http:" || parsed.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-
-function getSupabaseConfig() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const key =
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ??
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim();
-
-  if (
-    !isValidUrl(url) ||
-    !key ||
-    key.includes("your-anon") ||
-    key.includes("your-publishable") ||
-    key.includes("placeholder")
-  ) {
-    return { url: null, key: null };
-  }
-
-  return { url: url!, key };
-}
 
 function createFallbackClient() {
 
@@ -42,11 +13,11 @@ function createFallbackClient() {
       getUser: async () => ({ data: { user: null }, error: null }),
       signInWithPassword: async () => ({
         data: { user: null, session: null },
-        error: { message: "Supabase credentials are not configured in .env. Please set your real NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY." },
+        error: { message: "Sign-in is temporarily unavailable. Please try again later." },
       }),
       signUp: async () => ({
         data: { user: null, session: null },
-        error: { message: "Supabase credentials are not configured in .env. Please set your real NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY." },
+        error: { message: "Sign-in is temporarily unavailable. Please try again later." },
       }),
       signOut: async () => ({ error: null }),
     },
@@ -66,18 +37,18 @@ const fetchWithTimeout = (input: RequestInfo | URL, init?: RequestInit) => {
 
 /**
  * Supabase client for use in Server Components, Route Handlers, and
- * Server Actions. Uses the anon key + the user's session cookie — RLS
+ * Server Actions. Uses a server-held publishable key + the user's session cookie — RLS
  * still applies, this is NOT the service-role client.
  */
-export async function createClient():Promise<SupabaseClient> {
+export async function createClient(clientOptions: {allowMfaChallenge?:boolean; next?:string} = {}):Promise<SupabaseClient> {
   const cookieStore = await cookies();
-  const { url, key } = getSupabaseConfig();
+  const config = getSupabaseConfig();
 
-  if (!url || !key) {
+  if (!config) {
     return createFallbackClient() as unknown as SupabaseClient;
   }
 
-  return createServerClient(url, key, {
+  const client = createServerClient(config.url, config.key, {
     global: { fetch: fetchWithTimeout },
     cookies: {
       getAll() {
@@ -96,4 +67,19 @@ export async function createClient():Promise<SupabaseClient> {
       },
     },
   });
+  if (!clientOptions.allowMfaChallenge) {
+    const verifiedGetUser = client.auth.getUser.bind(client.auth);
+    client.auth.getUser = async (jwt?: string) => {
+      const result = await verifiedGetUser(jwt);
+      if (result.data.user && !result.error) {
+        let next = clientOptions.next;
+        if (!next && result.data.user.factors?.some(f => f.status === "verified")) {
+          next = (await headers()).get("x-learningmap-path") ?? "/dashboard";
+        }
+        await enforceMfa(client, result.data.user, next);
+      }
+      return result;
+    };
+  }
+  return client;
 }

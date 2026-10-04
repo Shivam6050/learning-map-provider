@@ -1,3 +1,4 @@
+import "server-only";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
 function isValidUrl(urlString?: string) {
@@ -22,7 +23,7 @@ function isValidUrl(urlString?: string) {
  * Component or anything that ships to the browser — the service-role
  * key must never reach client-side JavaScript.
  *
- * Requires SUPABASE_SERVICE_ROLE_KEY (no NEXT_PUBLIC_ prefix, so
+ * Requires SUPABASE_SECRET_KEY (no NEXT_PUBLIC_ prefix, so
  * Next.js will not bundle it into client code) in .env.
  */
 const fetchWithTimeout = (input: RequestInfo | URL, init?: RequestInit) => {
@@ -35,12 +36,12 @@ const fetchWithTimeout = (input: RequestInfo | URL, init?: RequestInit) => {
 };
 
 export function createServiceClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  const url = process.env.SUPABASE_URL?.trim() || process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const key = process.env.SUPABASE_SECRET_KEY?.trim();
 
   if (
     !isValidUrl(url) ||
-    !key ||
+    !key?.startsWith("sb_secret_") ||
     key.includes("your-service-role") ||
     key.includes("placeholder")
   ) {

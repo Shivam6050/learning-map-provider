@@ -307,7 +307,7 @@ provider in the Supabase dashboard if you want that sign-in option live.
 1. **Create a Supabase project**, run `supabase/schema.sql`, then every
    file in `supabase/migrations/` in order.
 2. **Get API keys:**
-   - Supabase: Settings → API → Project URL, `anon` key, `service_role` key
+   - Supabase: Settings > API Keys > Project URL, a fresh server-held publishable key, and a secret key for trusted jobs
    - Gemini: aistudio.google.com → API key
    - YouTube: Google Cloud Console → enable "YouTube Data API v3" → Credentials
 3. **Set environment variables** — copy `.env.example` to
@@ -325,9 +325,9 @@ provider in the Supabase dashboard if you want that sign-in option live.
 ## Deploying
 
 Push to GitHub, import into Vercel, add the same environment variables
-in Vercel's project settings. `NEXT_PUBLIC_SUPABASE_URL` and
-`NEXT_PUBLIC_SUPABASE_ANON_KEY` are safe client-side.
-`SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`, and `YOUTUBE_API_KEY` must
+in Vercel's project settings. `SUPABASE_PUBLISHABLE_KEY` and `SUPABASE_SECRET_KEY` must remain server-only.
+Only the project URL may use a `NEXT_PUBLIC_` name.
+`SUPABASE_SECRET_KEY`, `GEMINI_API_KEY`, and `YOUTUBE_API_KEY` must
 only ever be server-side env vars.
 
 ## Known limitations (by design, not bugs)
@@ -354,4 +354,29 @@ upgrade.
 
 ### Private user data boundaries
 
-Apply the private_user_boundaries migration after earlier migrations. Profiles are owner-readable (including curator accounts); only display_name and avatar_id are client-editable. Trusted backend jobs retain their service-role permissions. Test supabase/tests/private_user_boundaries.sql and supabase/tests/agent_access_keys.sql using the Supabase CLI db query command. Both use isolated fixtures and roll back all test changes. Session cookies are server-only; the OAuth PKCE verifier remains browser-readable for Google sign-in. Re-sign in after deployment to replace older session cookies.
+Apply the private_user_boundaries migration after earlier migrations. Profiles are owner-readable (including curator accounts); only display_name and avatar_id are client-editable. Trusted backend jobs retain their service-role permissions. Test supabase/tests/private_user_boundaries.sql and supabase/tests/agent_access_keys.sql using the Supabase CLI db query command. Both use isolated fixtures and roll back all test changes. Session cookies and OAuth PKCE verifiers are HTTP-only; Google sign-in starts in a server action. Re-sign in after deployment to replace older session cookies.
+
+### Free authenticator MFA and password screening
+
+Apply optional_totp_mfa_boundaries after private_user_boundaries. Supabase TOTP enrollment and verification must be enabled in your Supabase project. This project’s TOTP enrollment and verification are enabled. No paid plan, SMS provider, API key or new environment variable is needed. Users opt in at Settings > Sign-in security, confirm a code before activation and can add a backup authenticator. Removing a device requires a fresh code from an owned verified device. Password recovery does not disable MFA; recovery after losing all factors is a manual operator identity-verification process, not an implemented automatic email bypass.
+
+Private tables retain owner policies and also require AAL2 whenever the owner has a verified factor. This uses live auth.mfa_factors, not editable metadata or only stale JWT factor lists. The private helper reveals only the caller's allowed status, takes no user ID parameter and is not in the exposed API schema. Service-role jobs remain privileged and must use the default server client's getUser guard before acting for a user. The only allowMfaChallenge callers are the challenge flow and shared render context; the latter hides account details at AAL1, and the dashboard redirects to the challenge before reading private data.
+
+Signup and authenticated password-reset actions check completed passwords through Have I Been Pwned's free padded range API. Only a five-character SHA-1 prefix is sent; SHA-1 is a lookup format, never the password-storage scheme. Failed, malformed, timed-out or oversized responses block password creation/replacement with a retry message. Login and path generation do not use this service. This is application-level screening. The server-only API credential boundary below must also be deployed and exposed keys retired to prevent direct Supabase Auth password requests from bypassing it. Supabase's built-in leaked-password advisor warning remains on a free project because this does not enable its paid provider feature. No hashes/passwords/provider response bodies are logged or stored by the checker.
+
+Regression checks: supabase/tests/optional_totp_mfa_boundaries.sql rolls back synthetic factor fixtures and tests old AAL1 tokens, unenrolled accounts, verified AAL2 access and ownership. Run npm test and npm run build before deploying. Deploy the application code alongside these policies so enrolled users can reach /auth/mfa.
+
+
+### Free server-only authentication boundary
+
+All LearningMap Supabase calls execute on the server. User clients use a publishable key with the user's session, preserving ownership RLS and optional TOTP MFA; only trusted jobs use a secret key. Google sign-in is a same-origin server action that stores an HTTP-only PKCE verifier and redirects to Supabase's public OAuth authorization endpoint without an API key. There is no browser Supabase client or generic Auth proxy. Signup and password replacement still run the fail-closed Have I Been Pwned check.
+
+Complete these steps in order; changing environment variable names alone does not close the old direct-API bypass:
+
+1. In Supabase Settings > API Keys, create a **new** publishable key for LearningMap's server and a secret key for trusted jobs. Save `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, and `SUPABASE_URL` in private `.env` and Vercel. Never give either key a `NEXT_PUBLIC_` prefix. Do not reuse a key previously exposed in browser bundles. No fallback to legacy/public credentials is allowed.
+2. Deploy this version before disabling anything. Verify email/password sign-in, Google PKCE callback, password recovery, MFA and a protected job. Pending email/Google flows from the old build may need to be restarted; existing user accounts and MFA factors are retained.
+3. Confirm no HTML, RSC response, browser JavaScript, source map, action response, OAuth redirect or other integration exposes an active project key. Remove obsolete public-key variables from Vercel and local `.env`. Public integration/MCP responses must never distribute Supabase keys.
+4. Revoke **every** publishable key that was exposed, including default keys if they were used publicly. Disable legacy `anon` and `service_role` API keys in Supabase after migrating all jobs and integrations. Do not rotate user JWT signing keys just to disable legacy API keys. Key creation and deployment do not revoke old keys automatically. Old deployments may still contain old keys; those keys must be invalidated too.
+5. Run `node --env-file=.env scripts/check-auth-boundary.mjs`. Set `AUTH_BOUNDARY_USER_JWT` temporarily to a synthetic account's valid access token to additionally test user-JWT substitution; `AUTH_BOUNDARY_RETIRED_KEY` can test one old key. Never commit those values. The check sends no emails, creates no accounts and changes no passwords. It must pass after retirement; a failure means the restriction is not complete. Then verify legitimate app flows again.
+
+Treat the new server-held publishable key as a private application credential even though its provider role is low privilege. Anyone who obtains an active project key can call provider endpoints directly, so protect deployments and other integrations as well as browser output. RLS and MFA remain independent data protections. This boundary does not screen existing passwords, operator/admin changes made outside LearningMap, or revoke previously established attacker sessions; it controls the app's supported password-writing paths. This is not a claim that the website is unhackable.

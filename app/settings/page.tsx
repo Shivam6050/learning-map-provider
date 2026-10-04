@@ -55,6 +55,7 @@ export default async function SettingsPage({
           <a href="#region"><span>02</span> Learning region</a>
           <a href="#account"><span>03</span> Account management</a>
           <Link href="/settings/agents"><span>04</span> Agent access</Link>
+          <Link href="/settings/security"><span>05</span> Sign-in security</Link>
         </nav>
         <div className={styles.identity}><span>SIGNED IN AS</span><p>{user.email}</p><small>Your email is used to sign in to LearningMap.</small></div>
       </aside>
@@ -80,6 +81,7 @@ export default async function SettingsPage({
           {contactVerificationEnabled() && <Link href="/verify-contact" className={styles.verify}>Verify contact details →</Link>}
         </section>
         <section className={styles.card}><h2>Learning reminders</h2><form action={updateReminderPreference} className={styles.form}><label><input type="checkbox" name="weeklyReminders" defaultChecked={user.user_metadata?.weekly_reminders !== false}/> Send me a reminder when I have not studied for a week</label><button className={styles.regionButton}>Save reminder preference</button></form></section>
+        <section className={styles.card}><div className={styles.sectionHeading}><span>05</span><div><h2>Another layer of protection.</h2><p>Use a free authenticator app to protect your account. No SMS required.</p></div></div><Link href="/settings/security" className={styles.verify}>Manage two-step verification →</Link></section>
         <section id="account" className={styles.account} aria-labelledby="account-title">
           <div className={styles.sectionHeading}><span>03</span><div><h2 id="account-title">Account management</h2><p>You’re in control of your account and your data.</p></div></div>
           <details className={styles.delete}><summary>Delete your account</summary><p>This permanently deletes your account, saved roadmaps and progress history. This action cannot be undone.</p><DeleteAccountForm/></details>

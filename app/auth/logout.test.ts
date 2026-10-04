@@ -1,3 +1,4 @@
+vi.mock("@/lib/auth/breached-password",()=>({screenPassword:vi.fn(),passwordScreenMessage:vi.fn()}));
 import {beforeEach,expect,it,vi} from "vitest";
 const m=vi.hoisted(()=>({signOut:vi.fn(),remove:vi.fn(),revalidate:vi.fn()}));
 vi.mock("@/lib/supabase/server",()=>({createClient:async()=>({auth:{signOut:m.signOut}})}));

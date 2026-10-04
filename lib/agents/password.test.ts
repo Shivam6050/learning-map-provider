@@ -4,13 +4,13 @@ vi.mock("server-only",()=>({}));
 vi.mock("@supabase/supabase-js",()=>({createClient:auth.create}));
 import {verifyAgentPassword} from "./password";
 beforeEach(()=>{
- vi.clearAllMocks();vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL","https://project.supabase.co");vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY","publishable");
+ vi.clearAllMocks();vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL","https://project.supabase.co");vi.stubEnv("SUPABASE_PUBLISHABLE_KEY","sb_publishable_test");
  auth.create.mockReturnValue({auth:{signInWithPassword:auth.signIn,signOut:auth.signOut}});
  auth.signIn.mockResolvedValue({data:{user:{id:"owner",email_confirmed_at:"yes"},session:{access_token:"temporary"}},error:null});auth.signOut.mockResolvedValue({error:null});
 });
 it("isolates password verification from cookie storage and revokes only its temporary session",async()=>{
  expect(await verifyAgentPassword("owner","owner@example.invalid","secret")).toBe("verified");
- expect(auth.create).toHaveBeenCalledWith("https://project.supabase.co","publishable",expect.objectContaining({auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}}));
+ expect(auth.create).toHaveBeenCalledWith("https://project.supabase.co","sb_publishable_test",expect.objectContaining({auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}}));
  expect(auth.signIn).toHaveBeenCalledWith({email:"owner@example.invalid",password:"secret"});expect(auth.signOut).toHaveBeenCalledWith({scope:"local"});
 });
 it.each([{id:"other",email_confirmed_at:"yes"},{id:"owner",email_confirmed_at:null},{id:"owner",email_confirmed_at:"yes",is_anonymous:true}])("rejects a mismatched or unverified password identity",async user=>{

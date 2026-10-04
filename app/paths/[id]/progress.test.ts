@@ -1,3 +1,4 @@
+vi.mock("server-only",()=>({}));
 import {it,expect,vi,beforeEach} from "vitest";
 const state=vi.hoisted(()=>({owned:true,upsert:vi.fn()}));
 vi.mock("@/lib/supabase/server",()=>({createClient:async()=>({auth:{getUser:async()=>({data:{user:{id:"owner",user_metadata:{country_of_residence:"IN"}}}})},from:()=>{const q={select:()=>q,eq:()=>q,maybeSingle:async()=>({data:state.owned?{id:"stage"}:null,error:null}),upsert:(v:unknown)=>{state.upsert(v);return q;},single:async()=>({data:{stage_id:"stage"},error:null})};return q;}})}));

@@ -29,7 +29,8 @@ export default async function RootLayout({
   const savedCurrency = (await cookies()).get(CURRENCY_COOKIE)?.value;
 
 
-  const { auth: { data: { user } } } = await getRenderContext();
+  const { auth, mfaRequired } = await getRenderContext();
+  const user = mfaRequired ? null : auth.data.user;
 
   // Public/auth pages contain no personal course prices. Do not block them on FX services.
   const rateEntriesPromise = user

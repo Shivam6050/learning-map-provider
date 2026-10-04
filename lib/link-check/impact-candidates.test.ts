@@ -1,3 +1,4 @@
+vi.mock("server-only",()=>({}));
 import { describe, it, expect, vi } from "vitest";
 import { prepareCandidates } from "./prepare-candidates";
 import type { DiscoveredResource } from "@/lib/youtube/discover";

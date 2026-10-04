@@ -1,6 +1,7 @@
+vi.mock("@/lib/auth/breached-password",()=>({screenPassword:vi.fn(),passwordScreenMessage:vi.fn()}));
 import {beforeEach, expect, it, vi} from "vitest";
 const m=vi.hoisted(()=>({signIn:vi.fn(),revalidate:vi.fn()}));
-vi.mock("@/lib/supabase/server",()=>({createClient:async()=>({auth:{signInWithPassword:m.signIn}})}));
+vi.mock("@/lib/supabase/server",()=>({createClient:async()=>({auth:{signInWithPassword:m.signIn,getUser:async()=>({data:{user:{id:"learner"}},error:null})}})}));
 vi.mock("next/navigation",()=>({redirect:(url:string)=>{throw new Error("redirect:"+url)}}));
 vi.mock("next/cache",()=>({revalidatePath:m.revalidate}));
 import {login} from "./actions";

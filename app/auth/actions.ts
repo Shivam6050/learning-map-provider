@@ -11,6 +11,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getSiteUrl } from "@/lib/site";
 import { AVATAR_OPTIONS } from "@/lib/profile/avatars";
+import { screenPassword, passwordScreenMessage } from "@/lib/auth/breached-password";
 
 export async function signup(formData: FormData) {
   const supabase = await createClient();
@@ -36,6 +37,8 @@ export async function signup(formData: FormData) {
   if (!displayName || displayName.length > 100) {
     redirect("/signup?error=Name must be between 1 and 100 characters");
   }
+  const screen = await screenPassword(password);
+  if (screen !== "safe") redirect("/signup?" + new URLSearchParams({error:passwordScreenMessage(screen)}));
   const avatarId = AVATAR_OPTIONS.some((a) => a.id === rawAvatarId) ? rawAvatarId : "fox";
 
   let errorMessage: string | null = null;
@@ -86,7 +89,7 @@ export async function signup(formData: FormData) {
 
 export async function login(formData: FormData) {
   const next = safeRedirectPath(String(formData.get("next") ?? "/dashboard"));
-  const supabase = await createClient();
+  const supabase = await createClient({next});
 
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
@@ -129,6 +132,8 @@ export async function login(formData: FormData) {
     redirect(`/login?${new URLSearchParams({ error: errorMessage, next }).toString()}`);
   }
 
+  // Both the session and live verified factors are checked before continuing.
+  await supabase.auth.getUser();
   revalidatePath("/", "layout");
   redirect(next);
 }
@@ -168,6 +173,10 @@ export async function updatePasswordAfterReset(formData: FormData) {
     redirect("/reset-password?error=Password must be between 8 and 128 characters");
   }
 
+  const {data:{user}} = await supabase.auth.getUser();
+  if (!user) redirect("/login?error=Open%20a%20valid%20password-reset%20link%20first.");
+  const screen = await screenPassword(password);
+  if (screen !== "safe") redirect("/reset-password?" + new URLSearchParams({error:passwordScreenMessage(screen)}));
   // Requires the recovery session established by /auth/callback after
   // the emailed link's code exchange — if that didn't happen, this
   // fails naturally rather than needing a separate check here.

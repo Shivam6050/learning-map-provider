@@ -1,3 +1,4 @@
+import { getSupabaseConfig } from "@/lib/supabase/config";
 import { authCookieOptions } from "@/lib/auth/cookie-options";
 import { contentSecurityPolicy } from "@/lib/security/content-security-policy";
 import { createServerClient } from "@supabase/ssr";
@@ -5,22 +6,11 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const PROTECTED_PREFIXES = ["/dashboard"];
 
-function isValidUrl(urlString?: string) {
-  if (!urlString) return false;
-  try {
-    const parsed = new URL(urlString);
-    if (parsed.hostname.includes("your-project-ref") || parsed.hostname.includes("example.com")) {
-      return false;
-    }
-    return parsed.protocol === "http:" || parsed.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-
 export async function proxy(request: NextRequest) {
   // Machine routes use their own scoped-key guard; never refresh browser sessions here.
   if (["/mcp", "/api/public/catalog", "/api/public/roadmap", "/llms.txt", "/robots.txt", "/sitemap.xml"].includes(request.nextUrl.pathname)) return NextResponse.next();
+  // Overwrite the caller's value; server guards use this only for a safe return path.
+  request.headers.set("x-learningmap-path", request.nextUrl.pathname + request.nextUrl.search);
   const isPage = !request.nextUrl.pathname.startsWith("/api/");
   const policy = isPage ? contentSecurityPolicy(
     Buffer.from(crypto.randomUUID()).toString("base64"),
@@ -56,21 +46,8 @@ export async function proxy(request: NextRequest) {
     return secure(redirect);
   }
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const key =
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ??
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim();
-
-  // If Supabase credentials are missing or placeholders, bypass proxy auth refresh instantly
-  if (
-    !isValidUrl(url) ||
-    !key ||
-    key.includes("your-anon") ||
-    key.includes("your-publishable") ||
-    key.includes("placeholder")
-  ) {
-    return response;
-  }
+  const config = getSupabaseConfig();
+  if (!config) return response;
 
   try {
     const fetchWithTimeout = (input: RequestInfo | URL, init?: RequestInit) => {
@@ -82,7 +59,7 @@ export async function proxy(request: NextRequest) {
       }).finally(() => clearTimeout(timeoutId));
     };
 
-    const supabase = createServerClient(url!, key, {
+    const supabase = createServerClient(config.url, config.key, {
       global: { fetch: fetchWithTimeout },
       cookies: {
         getAll() {

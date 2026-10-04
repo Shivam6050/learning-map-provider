@@ -40,7 +40,12 @@ export default function PrivacyPage() {
             </p>
           </section>
           <section>
-            <h2 className="text-lg font-bold text-white">5. Google Calendar</h2>
+            <h2 className="text-lg font-bold text-white">5. Sign-in Security</h2>
+            <p className="mt-1 text-slate-400">Optional authenticator MFA is managed by Supabase Auth. Verified accounts must complete their second step before accessing private LearningMap data. Setup keys are shown only during enrollment; keep them private and maintain a backup authenticator. Password resets do not disable MFA.</p>
+            <p className="mt-2 text-slate-400">For passwords submitted through our signup and reset forms, our server checks Have I Been Pwned’s Pwned Passwords service using only the first five characters of a SHA-1 hash, with padded responses. We do not send your password, full hash or email, or log these checks. SHA-1 is used only for this lookup; Supabase Auth remains responsible for password storage. LearningMap performs password operations on the server; its project credentials are not provided to the browser.</p>
+          </section>
+          <section>
+            <h2 className="text-lg font-bold text-white">6. Google Calendar</h2>
             <p className="mt-1 text-slate-400">Connecting Google Calendar is optional and separate from signing in. With your permission, LearningMap creates timed study sessions in your primary Google calendar when you select Add sessions. We send Google the learning field, stage title and description, session times, time zone, and identifiers used to prevent duplicate imports. When retrying an import, we read the matching event to confirm it belongs to that roadmap. We do not scan your calendar for unrelated events.</p>
             <p className="mt-2 text-slate-400">The requested permission allows access to events on calendars you own. Our implementation uses it only for the study schedule you request. Your Google access token is kept in an encrypted, HTTP-only connection cookie for at most one hour. We do not store a refresh token or provide ongoing calendar sync.</p>
             <p className="mt-2 text-slate-400">Google Calendar data is not sent to Gemini, used to train AI models, sold, or used for advertising. LearningMap’s use and transfer of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy" className="underline">Google API Services User Data Policy</a>, including its Limited Use requirements.</p>

@@ -1,3 +1,4 @@
+vi.mock("server-only",()=>({}));
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { fetchUdemyApiPrice, fetchRealtimePrice } from "./price-fetcher";
 

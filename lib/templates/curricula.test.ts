@@ -1,4 +1,5 @@
-import {it,expect} from "vitest";
+vi.mock("server-only",()=>({}));
+import {it,expect,vi} from "vitest";
 import {templateBlueprints} from "./blueprints";
 it("covers every field and level with distinct curricula and resource candidates",()=>{
  const plans=templateBlueprints();expect(plans).toHaveLength(18);

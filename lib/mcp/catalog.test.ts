@@ -1,3 +1,4 @@
+vi.mock("server-only",()=>({}));
 import { expect, it, vi } from "vitest";
 vi.mock("@/lib/agents/keys", () => ({authenticateAgent:vi.fn(async()=>({status:"authorized",userId:"owner"}))}));
 import { GET as catalog } from "@/app/api/public/catalog/route";

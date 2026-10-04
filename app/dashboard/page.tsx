@@ -22,7 +22,8 @@ type StoredPath = {
 };
 
 export default async function DashboardPage() {
-  const { supabase, auth } = await getRenderContext();
+  const { supabase, auth, mfaRequired } = await getRenderContext();
+  if (mfaRequired) redirect("/auth/mfa?next=%2Fdashboard");
   const { data: { user } } = await getLearningUser({ auth: { getUser: async () => auth } });
   if (!user) redirect("/login?redirectedFrom=/dashboard");
 

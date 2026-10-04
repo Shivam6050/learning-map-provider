@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useActionState } from "react";
+import { googleSignIn } from "@/app/auth/google";
 
 interface GoogleSignInButtonProps {
   nextParam?: string;
@@ -8,47 +9,12 @@ interface GoogleSignInButtonProps {
 }
 
 export function GoogleSignInButton({ nextParam, className }: GoogleSignInButtonProps) {
-  const [loading, setLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  const handleClick = async () => {
-    if (loading) return;
-    setLoading(true);
-    setErrorMessage(null);
-
-    try {
-      const targetNext = nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : "/dashboard";
-      const { createClient } = await import("@/lib/supabase/client");
-      const supabase = createClient();
-      const origin = typeof window !== "undefined" ? window.location.origin : "";
-      const redirectUrl = `${origin}/auth/callback?next=${encodeURIComponent(targetNext)}`;
-
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: redirectUrl,
-          queryParams: {
-            access_type: "offline",
-            prompt: "consent",
-          },
-        },
-      });
-
-      if (error) {
-        setErrorMessage(error.message || "Google sign-in is unavailable. Please try again.");
-        setLoading(false);
-      }
-    } catch (err: unknown) {
-      setErrorMessage(err instanceof Error ? err.message : "Could not connect to Google. Please try again.");
-      setLoading(false);
-    }
-  };
-
+  const [state, action, loading] = useActionState(googleSignIn, null);
   return (
-    <>
+    <form action={action}>
+    <input type="hidden" name="next" value={nextParam ?? "/dashboard"}/>
     <button
-      type="button"
-      onClick={handleClick}
+      type="submit"
       disabled={loading}
       className={className ?? "flex w-full items-center justify-center gap-3 rounded-xl border border-slate-700 bg-slate-900/90 px-4 py-3 text-sm font-semibold text-slate-100 transition hover:border-slate-500 hover:bg-slate-800 shadow-md disabled:opacity-60 disabled:cursor-not-allowed"}
     >
@@ -84,7 +50,7 @@ export function GoogleSignInButton({ nextParam, className }: GoogleSignInButtonP
         </>
       )}
     </button>
-    {errorMessage && <p role="alert" style={{marginTop:12,fontSize:12,lineHeight:1.6,color:className ? "#8c3627" : "#fca5a5"}}>{errorMessage}</p>}
-    </>
+    {state?.error && <p role="alert" style={{marginTop:12,fontSize:12,lineHeight:1.6,color:className ? "#8c3627" : "#fca5a5"}}>{state.error}</p>}
+    </form>
   );
 }

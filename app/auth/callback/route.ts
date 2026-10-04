@@ -20,9 +20,11 @@ export async function GET(request: Request) {
   }
 
   if (code) {
-    const supabase = await createClient();
+    const supabase = await createClient({next:safeNext});
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      // Google, email confirmation and password recovery use the same MFA boundary.
+      await supabase.auth.getUser();
       if (data.user && !validCountry(data.user.user_metadata?.country_of_residence)) {
         return NextResponse.redirect(`${origin}/complete-profile?next=${encodeURIComponent(safeNext)}`);
       }

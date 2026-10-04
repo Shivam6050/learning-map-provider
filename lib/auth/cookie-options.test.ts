@@ -5,9 +5,9 @@ it.each(["sb-project-auth-token", "sb-project-auth-token.0", "sb-project-auth-to
  vi.stubEnv("NODE_ENV", "production");
  expect(authCookieOptions(name,{httpOnly:false,secure:false,sameSite:"none",path:"/",maxAge:3600})).toEqual({httpOnly:true,secure:true,sameSite:"lax",path:"/",maxAge:3600});
 });
-it.each(["sb-project-auth-token-code-verifier","sb-project-auth-token-code-verifier.0"])("preserves browser OAuth PKCE storage for %s",name=>{
+it.each(["sb-project-auth-token-code-verifier","sb-project-auth-token-code-verifier.0"])("protects server-created OAuth PKCE storage for %s",name=>{
  vi.stubEnv("NODE_ENV","production");
- expect(authCookieOptions(name,{})).toMatchObject({httpOnly:false,secure:true,sameSite:"lax"});
+ expect(authCookieOptions(name,{})).toMatchObject({httpOnly:true,secure:true,sameSite:"lax"});
 });
 it("preserves cookie deletion and does not require HTTPS for local development",()=>{
  vi.stubEnv("NODE_ENV","development");

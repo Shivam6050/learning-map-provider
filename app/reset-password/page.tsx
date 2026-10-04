@@ -16,10 +16,10 @@ export default async function ResetPasswordPage({ searchParams }: {
     <form action={updatePasswordAfterReset} className={styles.form}>
       <div><label htmlFor="password">New password</label>
         <PasswordField signup />
-        <p id="password-help" className={styles.hint}>Use 8–128 characters. A unique passphrase is easier to remember and harder to guess.</p>
+        <p id="password-help" className={styles.hint}>Use 8–128 characters. Choose a unique passphrase; we check it against known breaches.</p>
       </div>
       <AuthSubmit label="Save password & continue" pendingLabel="Saving your password…" />
-    </form>
+    </form><p className={styles.hint}>Password safety checks powered by <a href="https://haveibeenpwned.com/Passwords" target="_blank" rel="noreferrer">Have I Been Pwned</a>. We never send your password.</p>
     <div className={styles.recoveryHelp}>
       <h2>Link expired?</h2>
       <p>Request a fresh reset link and open the most recent email.</p>

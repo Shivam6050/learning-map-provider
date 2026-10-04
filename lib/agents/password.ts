@@ -1,13 +1,13 @@
 import "server-only";
+import { getSupabaseConfig } from "@/lib/supabase/config";
 import { createClient } from "@supabase/supabase-js";
 
 /** Check the owner's password without replacing their browser session. */
 export async function verifyAgentPassword(userId: string, email: string, password: string): Promise<"verified" | "invalid" | "unavailable"> {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim();
-  if (!url || !key) return "unavailable";
+  const config = getSupabaseConfig();
+  if (!config) return "unavailable";
   try {
-    const client = createClient(url, key, {
+    const client = createClient(config.url, config.key, {
       auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
       global: { fetch: (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(15000) }) },
     });

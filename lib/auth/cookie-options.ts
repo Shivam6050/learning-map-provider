@@ -1,13 +1,10 @@
 import type { CookieOptions } from "@supabase/ssr";
 
-/**
- * Session access is server-side. OAuth's browser-created PKCE verifier must
- * remain readable until the callback exchanges it; it is not a session token.
- */
-export function authCookieOptions(name: string, options: CookieOptions): CookieOptions {
+/** Session and PKCE storage are read only by the server. */
+export function authCookieOptions(_name: string, options: CookieOptions): CookieOptions {
   return {
     ...options,
-    httpOnly: !/-code-verifier(?:\.\d+)?$/.test(name),
+    httpOnly: true,
     secure: process.env.NODE_ENV === "production" || options.secure === true,
     sameSite: "lax",
     path: "/",

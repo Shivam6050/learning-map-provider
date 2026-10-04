@@ -1,3 +1,5 @@
+import "server-only";
+vi.mock("server-only",()=>({}));
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 const { getUser, cookieHooks } = vi.hoisted(() => ({ getUser: vi.fn(), cookieHooks: { setAll: null as null | ((cookies: {name:string;value:string;options:Record<string,unknown>}[], headers?: Record<string,string>) => void) } }));
@@ -5,7 +7,7 @@ vi.mock("@supabase/ssr", () => ({ createServerClient: (...args: unknown[]) => { 
 import { proxy } from "./proxy";
 beforeEach(() => {
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://test-project.supabase.co");
-  vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "test-key");
+  vi.stubEnv("SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test-key");
   getUser.mockReset();
 });
 afterEach(() => { vi.unstubAllEnvs(); vi.useRealTimers(); });
