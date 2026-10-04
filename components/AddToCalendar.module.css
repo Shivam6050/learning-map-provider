@@ -7,3 +7,5 @@
 .schedule{display:flex;flex-wrap:wrap;gap:14px;margin:18px 0;font-size:12px}.schedule>label{flex:1}.schedule input[type=date],.schedule input[type=time]{display:block;padding:10px;background:#233c2e;color:#edf1e5;border:1px solid #53694d;border-radius:8px;width:100%;margin-top:6px;color-scheme:dark}.schedule fieldset{width:100%;display:flex;flex-wrap:wrap;gap:12px}.schedule legend{margin-bottom:8px}.schedule fieldset label{display:flex;gap:4px}
 
 .validation{color:#f0d29a;font-size:13px;line-height:1.6;margin:12px 0}.download:disabled{opacity:.55;cursor:not-allowed}
+
+.providers button:disabled{opacity:.65;cursor:not-allowed}
