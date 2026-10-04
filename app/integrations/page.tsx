@@ -1,7 +1,7 @@
-import type { Metadata } from "next";
+import { publicPageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { getSiteUrl } from "@/lib/site";
-export const metadata: Metadata = { title: "Connect your assistant | LearningMap", description: "Connect an assistant after signing in and creating a scoped LearningMap agent key." };
+export const metadata = publicPageMetadata("/integrations", "Connect your assistant | LearningMap", "Connect an MCP-compatible assistant after signing in and creating a scoped LearningMap agent key.");
 export default function IntegrationsPage() {
   const endpoint = getSiteUrl() + "/mcp";
   return <div className="mx-auto max-w-4xl px-5 py-16 sm:px-8">

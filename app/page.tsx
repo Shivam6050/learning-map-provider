@@ -2,17 +2,27 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { FIELD_CATALOG } from "@/lib/fields/catalog";
+import { publicPageMetadata } from "@/lib/seo";
+import { getSiteUrl } from "@/lib/site";
+import { JsonLd } from "@/components/JsonLd";
+
+export const metadata = publicPageMetadata("/", "LearningMap | Personalized Learning Roadmaps & Courses",
+  "Build a learning roadmap for frontend, backend, full-stack, AI, data science or DevOps. Find courses and practice projects for your level, time and budget.");
 
 export default async function Home() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (user) redirect("/dashboard");
   return <div className="atlas-home">
+    <JsonLd data={{ "@context": "https://schema.org", "@graph": [
+      { "@type": "Organization", "@id": getSiteUrl() + "/#organization", name: "LearningMap", url: getSiteUrl() },
+      { "@type": "WebSite", "@id": getSiteUrl() + "/#website", name: "LearningMap", alternateName: "Learning Map", url: getSiteUrl(), publisher: { "@id": getSiteUrl() + "/#organization" } },
+    ] }} />
     <section className="atlas-hero">
       <div className="atlas-intro">
-        <p className="atlas-eyebrow">A little direction. A lot of possibility.</p>
-        <h1>Your next chapter<br/>starts with<br/><em>a clear path.</em></h1>
-        <p className="atlas-description">Turn “I want to learn” into “I know what’s next.” Find a learning route that fits your starting point, your week, and your budget.</p>
+        <p className="atlas-eyebrow">Personalized learning roadmaps</p>
+        <h1>Your learning journey<br/>starts with<br/><em>a clear roadmap.</em></h1>
+        <p className="atlas-description">Learn frontend, backend, full-stack development and more with a path built around you. Find courses, practise skills and build projects at your level, pace and budget.</p>
         <div className="atlas-actions"><Link className="atlas-button" href="/onboarding">Find my learning path <span aria-hidden="true">↗</span></Link><a href="#explore" className="atlas-text-link">Explore the fields ↓</a></div>
         <p className="atlas-footnote">Start from scratch. Build on what you know. Go deeper.</p>
       </div>
@@ -32,7 +42,7 @@ export default async function Home() {
       {[['01','Start where you are','Choose your level, or take a short field-specific quiz to find your starting point.'],['02','Choose your pace','Set your weekly hours and spending limit. Compare different ways to reach your goal.'],['03','Keep moving forward','Follow clear milestones, practise each skill, and see your progress build.']].map(([n,t,d])=><article key={n}><span>{n}</span><h2>{t}</h2><p>{d}</p></article>)}
     </section>
     <section className="atlas-explore" id="explore"><div className="atlas-section-heading"><div><p className="atlas-eyebrow">PICK A DIRECTION</p><h2>What will you learn next?</h2></div><p>Six fields. Your own way forward.</p></div>
-      <div className="atlas-fields">{FIELD_CATALOG.map((field,i)=><Link key={field.slug} href={'/onboarding?field='+field.slug}><span className="atlas-field-number">0{i+1}</span><h3>{field.name}</h3><p>Learning paths · Skill assessment</p><span className="atlas-field-arrow" aria-hidden="true">↗</span></Link>)}</div>
+      <div className="atlas-fields">{FIELD_CATALOG.map((field,i)=><Link key={field.slug} href={'/roadmaps/'+field.slug}><span className="atlas-field-number">0{i+1}</span><h3>{field.name}</h3><p>Roadmap guide · Topics & projects</p><span className="atlas-field-arrow" aria-hidden="true">↗</span></Link>)}</div>
     </section>
     <section className="atlas-note"><span aria-hidden="true">✳</span><div><h2>A plan that respects your budget.</h2><p>Free resources are always an option. Paid courses enter your plan only when we can obtain a price; estimates may differ from the provider’s final checkout.</p></div><Link className="atlas-text-link" href="/onboarding">Set my budget ↗</Link></section>
   </div>;

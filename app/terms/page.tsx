@@ -1,3 +1,7 @@
+import { publicPageMetadata } from "@/lib/seo";
+
+export const metadata = publicPageMetadata("/terms", "Terms of Service | LearningMap", "Read the terms for LearningMap learning roadmaps, course recommendations and third-party integrations.");
+
 export default function TermsPage() {
   return (
     <div className="relative min-h-[calc(100vh-64px)] bg-slate-950 text-slate-100 bg-grid-pattern py-16">

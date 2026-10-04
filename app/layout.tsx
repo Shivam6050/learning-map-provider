@@ -6,6 +6,7 @@ import { CurrencyProvider, CurrencySwitcher } from "@/components/CurrencyProvide
 import { CURRENCIES, CURRENCY_COOKIE, isCurrency } from "@/lib/currency/format";
 import { getConversionRate } from "@/lib/currency/convert";
 import type { Metadata } from "next";
+import { getSiteUrl } from "@/lib/site";
 import { IntentLink as Link } from "@/components/IntentLink";
 import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
@@ -17,8 +18,9 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-serif" });
 
 export const metadata: Metadata = {
-  title: "Learning Map — AI-Powered Personalized Roadmaps",
-  description: "Curate your perfect learning path from zero to expert with AI-driven milestones, budget-aware YouTube/Web resources, and progress tracking.",
+  metadataBase: new URL(getSiteUrl()),
+  title: "LearningMap | Personalized Learning Roadmaps & Courses",
+  description: "Find a learning roadmap for your level, weekly study time and budget. Explore developer and data skills, compare courses and build projects as you learn.",
 };
 
 export default async function RootLayout({

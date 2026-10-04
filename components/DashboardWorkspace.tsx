@@ -49,7 +49,7 @@ function JourneyIllustration() {
   </div>;
 }
 
-export function DashboardWorkspace({ name, paths, loadError }: { name: string; paths: DashboardPath[]; loadError: boolean }) {
+export function DashboardWorkspace({ name, paths, loadError, calendarConnectionExpired = false }: { name: string; paths: DashboardPath[]; loadError: boolean; calendarConnectionExpired?: boolean }) {
   const allStages = paths.flatMap(path => path.stages.map((stage, index) => ({ ...stage, path, index })));
   const completed = allStages.filter(stage => stage.status === "completed").length;
   const inProgress = allStages.filter(stage => stage.status === "in_progress").length;
@@ -74,6 +74,8 @@ export function DashboardWorkspace({ name, paths, loadError }: { name: string; p
 
       <div className={styles.content} id="overview">
         <header className={styles.pageHeader}><div><p className={styles.eyebrow}>YOUR LEARNING STUDIO</p><h1>{paths.length ? "Keep your momentum." : "A fresh page. A new possibility."}</h1><p>Welcome back, <strong>{name}</strong>. {paths.length ? "Let’s turn a little focus into your next milestone." : "Your next chapter starts with a little direction."}</p></div><IntentLink href="/onboarding" className={styles.headerAction}>New learning path <span aria-hidden="true">＋</span></IntentLink></header>
+
+        {calendarConnectionExpired && <div className={styles.error} role="alert">Your Google Calendar connection attempt expired or could not be verified. This attempt did not add study sessions. Open your roadmap and connect again. <a href="#learning-paths">Choose a roadmap</a></div>}
 
         {loadError && <div className={styles.error} role="alert">We couldn’t load your paths. Your saved work is still there. <a href="/dashboard">Try again</a></div>}
 

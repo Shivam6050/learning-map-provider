@@ -1,3 +1,7 @@
+import { publicPageMetadata } from "@/lib/seo";
+
+export const metadata = publicPageMetadata("/privacy", "Privacy Policy | LearningMap", "How LearningMap handles account details, learning progress and integrations, including Google Calendar data.");
+
 export default function PrivacyPage() {
   return (
     <div className="relative min-h-[calc(100vh-64px)] bg-slate-950 text-slate-100 bg-grid-pattern py-16">

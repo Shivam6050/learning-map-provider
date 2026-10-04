@@ -89,3 +89,31 @@ it("retains SDK anti-cache headers on token refresh and protects session cookies
  expect(result.headers.get("pragma")).toBe("no-cache");
  expect(result.cookies.get("sb-test-auth-token")).toMatchObject({httpOnly:true,secure:true,sameSite:"lax"});
 });
+
+
+it.each(["/login", "/signup", "/forgot-password", "/reset-password", "/dashboard", "/settings/security", "/paths/owner-path", "/onboarding", "/auth/callback"])("prevents indexing of account and private route %s even on redirects", async path => {
+  getUser.mockResolvedValue({data:{user:null},error:null});
+  const result = await proxy(new NextRequest("http://localhost:3102"+path));
+  expect(result.headers.get("x-robots-tag")).toBe("noindex, nofollow");
+});
+it.each(["/", "/roadmaps", "/roadmaps/backend-development", "/privacy", "/integrations"])("keeps public route %s indexable without exposing cached signed-in details", async path => {
+  getUser.mockResolvedValue({data:{user:{id:"owner"}},error:null});
+  const result = await proxy(new NextRequest("http://localhost:3102"+path,{headers:{cookie:"sb-test-auth-token.0=fixture"}}));
+  expect(result.headers.get("x-robots-tag")).toBeNull();
+  expect(result.headers.get("cache-control")).toBe("private, no-store");
+});
+
+it.each(["/roadmaps/unknown-field", "/roadmaps/backend-development/extra", "/roadmaps/%3Cscript%3E", "/roadmaps/%FF"])("rejects invalid public guide %s before rendering or authentication", async path => {
+  const result = await proxy(new NextRequest("http://localhost:3102"+path));
+  expect(result.status).toBe(404);
+  expect(result.headers.get("x-robots-tag")).toBe("noindex");
+  expect(result.headers.get("content-type")).toContain("text/html");
+  expect(await result.text()).toContain('href="/roadmaps"');
+  expect(getUser).not.toHaveBeenCalled();
+});
+it("supports encoded canonical guide slugs without reflecting input in the error HTML", async () => {
+  getUser.mockResolvedValue({data:{user:null},error:null});
+  const result = await proxy(new NextRequest("http://localhost:3102/roadmaps/backend%2Ddevelopment"));
+  expect(result.status).toBe(200);
+  expect(result.headers.get("x-robots-tag")).toBeNull();
+});

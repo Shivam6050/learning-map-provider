@@ -21,3 +21,12 @@ The production callback was saved to the existing Learning-map OAuth client. Goo
 The OAuth audience remains External / Testing. Google lists two approved test users, and publication is disabled until branding configuration is completed. This integration is therefore not available to arbitrary Google accounts yet. Public release requires completing branding and Google's applicable consent verification, not merely deploying application code.
 
 The localhost callback above remains a setup instruction; only the production callback was configured during this session. Real user consent and event insertion remain unverified. The deployed application currently requires phone verification when AUTH_MOBILE_VERIFICATION_ENABLED=true; if SMS is deferred, that requirement can prevent unverified accounts from reaching the calendar connection flow.
+
+## Live status checked 5 October 2026
+
+The OAuth audience is now In production (published with user approval). This supersedes the earlier Testing observation. Branding and sensitive-scope verification are still outstanding. The project currently contains one OAuth web client. Search Console confirms ownership, but automated branding review still reports an ownership mismatch; a manual-review explanation is prepared, not submitted. No verification video is configured and the signed-in YouTube channel has no videos. See google-oauth-verification.md and google-oauth-demo-script.md.
+
+The deployed calendar controls were checked, but real event insertion is still pending account-owner consent. Do not claim Google Calendar is fully verified or that publishing removes the warning. SMS remains deferred and mandatory mobile verification remains intentionally disabled.
+
+
+Follow-up on 5 October: fresh consent, one real 60-minute event, identical retry with no duplicate, test-event cleanup, and app disconnection all passed. This supersedes the pending-insertion observation above. Google branding and sensitive-scope verification are still not submitted; the required demo video URL is missing.

@@ -21,7 +21,7 @@ type StoredPath = {
   stages: StoredStage[] | null;
 };
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ calendar_error?: string | string[] }> }) {
   const { supabase, auth, mfaRequired } = await getRenderContext();
   if (mfaRequired) redirect("/auth/mfa?next=%2Fdashboard");
   const { data: { user } } = await getLearningUser({ auth: { getUser: async () => auth } });
@@ -61,9 +61,12 @@ export default async function DashboardPage() {
       })),
   }));
 
+  const calendarConnectionExpired = (await searchParams).calendar_error === "invalid_state";
+
   return <DashboardWorkspace
     name={profileResult.data?.display_name || user.email?.split("@")[0] || "learner"}
     paths={paths}
     loadError={Boolean(pathsResult.error)}
+    calendarConnectionExpired={calendarConnectionExpired}
   />;
 }
