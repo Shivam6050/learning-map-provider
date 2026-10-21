@@ -1,14 +1,12 @@
-# Learning Map
+# LearningMap — a personal learning map for your next skill
 
-AI-curated, personalized learning paths. Sign up, tell your field,
-skill level, weekly hours, and budget, and it generates 3 path options
-built from real, discovered, budget-aware resources — pick one, work
-through it, track your progress.
+[LearningMap](https://learning-map-provider-bice.vercel.app/) (also written **Learning Map**) helps learners turn a goal into a sequenced learning roadmap. Choose your experience level, weekly study hours and course budget, then follow milestones, resources and practical projects while tracking your progress.
 
-This README describes the actual current state of the project across
-all phases. Where a design note explains _why_ something works a
-particular way, it's usually because an earlier, simpler version had a
-real bug — those are called out explicitly rather than hidden.
+Explore the [public learning roadmap guides](https://learning-map-provider-bice.vercel.app/roadmaps) for **frontend development, backend development, full-stack development, AI and machine learning, data science, and DevOps and cloud**. The guides are readable without an account. Sign in to create and save a personal path, assess your starting level, and organize your study schedule.
+
+Free learning resources remain an option. Paid course recommendations depend on topic fit and pricing evidence; offers, regional prices and provider checkout terms may change. LearningMap is a roadmap planner, not a course provider or a mind-map drawing editor.
+
+Developer architecture and release notes follow. See [ROADMAP-TEMPLATES.md](ROADMAP-TEMPLATES.md) for the authored-curriculum/template pipeline and [docs/seo.md](docs/seo.md) for search visibility and measurement.
 
 ## Stack
 
@@ -160,7 +158,7 @@ Onboarding blends two signals, per the original design decision
 ("combination of a short questionnaire AND a real skill-check"):
 
 - Self-reported level (dropdown)
-- A 5-question backend fundamentals quiz (`lib/onboarding/skill-quiz.ts`)
+- A field-specific knowledge quiz (`lib/onboarding/skill-quiz.ts`)
 
 The two are averaged (not "trust whichever is lower/higher" — that would
 be a value judgment about the learner this product doesn't need to
@@ -332,8 +330,7 @@ only ever be server-side env vars.
 
 ## Known limitations (by design, not bugs)
 
-- Only "Backend Development" exists as a field — hardcoded. A field
-  picker and multi-field support is the next real scope expansion.
+- Six fields are supported in `lib/fields/catalog.ts`; arbitrary or non-technical fields are not currently supported.
 - YouTube discovery is cached per topic for 7 days (quota-driven — see
   the comment in `lib/youtube/client.ts` for the actual numbers this is
   built around) — a brand-new upload won't surface until the cache expires.

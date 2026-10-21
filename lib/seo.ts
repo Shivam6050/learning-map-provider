@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { getSiteUrl } from "@/lib/site";
 
+export const HOME_TITLE = "LearningMap | Your Learning Map for Skills & Courses";
+export const HOME_DESCRIPTION = "Create a personal learning map for frontend, backend, full-stack, AI, data science or DevOps. Match your roadmap to your level, study time and course budget.";
+
 export function publicPageMetadata(path: string, title: string, description: string): Metadata {
   return {
     title,

@@ -198,6 +198,16 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .atlas-fields h3 { font-size:17px; font-weight:500; margin:23px 0 8px; }
 .atlas-fields p { font-size:10px; color:#788370; }
 .atlas-field-arrow { position:absolute; right:23px; top:21px; font-size:19px; }
+.atlas-questions { max-width:1200px; margin:auto; padding:0 32px 65px; display:grid; grid-template-columns:1fr 1fr; gap:64px; align-items:start; }
+.atlas-questions h2 { font-family:Georgia,serif; font-size:clamp(30px,3.5vw,42px); line-height:1.15; letter-spacing:-.035em; margin:16px 0; }
+.atlas-questions-intro { font-size:15px; line-height:1.9; color:#4d6254; margin-bottom:24px; max-width:490px; }
+.atlas-answers details { border-top:1px solid #cbd3bf; padding:19px 0; }
+.atlas-answers details:last-child { border-bottom:1px solid #cbd3bf; }
+.atlas-answers summary { font-size:15px; font-weight:600; line-height:1.6; cursor:pointer; }
+.atlas-answers summary:focus-visible { outline:3px solid #526348; outline-offset:5px; border-radius:3px; }
+.atlas-answers details p { margin-top:14px; font-size:14px; line-height:1.9; color:#4d6254; }
+@media(max-width:800px) { .atlas-questions { grid-template-columns:1fr; gap:30px; padding-bottom:48px; } }
+@media(max-width:480px) { .atlas-questions { padding-inline:20px; } }
 .atlas-note { background:#e8ebdf; padding:34px max(32px,calc((100vw - 1136px)/2)); display:flex; align-items:center; gap:25px; }
 .atlas-note > span { font-size:48px; color:#7e915f; }
 .atlas-note h2 { font-size:20px; margin-bottom:8px; }

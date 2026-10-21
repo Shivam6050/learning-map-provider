@@ -11,7 +11,7 @@ export function Footer() {
               <BrandLogo />
             </Link>
             <p className="mt-3 max-w-sm text-xs leading-relaxed text-slate-400">
-              Personalized, AI-curated learning paths tailored to your schedule, skill level, and budget.
+              LearningMap helps you build a personal learning map with courses, practice and projects for your level, schedule and budget.
             </p>
           </div>
 
@@ -60,7 +60,7 @@ export function Footer() {
         </div>
 
         <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-slate-800/80 pt-6 text-xs text-slate-500 sm:flex-row">
-          <p>&copy; 2026 Learning Map. All rights reserved.</p>
+          <p>&copy; 2026 LearningMap. All rights reserved.</p>
           <div className="flex items-center gap-4">
             <span>A clear path to your next chapter.</span>
           </div>

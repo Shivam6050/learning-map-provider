@@ -7,6 +7,7 @@ import { CURRENCIES, CURRENCY_COOKIE, isCurrency } from "@/lib/currency/format";
 import { getConversionRate } from "@/lib/currency/convert";
 import type { Metadata } from "next";
 import { getSiteUrl } from "@/lib/site";
+import { HOME_TITLE, HOME_DESCRIPTION } from "@/lib/seo";
 import { IntentLink as Link } from "@/components/IntentLink";
 import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
@@ -19,8 +20,8 @@ const outfit = Outfit({ subsets: ["latin"], variable: "--font-serif" });
 
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
-  title: "LearningMap | Personalized Learning Roadmaps & Courses",
-  description: "Find a learning roadmap for your level, weekly study time and budget. Explore developer and data skills, compare courses and build projects as you learn.",
+  title: HOME_TITLE,
+  description: HOME_DESCRIPTION,
 };
 
 export default async function RootLayout({
