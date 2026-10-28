@@ -1,8 +1,14 @@
+import type { Metadata } from "next";
 import { getLearningUser } from "@/lib/auth/learning-user";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { approveTrustedSource, rejectTrustedSource } from "@/app/admin/trusted-sources/actions";
 import { isSafeHttpUrl } from "@/lib/link-check/url-safety";
+
+export const metadata: Metadata = {
+  title: "Trusted resource sources | LearningMap",
+  robots: { index: false, follow: false },
+};
 
 export default async function TrustedSourcesAdminPage() {
   const supabase = await createClient();
@@ -52,6 +58,7 @@ export default async function TrustedSourcesAdminPage() {
       <div className="relative mx-auto max-w-3xl px-4 sm:px-6">
         <div className="glass-card rounded-3xl p-6 sm:p-8 border-slate-800 shadow-2xl">
           <h1 className="font-serif text-3xl font-bold text-white">Trusted Sources Admin</h1>
+          <a href="/admin/resource-reports" className="mt-4 inline-block text-sm text-emerald-300 underline">Review resource reports →</a>
           <p className="mt-2 text-xs text-slate-400">
             Publishers proposed by real resource discovery runs. Approving a source grants allowlist trust for future Gemini resource evaluations.
           </p>

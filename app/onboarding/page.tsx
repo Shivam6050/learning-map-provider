@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { FIELD_CATALOG } from "@/lib/fields/catalog";
 import { getQuizForField } from "@/lib/onboarding/skill-quiz";
 import Link from "next/link";
@@ -6,6 +7,11 @@ import { FieldAndQuizPicker } from "@/components/FieldAndQuizPicker";
 import { CommitmentAndBudgetPicker } from "@/components/CommitmentAndBudgetPicker";
 import { SubmitButton } from "@/components/SubmitButton";
 import styles from "./onboarding.module.css";
+
+export const metadata: Metadata = {
+  title: "Build your learning roadmap | LearningMap",
+  robots: { index: false, follow: false },
+};
 
 export default async function OnboardingPage({ searchParams }: {
   searchParams: Promise<{ error?: string; field?: string }>;

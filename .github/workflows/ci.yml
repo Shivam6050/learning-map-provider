@@ -6,9 +6,17 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -18,6 +26,9 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      - name: Dependency security check
+        run: npm audit --audit-level=high
 
       - name: Lint
         run: npm run lint -- app components lib proxy.ts --quiet
@@ -30,7 +41,17 @@ jobs:
 
       - name: Build
         env:
+          NEXT_PUBLIC_SITE_URL: https://learningmap.example
+          SUPABASE_URL: https://build-only.invalid
           NEXT_PUBLIC_SUPABASE_URL: https://build-only.invalid
           SUPABASE_PUBLISHABLE_KEY: sb_publishable_build_only
           SUPABASE_SECRET_KEY: sb_secret_build_only
         run: npm run build
+
+      - name: Test release checker
+        run: npm run test:release-runner
+
+      - name: Smoke-test production build without credentials
+        env:
+          SMOKE_CANONICAL_ORIGIN: https://learningmap.example
+        run: npm run test:release

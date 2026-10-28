@@ -1,0 +1,22 @@
+import {beforeEach,describe,it,expect,vi} from 'vitest';
+const mocks=vi.hoisted(()=>({getUser:vi.fn(),needsMfa:vi.fn(),load:vi.fn()}));
+vi.mock('@/lib/supabase/server',()=>({createClient:vi.fn(async()=>({auth:{getUser:mocks.getUser}}))}));
+vi.mock('@/lib/auth/mfa',()=>({needsMfa:mocks.needsMfa}));
+vi.mock('@/lib/db/learning-export',async()=>{const actual=await vi.importActual('@/lib/db/learning-export');return {...actual,loadLearningExport:mocks.load};});
+vi.mock('server-only',()=>({}));
+import {GET} from './route';
+import {learningExport} from '@/lib/export/learning-data';
+import {LearningExportError} from '@/lib/db/learning-export';
+const url='https://learningmap.example/settings/export';
+beforeEach(()=>{vi.clearAllMocks();mocks.getUser.mockResolvedValue({data:{user:{id:'owner'}},error:null});mocks.needsMfa.mockResolvedValue(false);mocks.load.mockResolvedValue(learningExport([],[],[],[],'2026-10-26T00:00:00Z'));});
+describe('private download endpoint',()=>{
+ it('requires sign in without reading data',async()=>{mocks.getUser.mockResolvedValue({data:{user:null},error:null});expect((await GET(new Request(url))).status).toBe(401);expect(mocks.load).not.toHaveBeenCalled();});
+ it('requires enrolled MFA before reading data',async()=>{mocks.needsMfa.mockResolvedValue(true);expect((await GET(new Request(url))).status).toBe(403);expect(mocks.load).not.toHaveBeenCalled();});
+ it.each(['?format=html','?path=bad'])('rejects invalid input %s',async query=>{expect((await GET(new Request(url+query))).status).toBe(400);expect(mocks.load).not.toHaveBeenCalled();});
+ it('rejects cross-site requests',async()=>{expect((await GET(new Request(url,{headers:{'sec-fetch-site':'cross-site'}}))).status).toBe(403);expect(mocks.getUser).not.toHaveBeenCalled();});
+ it('ignores a forged owner parameter and returns a private JSON attachment',async()=>{const response=await GET(new Request(url+'?user_id=victim'));expect(response.status).toBe(200);expect(mocks.load).toHaveBeenCalledWith(expect.anything(),'owner',undefined);expect(response.headers.get('cache-control')).toBe('private, no-store');expect(response.headers.get('x-content-type-options')).toBe('nosniff');expect(response.headers.get('content-disposition')).toBe('attachment; filename="learningmap-learning-data-2026-10-26.json"');expect((await response.json()).schema_version).toBe(1);});
+ it('returns Markdown as a downloadable file',async()=>{const response=await GET(new Request(url+'?format=markdown'));expect(response.headers.get('content-type')).toContain('text/markdown');expect(await response.text()).toContain('# LearningMap');});
+ it.each([404,409,413,503])('returns explicit %s without an attachment',async status=>{mocks.load.mockRejectedValue(new LearningExportError(status,'Retry safely'));const response=await GET(new Request(url));expect(response.status).toBe(status);expect(response.headers.has('content-disposition')).toBe(false);});
+ it('does not leak internal database error details',async()=>{mocks.load.mockRejectedValue(new Error('PRIVATE_DB_SECRET'));const response=await GET(new Request(url));expect(response.status).toBe(503);expect(await response.text()).not.toContain('PRIVATE_DB_SECRET');});
+ it('rejects downloads over the serverless response budget',async()=>{mocks.load.mockResolvedValue({...learningExport([],[],[],[]),notice:'x'.repeat(3_000_001)});expect((await GET(new Request(url))).status).toBe(413);});
+});

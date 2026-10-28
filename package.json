@@ -28,26 +28,31 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:db": "node scripts/test-database.mjs",
+    "test:release-runner": "node --test scripts/release-smoke.node-test.mjs",
+    "test:release": "node scripts/release-local.mjs",
+    "test:deployed": "node scripts/release-smoke.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "2.3.0",
     "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.112.0",
     "libphonenumber-js": "1.13.13",
-    "next": "16.3.5",
+    "next": "16.4.3",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "zod": "4.6.5"
+    "zod": "4.6.7"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.11",
     "@modelcontextprotocol/client": "2.3.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.3.5",
+    "eslint-config-next": "16.4.3",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.11"

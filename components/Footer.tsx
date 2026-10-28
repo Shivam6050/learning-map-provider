@@ -1,7 +1,7 @@
 import { BrandLogo } from "@/components/BrandLogo";
 import { IntentLink as Link } from "./IntentLink";
 
-export function Footer() {
+export function Footer({ signedIn = false }: { signedIn?: boolean }) {
   return (
     <footer className="border-t border-slate-800/80 bg-slate-950 text-slate-400">
       <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
@@ -27,16 +27,14 @@ export function Footer() {
               </li>
               <li><Link href="/roadmaps" className="transition hover:text-white">Browse learning roadmaps</Link></li>
               <li><Link href="/integrations" className="transition hover:text-white">Connect your assistant</Link></li>
-              <li>
-                <Link href="/login" className="transition hover:text-white">
-                  Sign In
-                </Link>
-              </li>
-              <li>
-                <Link href="/signup" className="transition hover:text-white">
-                  Create Account
-                </Link>
-              </li>
+              {signedIn ? <>
+                <li><Link href="/dashboard" className="transition hover:text-white">Your dashboard</Link></li>
+                <li><Link href="/settings/library" className="transition hover:text-white">Your course library</Link></li>
+                <li><Link href="/settings" className="transition hover:text-white">Account settings</Link></li>
+              </> : <>
+                <li><Link href="/login" className="transition hover:text-white">Sign In</Link></li>
+                <li><Link href="/signup" className="transition hover:text-white">Create Account</Link></li>
+              </>}
             </ul>
           </div>
 

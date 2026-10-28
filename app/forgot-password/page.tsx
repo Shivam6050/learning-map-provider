@@ -1,8 +1,14 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { requestPasswordReset } from "@/app/auth/actions";
 import { AuthLayout } from "@/components/AuthLayout";
 import { AuthSubmit } from "@/components/AuthFormControls";
 import styles from "@/components/AuthLayout.module.css";
+
+export const metadata: Metadata = {
+  title: "Forgot your password | LearningMap",
+  robots: { index: false, follow: false },
+};
 
 export default async function ForgotPasswordPage({ searchParams }: {
   searchParams: Promise<{ sent?: string; error?: string }>;

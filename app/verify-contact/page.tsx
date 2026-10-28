@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -5,6 +6,11 @@ import { createClient } from "@/lib/supabase/server";
 import { contactVerificationEnabled, hasVerifiedContacts } from "@/lib/auth/contact-verification";
 import { ResidenceFields } from "@/components/ResidenceFields";
 import { verifyEmail, resendEmail, sendPhoneCode, verifyPhone } from "./actions";
+export const metadata: Metadata = {
+  title: "Verify your contact details | LearningMap",
+  robots: { index: false, follow: false },
+};
+
 export default async function VerifyContact({searchParams}:{searchParams:Promise<{error?:string;message?:string}>}) {
  const params=await searchParams;const client=await createClient();const {data:{user}}=await client.auth.getUser();
  const enabled=contactVerificationEnabled();

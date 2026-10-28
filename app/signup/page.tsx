@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { CountryPicker } from "@/components/CountryPicker";
 import Link from "next/link";
 import {signup} from "@/app/auth/actions";
@@ -9,6 +10,11 @@ import {countryOptions} from "@/lib/profile/residence";
 import {AVATAR_OPTIONS} from "@/lib/profile/avatars";
 import {ProfileAvatar} from "@/components/ProfileAvatar";
 import styles from "@/components/AuthLayout.module.css";
+export const metadata: Metadata = {
+  title: "Create your account | LearningMap",
+  robots: { index: false, follow: false },
+};
+
 export default async function SignupPage({searchParams}:{searchParams:Promise<{error?:string;next?:string}>}) {
  const params=await searchParams;
  return <AuthLayout signup><p className={styles.kicker}>MAKE SPACE FOR WHAT’S NEXT</p><h1 className={styles.title}>Start with possibility.</h1><p className={styles.subtitle}>Create your free account. We’ll help you find your way.</p>

@@ -21,3 +21,18 @@ it("preserves valid external affiliate links",()=>{
 it("supports domain-only course URLs",()=>{
  expect(courseLink("scrimba.com/learn/react").href).toBe("https://scrimba.com/learn/react?via="+SCRIMBA_REFERRAL_CODE);
 });
+
+import { hasW3SchoolsOffer, W3SCHOOLS_REFERRAL_CODE } from "./links";
+it("deep-links to a Campus course through the official partner discount route", () => {
+ const result = courseLink("https://campus.w3schools.com/en-in/products/sql-course?currency=INR&dt_id=old#details");
+ const url = new URL(result.href);
+ expect(result.affiliate).toBe(true);
+ expect(url.origin).toBe("https://campus.w3schools.com");
+ expect(url.pathname).toBe("/discount/" + W3SCHOOLS_REFERRAL_CODE);
+ expect(url.searchParams.get("dt_id")).toBe("3606743");
+ expect(url.searchParams.get("redirect")).toBe("/en-in/products/sql-course?currency=INR#details");
+});
+it.each(["https://www.w3schools.com/sql/", "https://w3schools.com/html/", "https://campus.w3schools.com.evil.org/products/html-course", "https://campus.w3schools.com/pages/about", "https://user:password@campus.w3schools.com/products/sql-course"])("does not advertise the paid offer on %s", url => {
+ expect(hasW3SchoolsOffer(url)).toBe(false);
+ expect(courseLink(url).affiliate).toBe(false);
+});

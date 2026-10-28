@@ -1,4 +1,4 @@
-import {courseLink} from "@/lib/affiliates/links";
+import {ensureHttpUrl,isSafeHttpUrl} from "@/lib/link-check/url-safety";
 // Editorial review of specific provider pages, not claims inferred from titles or AI output.
 export const coverageReviews:Record<string,{topics:string[];summary:string;source:string;checkedAt:string}>={
  "https://www.geeksforgeeks.org/courses/mern-full-stack-live-course-ibm-certifications":{"topics":["html.semantic","css.layout","js.functions","react.components","react.state","node.runtime","api.contracts","auth.sessions"],"summary":"Provider syllabus lists web foundations, React, Node/Express APIs and account authentication.","source":"https://www.geeksforgeeks.org/courses/mern-full-stack-live-course-ibm-certifications","checkedAt":"2026-10-02"},
@@ -14,8 +14,8 @@ export const coverageReviews:Record<string,{topics:string[];summary:string;sourc
  "https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch":{topics:["http","http.methods","js.async"],summary:"HTTP requests, request options and response handling with Fetch.",source:"https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch",checkedAt:"2026-10-02"},
 };
 export function reviewedCoverage(rawUrl:string,linkStatus:string,now=Date.now()) {
- const safe=courseLink(rawUrl).href;
- if(!safe||linkStatus==="broken")return null;
+ const safe=ensureHttpUrl(rawUrl);
+ if(!isSafeHttpUrl(safe)||linkStatus==="broken")return null;
  const url=new URL(safe);const key=url.origin+url.pathname.replace(/\/+$/,"");
  const review=coverageReviews[key];if(!review)return null;
  const age=now-Date.parse(review.checkedAt+"T00:00:00Z");
@@ -34,7 +34,7 @@ export function coverageReviewQueue(now=Date.now()) {
  }).sort((a,b)=>a.daysRemaining-b.daysRemaining||a.url.localeCompare(b.url));
 }
 export function coverageReviewState(rawUrl:string,now=Date.now()) {
- const safe=courseLink(rawUrl).href;if(!safe)return "unreviewed";
+ const safe=ensureHttpUrl(rawUrl);if(!isSafeHttpUrl(safe))return "unreviewed";
  const url=new URL(safe),key=url.origin+url.pathname.replace(/\/+$/,"");
  return coverageReviewQueue(now).find(item=>item.url===key)?.status??"unreviewed";
 }

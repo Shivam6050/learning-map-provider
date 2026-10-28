@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+import {LearningDataExport} from "@/components/LearningDataExport";
 import styles from "./settings.module.css";
 import Link from "next/link";
 import { ResidenceFields } from "@/components/ResidenceFields";
@@ -8,6 +10,11 @@ import { updateProfile, updateResidence, updateReminderPreference } from "@/app/
 import { AvatarSelectorWithPreview } from "@/components/AvatarSelectorWithPreview";
 import { DeleteAccountForm } from "@/components/DeleteAccountForm";
 import { SaveProfileButton } from "@/components/SaveProfileButton";
+
+export const metadata: Metadata = {
+  title: "Account settings | LearningMap",
+  robots: { index: false, follow: false },
+};
 
 export default async function SettingsPage({
   searchParams,
@@ -56,6 +63,7 @@ export default async function SettingsPage({
           <a href="#account"><span>03</span> Account management</a>
           <Link href="/settings/agents"><span>04</span> Agent access</Link>
           <Link href="/settings/security"><span>05</span> Sign-in security</Link>
+          <Link href="/settings/library"><span>06</span> Course library</Link>
         </nav>
         <div className={styles.identity}><span>SIGNED IN AS</span><p>{user.email}</p><small>Your email is used to sign in to LearningMap.</small></div>
       </aside>
@@ -82,6 +90,8 @@ export default async function SettingsPage({
         </section>
         <section className={styles.card}><h2>Learning reminders</h2><form action={updateReminderPreference} className={styles.form}><label><input type="checkbox" name="weeklyReminders" defaultChecked={user.user_metadata?.weekly_reminders !== false}/> Send me a reminder when I have not studied for a week</label><button className={styles.regionButton}>Save reminder preference</button></form></section>
         <section className={styles.card}><div className={styles.sectionHeading}><span>05</span><div><h2>Another layer of protection.</h2><p>Use a free authenticator app to protect your account. No SMS required.</p></div></div><Link href="/settings/security" className={styles.verify}>Manage two-step verification →</Link></section>
+        <section className={styles.card}><div className={styles.sectionHeading}><span>06</span><div><h2>Your learning shelf.</h2><p>Save courses and subscriptions you already have. Reuse valid access across roadmaps without changing your progress.</p></div></div><Link href="/settings/library" className={styles.verify}>Manage your course library →</Link></section>
+        <LearningDataExport/>
         <section id="account" className={styles.account} aria-labelledby="account-title">
           <div className={styles.sectionHeading}><span>03</span><div><h2 id="account-title">Account management</h2><p>You’re in control of your account and your data.</p></div></div>
           <details className={styles.delete}><summary>Delete your account</summary><p>This permanently deletes your account, saved roadmaps and progress history. This action cannot be undone.</p><DeleteAccountForm/></details>

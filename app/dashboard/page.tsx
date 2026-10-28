@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { getLearningUser } from "@/lib/auth/learning-user";
 import { createServiceClient } from "@/lib/supabase/service";
 import { getFieldBySlug } from "@/lib/fields/catalog";
@@ -19,6 +20,11 @@ type StoredPath = {
   field_id: string | null;
   fields: { name: string; slug: string } | { name: string; slug: string }[] | null;
   stages: StoredStage[] | null;
+};
+
+export const metadata: Metadata = {
+  title: "Your dashboard | LearningMap",
+  robots: { index: false, follow: false },
 };
 
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ calendar_error?: string | string[] }> }) {

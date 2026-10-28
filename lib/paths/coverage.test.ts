@@ -17,3 +17,9 @@ it("queues editorial reviews before expiry without renewing them",()=>{
  expect(coverageReviewState("https://react.dev/learn",Date.parse("2027-02-01"))).toBe("expired");
  expect(coverageReviewState("https://example.com/unknown",now)).toBe("unreviewed");
 });
+
+it("keeps editorial identities separate from checkout tracking",()=>{
+ expect(reviewedCoverage("https://campus.w3schools.com/products/sql-course?dt_id=3606743","ok",now)?.topics).toEqual(["sql.schema","sql.queries"]);
+ expect(coverageReviewState("https://campus.w3schools.com/products/sql-course",now)).toBe("current");
+ expect(reviewedCoverage("https://campus.w3schools.com/discount/SHIVAMSAGAR?redirect=https://evil.test/products/sql-course","ok",now)).toBeNull();
+});

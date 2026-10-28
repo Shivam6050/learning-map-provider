@@ -1,9 +1,15 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ResidenceFields } from "@/components/ResidenceFields";
 import { completeProfile } from "./actions";
 import { safeRedirectPath } from "@/lib/security/validation";
+export const metadata: Metadata = {
+  title: "Complete your profile | LearningMap",
+  robots: { index: false, follow: false },
+};
+
 export default async function CompleteProfile({searchParams}:{searchParams:Promise<{next?:string;error?:string}>}) {
  const params=await searchParams;
  const client=await createClient();const {data:{user}}=await client.auth.getUser();

@@ -1,8 +1,10 @@
+import type { Metadata } from "next";
 import type {PathOption} from "@/lib/ai/build-options";
 import { getLearningUser } from "@/lib/auth/learning-user";
 import { redirect } from "next/navigation";
 import { PathSelectionForm } from "@/components/PathSelectionForm";
 import { courseLink } from "@/lib/affiliates/links";
+import { W3SchoolsOffer } from "@/components/W3SchoolsOffer";
 import { Money, RememberCurrency } from "@/components/CurrencyProvider";
 import { providerName } from "@/lib/web-discovery/providers";
 import Link from "next/link";
@@ -10,6 +12,11 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { selectionReturnPath } from "@/lib/paths/selection-return";
 import { getFieldBySlug } from "@/lib/fields/catalog";
+
+export const metadata: Metadata = {
+  title: "Choose your learning path | LearningMap",
+  robots: { index: false, follow: false },
+};
 
 export default async function OnboardingSelectPage({
   searchParams,
@@ -237,6 +244,7 @@ export default async function OnboardingSelectPage({
                                       {sr.resources?.title || "Resource"}
                                     </span>
                                   )}
+                                  {safeUrl && <W3SchoolsOffer url={sr.resources?.url ?? ""} />}
                                 </div>
                               );
                             })}

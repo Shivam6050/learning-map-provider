@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import {safeRedirectPath} from "@/lib/security/validation";
 import {login} from "@/app/auth/actions";
@@ -5,6 +6,11 @@ import {GoogleSignInButton} from "@/components/GoogleSignInButton";
 import {AuthLayout} from "@/components/AuthLayout";
 import {PasswordField,AuthSubmit} from "@/components/AuthFormControls";
 import styles from "@/components/AuthLayout.module.css";
+export const metadata: Metadata = {
+  title: "Sign in | LearningMap",
+  robots: { index: false, follow: false },
+};
+
 export default async function LoginPage({searchParams}:{searchParams:Promise<{error?:string;message?:string;next?:string|string[];redirectedFrom?:string|string[]}>}) {
  const params=await searchParams;
  const next=safeRedirectPath(params.next ?? params.redirectedFrom ?? "/dashboard");

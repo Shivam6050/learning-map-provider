@@ -1,0 +1,22 @@
+import {describe,it,expect} from 'vitest';
+import {accessStatus,coversResource,isProModule,libraryOwnedIds,validAccessDate,type LearningAccess} from './learning-access';
+import {PAID_CATALOG} from './web-discovery/paid-catalog';
+const now=new Date('2026-10-26T12:00:00Z');
+const course={id:'course',url:'https://scrimba.com/advanced-react-c02h'};
+const entry=(overrides:Partial<LearningAccess>={}):LearningAccess=>({id:'entry',access_type:'course',resource_id:'course',subscription_key:null,expires_on:null,active:true,created_at:'2026-10-01',updated_at:'2026-10-01',...overrides});
+const stage=(resource=course,hours=10,status='not_started')=>({estimated_hours:hours,stage_resources:[{resources:resource}],stage_progress:[{status}]});
+describe('self-reported access matching',()=>{
+ it.each(['2026-10-26','2028-02-29','2000-01-01'])('accepts valid date %s',date=>expect(validAccessDate(date)).toBe(true));
+ it.each(['2026-02-29','2026-13-01','2026-10-32','2026-1-01','2100-01-01','yesterday',''])('rejects invalid date %s',date=>expect(validAccessDate(date)).toBe(false));
+ it('tracks paused and expired entries without deleting them',()=>{expect(accessStatus(entry({active:false}),'2026-10-26')).toBe('paused');expect(accessStatus(entry({expires_on:'2026-10-25'}),'2026-10-26')).toBe('expired');expect(accessStatus(entry({expires_on:'2026-10-26'}),'2026-10-26')).toBe('active');});
+ it('matches course identity without trusting shared ownership signals',()=>{expect(coversResource(entry(),course,'2027-01-01')).toBe(true);expect(coversResource(entry(),{...course,id:'another',signals:{already_owned:true}},'2027-01-01')).toBe(false);});
+ it('requires subscription expiry and an eligible exact Scrimba module',()=>{const sub=entry({access_type:'subscription',resource_id:null,subscription_key:'scrimba-pro',expires_on:'2026-12-01'});expect(coversResource(sub,course,'2026-11-01')).toBe(true);expect(coversResource({...sub,expires_on:null},course,'2026-11-01')).toBe(false);expect(coversResource(sub,{...course,url:'https://scrimba.com/unknown-course'},'2026-11-01')).toBe(false);});
+ it.each(['https://scrimba.com.evil.test/advanced-react-c02h','http://scrimba.com/advanced-react-c02h','https://user:pass@scrimba.com/advanced-react-c02h','https://scrimba.com:8080/advanced-react-c02h','https://campus.w3schools.com/products/react-course'])('does not treat %s as Pro access',url=>expect(isProModule(url)).toBe(false));
+ it('accepts tracking parameters without matching a different module',()=>expect(isProModule(course.url+'/?via=partner')).toBe(true));
+ it('keeps the subscription match pool aligned with reviewed catalog modules',()=>{expect(PAID_CATALOG.filter(item=>item.subscription).every(item=>isProModule(item.url))).toBe(true);});
+ it('includes the final access date and rejects the previous day',()=>{expect([...libraryOwnedIds([stage()],[entry({expires_on:'2026-11-02'})],10,now)]).toEqual(['course']);expect(libraryOwnedIds([stage()],[entry({expires_on:'2026-11-01'})],10,now).size).toBe(0);});
+ it('uses the last occurrence across repeated course stages',()=>{expect(libraryOwnedIds([stage(),stage()],[entry({expires_on:'2026-11-02'})],10,now).size).toBe(0);});
+ it('does not assume future renewal or retain paused access',()=>{expect(libraryOwnedIds([stage()],[entry({active:false})],10,now).size).toBe(0);expect(libraryOwnedIds([stage()],[entry({expires_on:'2026-10-25'})],10,now).size).toBe(0);});
+ it('changes coverage when learning pace changes',()=>{const library=[entry({expires_on:'2026-11-05'})];expect(libraryOwnedIds([stage()],library,10,now).has('course')).toBe(true);expect(libraryOwnedIds([stage()],library,5,now).has('course')).toBe(false);});
+ it('excludes completed hours from the remaining access window',()=>{expect(libraryOwnedIds([stage({id:'other',url:'https://example.com'},100,'completed'),stage()],[entry({expires_on:'2026-11-02'})],10,now).has('course')).toBe(true);});
+});

@@ -2,6 +2,16 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { inspectUrl, type LinkStatus } from "@/lib/link-check/check-url";
 import { getVideoStats } from "@/lib/youtube/client";
 
+export type LinkCheckResult = { id: string; alive: boolean; status: LinkStatus };
+
+/** Carries only confirmed writes, so maintenance can report partial progress accurately. */
+export class LinkCheckPersistenceError extends Error {
+  constructor(public readonly results: LinkCheckResult[], public readonly failed: number) {
+    super("Could not persist resource link checks");
+    this.name = "LinkCheckPersistenceError";
+  }
+}
+
 function extractYoutubeVideoId(url: string): string | null {
   const match = url.match(/[?&]v=([^&]+)/);
   return match ? match[1] : null;
@@ -47,10 +57,10 @@ export async function verifyResourceLinks(
   resources: { id: string; url: string; platform: string }[],
   concurrency = 5,
   deadline = Infinity
-): Promise<{ id: string; alive: boolean; status: LinkStatus }[]> {
+): Promise<LinkCheckResult[]> {
   concurrency = Math.max(1, Math.min(10, Math.floor(concurrency) || 5));
   const service = createServiceClient();
-  const results: { id: string; alive: boolean; status: LinkStatus }[] = [];
+  const results: LinkCheckResult[] = [];
 
   for (let i = 0; i < resources.length; i += concurrency) {
     if (Date.now() >= deadline) break;
@@ -61,20 +71,25 @@ export async function verifyResourceLinks(
         return { id: resource.id, alive: status === "ok", status };
       })
     );
-    results.push(...batchResults);
-
-    await Promise.all(
+    const writes = await Promise.allSettled(
       batchResults.map(async ({ id, status }) => {
-        const {error} = await service
+        const {data, error} = await service
           .from("resources")
           .update({
             ...(status === "unknown" ? {} : {link_status: status}),
             link_checked_at: new Date().toISOString(),
           })
-          .eq("id", id).abortSignal(AbortSignal.timeout(5000));
-        if(error) throw new Error("Could not persist resource link check");
+          .eq("id", id).select("id").abortSignal(AbortSignal.timeout(5000)).maybeSingle();
+        if(error || data?.id !== id) throw new Error("Could not persist resource link check");
       })
     );
+    // Wait for every write in this batch before returning a result or reporting failure.
+    let failed = 0;
+    writes.forEach((write, index) => {
+      if (write.status === "fulfilled") results.push(batchResults[index]);
+      else failed++;
+    });
+    if (failed) throw new LinkCheckPersistenceError(results, failed);
   }
 
   return results;

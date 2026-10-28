@@ -1,8 +1,14 @@
 name: Verify
 on: [push, pull_request]
+permissions:
+  contents: read
+concurrency:
+  group: database-verify-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   checks:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -10,5 +16,5 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx tsc --noEmit
-      - run: npm test -- --maxWorkers=1
+      - name: Isolated database regression checks
+        run: npm run test:db

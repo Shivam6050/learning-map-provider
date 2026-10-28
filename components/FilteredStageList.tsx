@@ -1,4 +1,5 @@
 "use client";
+import {StageKnowledgeCheck} from "./StageKnowledgeCheck";
 import {resumeStage} from "@/lib/paths/resume";
 import {saveResourceVisit} from "@/app/paths/[id]/resource-visit";
 import {rememberResource} from "@/lib/paths/last-resource";
@@ -12,6 +13,8 @@ import type {RoadmapStage} from "@/lib/paths/stage";
 import { ActionButton } from "@/components/ActionButton";
 import styles from "./Roadmap.module.css";
 import { courseLink } from "@/lib/affiliates/links";
+import { W3SchoolsOffer } from "@/components/W3SchoolsOffer";
+import { ResourceTools } from "@/components/ResourceTools";
 
 import { Money } from "@/components/CurrencyProvider";
 import { providerName } from "@/lib/web-discovery/providers";
@@ -225,10 +228,10 @@ export function FilteredStageList({
                                   </a>
                                 )}
                               </div>
-                              <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
+                              <div className={styles.resourceActions + " flex items-center gap-3 shrink-0 self-end sm:self-center"}>
                                 <span className="text-xs text-slate-400 font-medium">
-                                  <>{resource.signals?.already_owned ? "Already have access · self-reported" : resource.signals?.price_unverified ? "Check current price on provider" : <Money amount={resource.price} currency={resource.currency ?? path.currency} freeLabel />}{!resource.signals?.already_owned && (resource.signals?.billing_interval === "year" ? " / year billed upfront · shared Pro access" : resource.signals?.price_unverified && resource.platform === "scrimba" ? " · shared subscription" : !resource.signals?.price_unverified && resource.signals?.price_source === "scrimba_monthly" ? " / month · shared Pro access" : "")}{resource.signals?.price_estimate && !resource.signals?.price_unverified ? " · estimated; confirm at checkout" : ""}</>
-                                  {!resource.signals?.already_owned && typeof resource.signals?.price_checked_at === "string" && !resource.signals?.price_unverified && <span className="block text-[10px]">Price checked {resource.signals.price_checked_at.slice(0, 16).replace("T", " ")} UTC</span>}
+                                  <>{isBroken || !isValidLink ? "Resource unavailable" : resource.signals?.already_owned ? resource.signals?.library_access ? "Library access · self-reported" : "Already have access · self-reported" : resource.signals?.price_unverified ? "Check current price on provider" : <Money amount={resource.price} currency={resource.currency ?? path.currency} freeLabel />}{!isBroken && isValidLink && !resource.signals?.already_owned && (resource.signals?.billing_interval === "year" ? " / year billed upfront · shared Pro access" : resource.signals?.price_unverified && resource.platform === "scrimba" ? " · shared subscription" : !resource.signals?.price_unverified && resource.signals?.price_source === "scrimba_monthly" ? " / month · shared Pro access" : "")}{resource.signals?.price_estimate && !resource.signals?.price_unverified ? " · estimated; confirm at checkout" : ""}</>
+                                  {!isBroken && isValidLink && !resource.signals?.already_owned && typeof resource.signals?.price_checked_at === "string" && !resource.signals?.price_unverified && <span className="block text-[10px]">Price checked {resource.signals.price_checked_at.slice(0, 16).replace("T", " ")} UTC</span>}
                                   {resource.rating ? ` · ★ ${Number(resource.rating).toFixed(1)}` : ""}
                                 </span>
                                 {isValidLink && !isBroken && (
@@ -244,6 +247,8 @@ export function FilteredStageList({
                                   </a>
                                 )}
                               </div>
+                              {!isBroken && isValidLink && <W3SchoolsOffer url={resource.url} />}
+                              <ResourceTools key={resource.id} pathId={path.id} stageId={stage.id} resourceId={resource.id} title={resource.title} isCourse={t === "course"} />
                             </li>
                           );
                         })}
@@ -335,6 +340,7 @@ export function FilteredStageList({
                 )}
 
                 <ProjectMilestones pathId={path.id} stageId={stage.id} title={stage.title} description={stage.description} reference={progress?.practice_check?.curriculum_ref} initial={progress?.practice_check?.milestone_completion ?? {}} />
+                <StageKnowledgeCheck key={stage.id} pathId={path.id} stageId={stage.id}/>
                 {/* Stage Progress Action */}
                 <div className="mt-5 flex items-center gap-3 border-t border-slate-800/80 pt-4">
                   {status !== "completed" && (

@@ -1,8 +1,12 @@
+import type { Metadata } from "next";
+import {LearningDataExport} from "@/components/LearningDataExport";
 import type {RoadmapStage} from "@/lib/paths/stage";
 import { currentQuote } from "@/lib/pricing/current-quote";
 import { getLearningUser } from "@/lib/auth/learning-user";
 import { AddToCalendar } from "@/components/AddToCalendar";
 import styles from "@/components/Roadmap.module.css";
+import {loadLearningAccess} from "@/lib/db/learning-access";
+import {libraryOwnedIds} from "@/lib/learning-access";
 import { pathCost } from "@/lib/pricing/path-cost";
 import { courseLink } from "@/lib/affiliates/links";
 import { Money, RememberCurrency } from "@/components/CurrencyProvider";
@@ -13,12 +17,18 @@ import {resumeStage} from "@/lib/paths/resume";
 import {ResumeLearning} from "@/components/ResumeLearning";
 import { PathBoard } from "@/components/PathBoard";
 import { FilteredStageList } from "@/components/FilteredStageList";
+import { RoadmapPreferences } from "@/components/RoadmapPreferences";
 
 import { convertPrice } from "@/lib/currency/convert";
 import { isSafeHttpUrl } from "@/lib/link-check/url-safety";
 import type { DiscoveredResource } from "@/lib/youtube/discover";
 import { computeStageTimeline } from "@/lib/paths/timeline";
 import { getFieldBySlug } from "@/lib/fields/catalog";
+
+export const metadata: Metadata = {
+  title: "Your learning roadmap | LearningMap",
+  robots: { index: false, follow: false },
+};
 
 export default async function PathPage({
   params,
@@ -99,6 +109,9 @@ export default async function PathPage({
     if (catalogMatch) fieldName = catalogMatch.name;
   }
 
+  const library = await loadLearningAccess(supabase,user.id);
+  const libraryAsOf = new Date().toISOString();
+  const libraryIds = libraryOwnedIds(stages ?? [],library.entries,path.weekly_hours,new Date(libraryAsOf));
   const originalResources: DiscoveredResource[] = (stages ?? []).flatMap((stage) => (stage.stage_resources ?? []).flatMap((sr) => {
     const resource = Array.isArray(sr.resources) ? sr.resources[0] : sr.resources;
     return resource ? [resource as DiscoveredResource] : [];
@@ -125,10 +138,13 @@ export default async function PathPage({
     stage.stage_resources = (stage.stage_resources ?? []).flatMap((sr) => {
       const resource = Array.isArray(sr.resources) ? sr.resources[0] : sr.resources;
       const valid = resource && refreshedByUrl.get(resource.url);
-      if (!valid) { hiddenResources++; return []; }
+      if (!valid) {
+        hiddenResources++;
+        return resource ? [{...sr,resources:{...resource,link_status:"broken",signals:{...resource.signals,price_unverified:true}}}] : [];
+      }
       if (!processedResourceUrls.has(valid.url)) { totalCost += valid.price; processedResourceUrls.add(valid.url); }
       const owned = stage.stage_progress?.[0]?.practice_check?.owned_resource_ids?.includes(valid.id) === true;
-      return [{ ...sr, resources: owned ? {...valid, signals:{...valid.signals, already_owned:true}} : valid }];
+      return [{ ...sr, resources: {...valid, signals:{...valid.signals, already_owned:owned||libraryIds.has(valid.id),roadmap_owned:owned,library_access:libraryIds.has(valid.id)}} }];
     });
   });
   const billing = pathCost((stages ?? []).map((stage) => ({ estimated_hours: stage.estimated_hours, resources: stage.stage_resources.map((sr) => sr.resources) })), path.weekly_hours);
@@ -191,11 +207,14 @@ export default async function PathPage({
         <div><p className={styles.eyebrow}>Your personal curriculum · {path.skill_level === "advanced" ? "Expert" : path.skill_level}</p><h1 className={styles.title}>{fieldName || "Your learning roadmap"}</h1><p className={styles.intro}>A clear route from knowledge to practice. Work through each stage, build something real, and keep your progress in one place.</p><div className={styles.heroActions}>{nextStage && <a href={"#stage-"+nextStage.id} className={styles.continue}>{completedStages ? "Continue learning" : "Start your first stage"} ↗</a>}<AddToCalendar pathId={path.id} /></div></div>
         <div className={styles.progress}><div className={styles.progressNumber}>{progressPct}<span>%</span></div><p>{completedStages} of {totalStages} stages completed<br/>{nextStage ? "One focused session at a time." : "Every stage completed. Well done."}</p><div className={styles.track} role="progressbar" aria-label="Roadmap completion" aria-valuenow={progressPct} aria-valuemin={0} aria-valuemax={100}><div style={{width:progressPct+"%"}}/></div></div>
       </header>
-      <dl className={styles.stats}><div className={styles.stat}><dt>Learning pace</dt><dd>{path.weekly_hours} <small>hrs / week</small></dd></div><div className={styles.stat}><dt>Estimated timeline</dt><dd>{totalWeeks} <small>weeks</small></dd></div><div className={styles.stat}><dt>Your budget</dt><dd><Money amount={path.budget_total} currency={path.currency}/></dd></div><div className={styles.stat}><dt>New purchases estimate</dt><dd>{(stages ?? []).some(stage => stage.stage_resources.some(({resources: resource}) => resource.signals?.price_unverified && !resource.signals?.already_owned)) ? <>Price confirmation needed</> : <Money amount={totalCost} currency={path.currency} freeLabel/>}</dd></div></dl>
+      <dl className={styles.stats}><div className={styles.stat}><dt>Learning pace</dt><dd>{path.weekly_hours} <small>hrs / week</small></dd></div><div className={styles.stat}><dt>Estimated timeline</dt><dd>{totalWeeks} <small>weeks</small></dd></div><div className={styles.stat}><dt>Your budget</dt><dd><Money amount={path.budget_total} currency={path.currency}/></dd></div><div className={styles.stat}><dt>New purchases estimate</dt><dd>{(stages ?? []).some(stage => stage.stage_resources.some(({resources: resource}) => resource.link_status !== "broken" && resource.signals?.price_unverified && !resource.signals?.already_owned)) ? <>Price confirmation needed</> : <Money amount={totalCost} currency={path.currency} freeLabel/>}</dd></div></dl>
+      <p className={styles.contentIntro}>{library.available?"Valid library access is included when it covers the planned study period.":"Your library could not be checked. Its access is not assumed in this estimate."} <a href="/settings/library" className="underline">Manage your course library →</a></p>
+      <LearningDataExport pathId={path.id}/>
+      <RoadmapPreferences library={library.entries} libraryAsOf={libraryAsOf} pathId={path.id} weeklyHours={path.weekly_hours} budgetTotal={Number(path.budget_total ?? 0)} currency={path.currency} stages={(stages ?? []).map(stage => ({id:stage.id,estimated_hours:stage.estimated_hours,completed:stage.stage_progress?.[0]?.status === "completed",resources:stage.stage_resources.map(sr => ({id:sr.resources.id,url:sr.resources.url,price:sr.resources.price,signals:sr.resources.signals,link_status:sr.resources.link_status}))}))} />
       <ResumeLearning stages={stages ?? []} pathId={path.id} viewerId={user.id} />
       <PathBoard stages={boardStages} overview />
       <div className={styles.layout}><aside className={styles.sidebar}><h2 className={styles.sideHeading}>The route <span>{String(totalStages).padStart(2,"0")} stages</span></h2><PathBoard stages={boardStages}/></aside><section className={styles.content} aria-label="Learning stages"><h2 className={styles.contentHeading}>Your next steps, laid out.</h2><p className={styles.contentIntro}>Learn the concepts. Apply them in the practice task. Mark the stage complete when you’re ready.</p><FilteredStageList viewerId={user.id} stages={stages ?? []} stageTimeline={stageTimelineRecord} path={path} myRatingByResource={myRatingByResource}/></section></div>
-      <footer className={styles.disclosures}>{hiddenResources > 0 && <p>{hiddenResources} resources are temporarily hidden while their links or prices cannot be verified. Your progress is preserved.</p>}{(stages ?? []).some(stage => stage.stage_resources.some(({resources: resource}) => resource.signals?.price_unverified && !resource.signals?.already_owned)) && <p>Some regional prices could not be verified. Check your country in Settings and confirm those prices with the provider. Unverified amounts are excluded from the estimate. One Scrimba Pro subscription covers multiple eligible courses.</p>}<p>Costs use the last verified course prices and are planning estimates. Availability and prices may change; confirm with the provider before purchasing.</p>{billing.subscriptions.map(plan=><p key={plan.provider}>Scrimba Pro: {plan.periods} {plan.billing_interval === "year" ? "year(s), billed upfront" : "month(s)"} included, counted once across courses. Start access at the first paid stage; cancel renewal when finished.</p>)}{refreshed.some(resource=>courseLink(resource.url,resource.signals?.affiliate===true).affiliate)&&<p>Some course links are affiliate links. LearningMap may earn a commission if you purchase through them.</p>}</footer>
+      <footer className={styles.disclosures}>{hiddenResources > 0 && <p>{hiddenResources} resources are currently unavailable. Use the resource controls to find a replacement or report a problem. Your progress is preserved.</p>}{(stages ?? []).some(stage => stage.stage_resources.some(({resources: resource}) => resource.link_status !== "broken" && resource.signals?.price_unverified && !resource.signals?.already_owned)) && <p>Some regional prices could not be verified. Check your country in Settings and confirm those prices with the provider. Unverified amounts are excluded from the estimate. One Scrimba Pro subscription covers multiple eligible courses.</p>}<p>Costs use the last verified course prices and are planning estimates. Availability and prices may change; confirm with the provider before purchasing.</p>{billing.subscriptions.map(plan=><p key={plan.provider}>Scrimba Pro: {plan.periods} {plan.billing_interval === "year" ? "year(s), billed upfront" : "month(s)"} included, counted once across courses. Start access at the first paid stage; cancel renewal when finished.</p>)}{refreshed.some(resource=>courseLink(resource.url,resource.signals?.affiliate===true).affiliate)&&<p>Some course links are affiliate links. LearningMap may earn a commission if you purchase through them.</p>}</footer>
     </div>
   </div>;
 }
