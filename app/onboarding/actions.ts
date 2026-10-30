@@ -89,8 +89,9 @@ export async function generatePath(formData: FormData) {
     redirect("/onboarding?error=Complete every quiz question or choose your level and skip the quiz.");
   }
   if (answeredCount === fieldQuiz.length) {
-    const blended = blendSkillLevel(selfReportedLevel, quizAnswers, field!.slug);
-    skillLevel = blended.finalLevel;
+      const blended = blendSkillLevel(selfReportedLevel, quizAnswers, field!.slug);
+      // An explicit level choice takes precedence; “unknown” means use the quiz result.
+      skillLevel = rawSkillLevel === "unknown" ? blended.quizImpliedLevel : selfReportedLevel;
     quizScore = blended.quizScore;
   }
 

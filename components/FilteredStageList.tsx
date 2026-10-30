@@ -20,8 +20,9 @@ import { Money } from "@/components/CurrencyProvider";
 import { providerName } from "@/lib/web-discovery/providers";
 import { useState, useTransition, useEffect, useRef } from "react";
 import { StageFilterBar, type StageFilter } from "@/components/StageFilterBar";
-import { updateStageProgress, rateResource, savePracticeNote } from "@/app/paths/[id]/actions";
+import { updateStageProgress, rateResource, savePracticeNote, saveStageFrameworkChoice } from "@/app/paths/[id]/actions";
 import { isSafeHttpUrl } from "@/lib/link-check/url-safety";
+import { backendFrameworks, detectBackendFramework, FRAMEWORK_LABELS, type BackendFramework } from "@/lib/paths/framework-choice";
 
 const STATUS_LABEL: Record<string, string> = {
   not_started: "Not started",
@@ -47,6 +48,8 @@ export function FilteredStageList({
   const [searchQuery, setSearchQuery] = useState("");
   const [editingNoteStageId, setEditingNoteStageId] = useState<string | null>(null);
   const [noteErrors, setNoteErrors] = useState<Record<string, string>>( {} );
+  const [frameworkSelections, setFrameworkSelections] = useState<Record<string, BackendFramework | "all">>(() => Object.fromEntries(stages.map(stage => [stage.id, stage.stage_progress?.[0]?.practice_check?.framework ?? "all"])));
+  const [frameworkErrors, setFrameworkErrors] = useState<Record<string, string>>({});
   const [isPending, startTransition] = useTransition();
 
   const initialHashHandled = useRef(false);
@@ -139,10 +142,20 @@ export function FilteredStageList({
             const progress = stage.stage_progress?.[0];
             const status = progress?.status ?? "not_started";
             const timeline = stageTimeline[stage.id];
-            const guidance = resourceGuidance(stage.stage_resources ?? []);
             const practiceCheck = progress?.practice_check as
-              | { description?: string; user_submission?: string; submitted_at?: string }
+              | { description?: string; user_submission?: string; submitted_at?: string; framework?: BackendFramework | null }
               | undefined;
+            const stageResources = stage.stage_resources ?? [];
+            const availableFrameworks = backendFrameworks(stageResources.flatMap(sr => {
+              const resource = Array.isArray(sr.resources) ? sr.resources[0] : sr.resources;
+              return resource ? [resource] : [];
+            }));
+            const selectedFramework = frameworkSelections[stage.id] ?? practiceCheck?.framework ?? "all";
+            const visibleResources = selectedFramework === "all" ? stageResources : stageResources.filter(sr => {
+              const resource = Array.isArray(sr.resources) ? sr.resources[0] : sr.resources;
+              return resource && (detectBackendFramework(resource) === selectedFramework || !detectBackendFramework(resource));
+            });
+            const guidance = resourceGuidance(visibleResources);
 
             const challenge = stagePracticeBrief(stage.title, practiceCheck?.description, progress?.practice_check?.curriculum_ref);
 
@@ -170,6 +183,7 @@ export function FilteredStageList({
                     <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
                       Your learning resources
                     </h4>
+                    {availableFrameworks.length > 1 && <div className="mb-4 rounded-xl border border-slate-700/80 bg-slate-900/40 p-3"><label htmlFor={`framework-${stage.id}`} className="block text-xs font-semibold uppercase tracking-wider text-slate-300">Focus this stage</label><p className="mt-1 text-xs text-slate-400">Choose a framework to prioritize its specific resources. Shared backend concepts remain visible.</p><select id={`framework-${stage.id}`} name={`framework-${stage.id}`} value={selectedFramework} disabled={isPending} onChange={event => { const previous = selectedFramework; const next = event.target.value as BackendFramework | "all"; setFrameworkSelections(current => ({...current,[stage.id]:next})); setFrameworkErrors(current => ({...current,[stage.id]:""})); startTransition(async () => { const result = await saveStageFrameworkChoice(path.id, stage.id, next === "all" ? null : next); if (!result.ok) { setFrameworkSelections(current => ({...current,[stage.id]:previous})); setFrameworkErrors(current => ({...current,[stage.id]:result.error ?? "Could not save this preference."})); } }); }} className="mt-2 block w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white"><option value="all">Show all frameworks</option>{availableFrameworks.map(framework => <option key={framework} value={framework}>{FRAMEWORK_LABELS[framework]}</option>)}</select>{frameworkErrors[stage.id] && <p role="alert" className="mt-2 text-xs text-amber-200">{frameworkErrors[stage.id]}</p>}</div>}
                     <p className={styles.resourceHint}>{guidance.start ? "Begin with the highlighted resource. Use references when you need an explanation; choose an alternative if another format suits you better. You do not need to finish every resource." : "No usable starting link is available for this stage. Check another stage or return after the links have been updated."}</p>
                     <ul className="space-y-2.5">
                       {guidance.ordered.map((sr, i: number) => {
@@ -230,7 +244,7 @@ export function FilteredStageList({
                               </div>
                               <div className={styles.resourceActions + " flex items-center gap-3 shrink-0 self-end sm:self-center"}>
                                 <span className="text-xs text-slate-400 font-medium">
-                                  <>{isBroken || !isValidLink ? "Resource unavailable" : resource.signals?.already_owned ? resource.signals?.library_access ? "Library access · self-reported" : "Already have access · self-reported" : resource.signals?.price_unverified ? "Check current price on provider" : <Money amount={resource.price} currency={resource.currency ?? path.currency} freeLabel />}{!isBroken && isValidLink && !resource.signals?.already_owned && (resource.signals?.billing_interval === "year" ? " / year billed upfront · shared Pro access" : resource.signals?.price_unverified && resource.platform === "scrimba" ? " · shared subscription" : !resource.signals?.price_unverified && resource.signals?.price_source === "scrimba_monthly" ? " / month · shared Pro access" : "")}{resource.signals?.price_estimate && !resource.signals?.price_unverified ? " · estimated; confirm at checkout" : ""}</>
+                                  <>{isBroken || !isValidLink ? "Resource unavailable" : resource.signals?.already_owned ? resource.signals?.library_access ? "Library access · self-reported" : "Already have access · self-reported" : resource.signals?.price_unverified ? "Price unverified · open provider for current price and billing term" : <Money amount={resource.price} currency={resource.currency ?? path.currency} freeLabel />}{!isBroken && isValidLink && !resource.signals?.already_owned && (resource.signals?.billing_interval === "year" ? " / year billed upfront · shared Pro access" : resource.signals?.price_unverified && resource.platform === "scrimba" ? " · shared subscription" : !resource.signals?.price_unverified && resource.signals?.price_source === "scrimba_monthly" ? " / month · shared Pro access" : "")}{resource.signals?.price_estimate && !resource.signals?.price_unverified ? " · estimated; confirm at checkout" : ""}</>
                                   {!isBroken && isValidLink && !resource.signals?.already_owned && typeof resource.signals?.price_checked_at === "string" && !resource.signals?.price_unverified && <span className="block text-[10px]">Price checked {resource.signals.price_checked_at.slice(0, 16).replace("T", " ")} UTC</span>}
                                   {resource.rating ? ` · ★ ${Number(resource.rating).toFixed(1)}` : ""}
                                 </span>
@@ -248,7 +262,7 @@ export function FilteredStageList({
                                 )}
                               </div>
                               {!isBroken && isValidLink && <W3SchoolsOffer url={resource.url} />}
-                              <ResourceTools key={resource.id} pathId={path.id} stageId={stage.id} resourceId={resource.id} title={resource.title} isCourse={t === "course"} />
+                              <ResourceTools key={resource.id} pathId={path.id} stageId={stage.id} resourceId={resource.id} title={resource.title} isCourse={t === "course"} isUnavailable={isBroken || !isValidLink} priceUnverified={Boolean(resource.signals?.price_unverified)} />
                             </li>
                           );
                         })}

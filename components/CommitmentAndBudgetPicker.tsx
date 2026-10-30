@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useCurrency } from "@/components/CurrencyProvider";
 import { formatMoney, type Currency } from "@/lib/currency/format";
 
@@ -9,11 +9,22 @@ export function CommitmentAndBudgetPicker() {
   const currency = preferredCurrency ?? "USD";
   const [weeklyHours, setWeeklyHours] = useState(5);
   const [skillLevel, setSkillLevel] = useState("beginner");
+  const [quizLevel, setQuizLevel] = useState<string | null>(null);
   const [budget, setBudget] = useState<{ currency: Currency; amount: string }>({
     currency, amount: currency === "INR" ? "5000" : "50",
   });
   const budgetValue = budget.currency === currency ? budget.amount : "";
   const budgetTotal = Number(budgetValue);
+
+  useEffect(() => {
+    const receiveAssessment = (event: Event) => {
+      const level = (event as CustomEvent<string | null>).detail;
+      setQuizLevel(level);
+      setSkillLevel(current => level ? "unknown" : current === "unknown" ? "beginner" : current);
+    };
+    window.addEventListener("learningmap-assessment-result", receiveAssessment);
+    return () => window.removeEventListener("learningmap-assessment-result", receiveAssessment);
+  }, []);
 
   return (
     <div className="commitment-panel rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5 space-y-5">
@@ -43,6 +54,7 @@ export function CommitmentAndBudgetPicker() {
           <option value="intermediate">Intermediate (Know fundamentals)</option>
           <option value="advanced">Expert / Advanced (Deepening expertise)</option>
         </select>
+        <p className="mt-2 text-xs text-slate-400" aria-live="polite">{quizLevel && skillLevel === "unknown" ? `Quiz estimate: ${quizLevel === "advanced" ? "Expert / Advanced" : quizLevel}. This result will set your starting level.` : "Choose your experience level, or take the quiz above and use its estimate."}</p>
       </div>
 
       <div>

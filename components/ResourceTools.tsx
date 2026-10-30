@@ -5,7 +5,7 @@ import { REPORT_REASONS,type ReportReason,type ResourceReportsState,type Replace
 import styles from "./ResourceTools.module.css";
 import { ReplacementChoices } from "./ReplacementChoices";
 const initial={ok:false,message:""};
-export function ResourceTools({pathId,stageId,resourceId,title,isCourse=false}: {pathId:string;stageId:string;resourceId:string;title:string;isCourse?:boolean}) {
+export function ResourceTools({pathId,stageId,resourceId,title,isCourse=false,isUnavailable=false,priceUnverified=false}: {pathId:string;stageId:string;resourceId:string;title:string;isCourse?:boolean;isUnavailable?:boolean;priceUnverified?:boolean}) {
  const [tab,setTab]=useState<"replace"|"report">("replace");
  const [loaded,setLoaded]=useState<ReplacementOptionsState>({...initial,options:[]});
  const [loading,startLoading]=useTransition();
@@ -28,7 +28,7 @@ export function ResourceTools({pathId,stageId,resourceId,title,isCourse=false}: 
   startLoading(async()=>{try{setReports(await loadResourceReports(form));}catch{setReports({ok:false,message:"Your reports could not be loaded. Please retry.",reports:[]});}});
  }
  return <details className={styles.tools}>
-  <summary>Change resource or report a problem <span aria-hidden="true">⌄</span></summary>
+  <summary>{isUnavailable ? "Find a replacement or report unavailable resource" : priceUnverified ? "Confirm price, find a replacement or report a problem" : "Change resource or report a problem"} <span aria-hidden="true">⌄</span></summary>
   <div className={styles.body}>
    {isCourse&&<a className={styles.secondary} href={"/settings/library?course="+encodeURIComponent(resourceId)}>Already have this course? Manage library access ↗</a>}
    <div className={styles.tabs} aria-label="Resource actions">

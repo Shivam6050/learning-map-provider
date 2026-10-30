@@ -24,7 +24,7 @@ export default async function LibraryPage({searchParams}:{searchParams:Promise<{
  const result=courseId||query.length>=2?await search:{data:[],error:null};
  const offered=(result.data??[]).filter(course=>isSafeHttpUrl(course.url));
  const active=entries.filter(entry=>accessStatus(entry)==='active').length;
- return <main className={styles.page}>
+ return <div className={styles.page}>
   <div className={styles.layout}>
    <aside className={styles.sidebar}><Link href="/settings">← Account settings</Link><p className={styles.eyebrow}>YOUR LEARNING SHELF</p><h1>Keep what<br/><em>you’ve earned.</em></h1><p>Bring the courses and subscriptions you already have into every roadmap.</p><div className={styles.summary}><strong>{active}</strong><span>active access {active===1?'entry':'entries'}</span></div><Link href="/dashboard">Return to your roadmaps →</Link></aside>
    <div className={styles.content}>
@@ -43,5 +43,5 @@ export default async function LibraryPage({searchParams}:{searchParams:Promise<{
     <p className={styles.disclosure}>Pausing or expiring access changes future cost estimates. It never removes courses, resets completed work, edits notes or changes events already in your calendar. Existing confirmations made for an individual roadmap remain separate.</p>
    </div>
   </div>
- </main>;
+ </div>;
 }

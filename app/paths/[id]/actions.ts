@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { BACKEND_FRAMEWORKS, detectBackendFramework } from "@/lib/paths/framework-choice";
 
 const VALID_STATUSES = ["not_started", "in_progress", "completed"] as const;
 type Status = (typeof VALID_STATUSES)[number];
@@ -73,6 +74,50 @@ export async function savePracticeNote(formData: FormData): Promise<{ ok: boolea
     return { ok: false, error: "Your progress changed in another tab. Please retry; your draft is still here." };
   } catch {
     return { ok: false, error: "Saving is temporarily unavailable. Please try again; your draft is still here." };
+  }
+}
+
+export async function saveStageFrameworkChoice(pathIdInput: string, stageIdInput: string, frameworkInput: string | null): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await getLearningUser(supabase);
+    if (!user) return { ok: false, error: "Your session expired. Sign in again to save this preference." };
+    const pathId = requireUuid(pathIdInput);
+    const stageId = requireUuid(stageIdInput);
+    await assertOwnedStage(supabase, stageId, pathId);
+    const framework = frameworkInput === null ? null : BACKEND_FRAMEWORKS.find(value => value === frameworkInput);
+    if (frameworkInput !== null && !framework) return { ok: false, error: "Choose a framework listed for this stage." };
+    if (framework) {
+      const { data: linked, error } = await supabase.from("stage_resources").select("resources(title,url)").eq("stage_id", stageId);
+      if (error) return { ok: false, error: "Could not verify this stage’s resources. Please try again." };
+      const available = (linked ?? []).some(row => {
+        const resource = Array.isArray(row.resources) ? row.resources[0] : row.resources;
+        return resource && detectBackendFramework(resource) === framework;
+      });
+      if (!available) return { ok: false, error: "That framework is no longer available in this stage. Refresh the roadmap and try again." };
+    }
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const { data: existing, error: readError } = await supabase.from("stage_progress").select("practice_check").eq("stage_id", stageId).eq("user_id", user.id).maybeSingle();
+      if (readError) return { ok: false, error: "Could not load this stage preference. Please retry." };
+      const prior = existing?.practice_check ?? {};
+      const practice_check = { ...prior, ...(framework ? { framework } : { framework: null }) };
+      if (!existing) {
+        const { error } = await supabase.from("stage_progress").insert({ stage_id: stageId, user_id: user.id, status: "not_started", practice_check }).select("stage_id").single();
+        if (error?.code === "23505") continue;
+        if (error) return { ok: false, error: "Could not save this framework preference. Please retry." };
+      } else {
+        let query = supabase.from("stage_progress").update({ practice_check, updated_at: new Date().toISOString() }).eq("stage_id", stageId).eq("user_id", user.id);
+        query = existing.practice_check === null ? query.is("practice_check", null) : query.eq("practice_check", JSON.stringify(existing.practice_check));
+        const { data: saved, error } = await query.select("stage_id").maybeSingle();
+        if (error) return { ok: false, error: "Could not save this framework preference. Please retry." };
+        if (!saved) continue;
+      }
+      revalidatePath(`/paths/${pathId}`);
+      return { ok: true };
+    }
+    return { ok: false, error: "This stage changed in another tab. Please retry." };
+  } catch {
+    return { ok: false, error: "Framework preference could not be saved. Please retry." };
   }
 }
 
