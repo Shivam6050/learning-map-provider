@@ -27,6 +27,7 @@ export function Footer({ signedIn = false }: { signedIn?: boolean }) {
               </li>
               <li><Link href="/roadmaps" className="transition hover:text-white">Browse learning roadmaps</Link></li>
               <li><Link href="/integrations" className="transition hover:text-white">Connect your assistant</Link></li>
+              <li><Link href="/skills/learningmap-roadmap-guide" className="transition hover:text-white">AI agent skill</Link></li>
               {signedIn ? <>
                 <li><Link href="/dashboard" className="transition hover:text-white">Your dashboard</Link></li>
                 <li><Link href="/settings/library" className="transition hover:text-white">Your course library</Link></li>
