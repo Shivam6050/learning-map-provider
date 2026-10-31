@@ -10,6 +10,7 @@ test('remote checks require exact authorization and HTTPS',()=>{
 test('sitemap targets cannot cause external or private-route requests',()=>{
  const wrap=url=>`<urlset><url><loc>${url}</loc></url></urlset>`;
  assert.deepEqual(sitemapPaths(wrap('https://example.com/'),'https://example.com'),['/']);
+ assert.deepEqual(sitemapPaths(`<urlset><url><loc>https://example.com/</loc></url>${wrap('https://example.com/skills/learningmap-roadmap-guide').replace('<urlset>','').replace('</urlset>','')}</urlset>`,'https://example.com'),['/','/skills/learningmap-roadmap-guide']);
  for(const url of ['https://evil.test/','https://example.com/api/cron/check-links','https://example.com/settings','https://example.com/?x=1'])assert.throws(()=>sitemapPaths(wrap(url),'https://example.com'));
  assert.throws(()=>sitemapPaths('<urlset/>','https://example.com'));
 });

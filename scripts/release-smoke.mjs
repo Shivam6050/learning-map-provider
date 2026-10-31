@@ -15,7 +15,7 @@ export function attributes(tag){const result={};for(const match of tag.matchAll(
 export function sitemapPaths(xml,canonical){
  const urls=[...xml.matchAll(/<loc>\s*([^<]+)\s*<\/loc>/g)].map(match=>new URL(decode(match[1].trim())));
  if(!urls.length||urls.length>50)throw new Error('Sitemap must contain 1–50 public URLs.');
- for(const url of urls)if(url.origin!==canonical||url.search||url.hash||!/^\/(?:roadmaps(?:\/[a-z0-9-]+)?|integrations|privacy|terms)?$/.test(url.pathname))throw new Error('Unexpected sitemap target; refusing to follow it.');
+ for(const url of urls)if(url.origin!==canonical||url.search||url.hash||!/^\/(?:roadmaps(?:\/[a-z0-9-]+)?|skills\/learningmap-roadmap-guide|integrations|privacy|terms)?$/.test(url.pathname))throw new Error('Unexpected sitemap target; refusing to follow it.');
  const paths=urls.map(url=>url.pathname);if(new Set(paths).size!==paths.length||!paths.includes('/'))throw new Error('Duplicate sitemap URL or missing homepage.');return paths;
 }
 function assert(value,message){if(!value)throw new Error(message);}
