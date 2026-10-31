@@ -19,7 +19,7 @@ export function GET() {
     "## MCP",
     "Streamable HTTP endpoint: " + site + "/mcp",
     "The human owner must sign in with a verified email at " + site + "/settings/agents and confirm their account password to create a scoped agent key. Never ask the user to give the bot their password. Configure Authorization: Bearer YOUR_AGENT_KEY in private client settings. Passwords, browser cookies and Supabase tokens are not accepted.",
-    "Authentication is required for tools and resource reads: list_learning_fields, get_curriculum_preview, search_learning_resources.",
+    "Authentication is required for tools and resource reads. Catalog tools: list_learning_fields, get_curriculum_preview, search_learning_resources. Optional owner-only tools list_my_roadmaps and get_my_roadmap_progress require personal-read scope; update_my_stage_progress requires separate progress-write scope.",
     "Automatic OAuth login is not implemented; clients must support remote Streamable HTTP and custom Authorization headers. Keys expire after 30 days and can be revoked from Settings.",
     "Resource URI: learningmap://catalog",
     "",
@@ -27,7 +27,7 @@ export function GET() {
     "The public skill and integration guide are available for search and crawler discovery. Skill invocation syntax and MCP support vary by AI agent. Installing the skill does not automatically register or connect LearningMap in every product; configure the server separately in each compatible client.",
     "",
     "## Limits",
-    "Personal paths, notes, accounts and progress are private and not exposed through MCP.",
+    "Personal roadmap access is opt-in per key and owner-scoped. Notes, budgets, purchases, account data and calendars are never exposed through MCP.",
     "This interface cannot purchase courses, generate personalized paths, send messages or modify calendars.",
     "Catalog free-access labels are not live quotes. Verify links and access on provider websites. Regional subscriptions, discounts, taxes and certificates may differ."
   ];

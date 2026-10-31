@@ -9,7 +9,13 @@ import {hashAgentKey} from "@/lib/agents/keys";
 function form(extra:Record<string,string|undefined>={}){const f=new FormData();for(const [k,v]of Object.entries({label:"My research assistant",consent:"on",password:"correct-password",...extra}))if(typeof v === "string") f.set(k,v);return f;}
 beforeEach(()=>{vi.clearAllMocks();mocks.password.mockResolvedValue("verified");mocks.user.mockResolvedValue({data:{user:{id:"owner",email:"owner@example.invalid",email_confirmed_at:"2026-01-01"}},error:null});mocks.rpc.mockResolvedValue({data:"new-id",error:null});mocks.select.mockResolvedValue({data:[{id:"key"}],error:null});mocks.is.mockReturnValue({select:mocks.select});mocks.eq.mockReturnValue({eq:mocks.eq,is:mocks.is});mocks.update.mockReturnValue({eq:mocks.eq});mocks.service.mockReturnValue({rpc:mocks.rpc,from:()=>({update:mocks.update})});});
 it("shows the key once and sends only its hash and verified owner to the database",async()=>{
- const state=await createAgentKey({},form({userId:"attacker"}));expect(state.key).toMatch(/^lm_agent_/);expect(mocks.rpc).toHaveBeenCalledWith("create_agent_access_key",{p_user:"owner",p_label:"My research assistant",p_hash:hashAgentKey(state.key!)});
+ const state=await createAgentKey({},form({userId:"attacker"}));expect(state.key).toMatch(/^lm_agent_/);expect(mocks.rpc).toHaveBeenCalledWith("create_scoped_agent_access_key",{p_user:"owner",p_label:"My research assistant",p_hash:hashAgentKey(state.key!),p_personal_read:false,p_progress_write:false});
+});
+it("grants personal read and persistent stage updates only when explicitly selected",async()=>{
+ const state=await createAgentKey({},form({personalRead:"on",progressWrite:"on"}));expect(state.key).toMatch(/^lm_agent_/);expect(mocks.rpc).toHaveBeenCalledWith("create_scoped_agent_access_key",expect.objectContaining({p_personal_read:true,p_progress_write:true}));
+});
+it("rejects write permission without personal read access",async()=>{
+ const state=await createAgentKey({},form({progressWrite:"on"}));expect(state.error).toContain("require personal roadmap");expect(mocks.rpc).not.toHaveBeenCalled();
 });
 it.each([{consent:""},{label:""},{label:"x".repeat(81)},{label:"bad\nlabel"}])("rejects invalid or unapproved requests before issuing a credential: %j",async extra=>{
  const state=await createAgentKey({},form(extra));expect(state.error).toBeTruthy();expect(state.key).toBeUndefined();expect(mocks.rpc).not.toHaveBeenCalled();

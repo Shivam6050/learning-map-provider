@@ -12,14 +12,17 @@ export async function createAgentKey(_previous:AgentKeyState, form:FormData):Pro
   if (error || !user || user.is_anonymous || !user.email_confirmed_at || !user.email) return {error:"Sign in with a verified email before creating an agent key."};
   const label = String(form.get("label") ?? "").trim();
   if (!label || label.length > 80 || /[\u0000-\u001f\u007f]/.test(label)) return {error:"Use an agent name between 1 and 80 characters."};
-  if (form.get("consent") !== "on") return {error:"Confirm the read-only access before creating your key."};
+  if (form.get("consent") !== "on") return {error:"Confirm catalog access before creating your key."};
+  const personalRead=form.get("personalRead")==="on";
+  const progressWrite=form.get("progressWrite")==="on";
+  if(progressWrite && !personalRead) return {error:"Progress updates require personal roadmap read access."};
   const password = form.get("password");
   if (typeof password !== "string" || !password || password.length > 128) return {error:"Confirm your account password to create an agent key."};
   const verification = await verifyAgentPassword(user.id, user.email, password);
   if (verification !== "verified") return {error: verification === "unavailable" ? "Password verification is temporarily unavailable. Please retry shortly." : "Could not verify your account password. Try again or reset your password."};
   const key = generateAgentKey();
   try {
-    const result = await createServiceClient().rpc("create_agent_access_key",{p_user:user.id,p_label:label,p_hash:hashAgentKey(key)});
+    const result = await createServiceClient().rpc("create_scoped_agent_access_key",{p_user:user.id,p_label:label,p_hash:hashAgentKey(key),p_personal_read:personalRead,p_progress_write:progressWrite});
     if (result.error || !result.data) return {error:result.error?.code === "P0001" ? "You can have up to five active keys and create ten per day. Revoke an unused key or try tomorrow." : "Could not create your key. Please retry shortly."};
   } catch { return {error:"Could not create your key. Please retry shortly."}; }
   revalidatePath("/settings/agents");

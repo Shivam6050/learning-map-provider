@@ -99,7 +99,7 @@ export function DashboardWorkspace({ name, paths, loadError, calendarConnectionE
         <DashboardPathList paths={paths} loadError={loadError}/>
 
         <section className={styles.agentCard} aria-labelledby="agent-access-heading">
-          <div><p className={styles.eyebrow}>LEARN WITH YOUR ASSISTANT</p><h2 id="agent-access-heading">Take LearningMap into your bot.</h2><p>Explore learning fields, course resources and curriculum previews through an MCP-compatible assistant. Connect from your verified account with a password-confirmed, read-only key.</p><small>Your notes, saved paths and progress stay private.</small></div>
+          <div><p className={styles.eyebrow}>LEARN WITH YOUR ASSISTANT</p><h2 id="agent-access-heading">Take LearningMap into your bot.</h2><p>Explore learning fields, course resources and curriculum previews through an MCP-compatible assistant. Create a password-confirmed key and choose what each connection can access.</p><small>Roadmap and progress access is optional. Your notes and account details stay private.</small></div>
           <IntentLink href="/integrations" className={styles.agentLink}>See how to connect <Arrow/></IntentLink>
         </section>
 

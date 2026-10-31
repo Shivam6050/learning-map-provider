@@ -4,16 +4,16 @@
 LearningMap Roadmap Guide
 
 ## Summary (under 300 characters)
-Explore structured backend, frontend, full-stack, AI/ML, data science, and DevOps curricula with your AI assistant. Search curated learning resources through LearningMap’s authenticated, read-only MCP connection.
+Explore structured backend, frontend, full-stack, AI/ML, data science, and DevOps curricula with your AI assistant. Search curated learning resources, or optionally review and update your own roadmap progress through an authenticated, owner-scoped MCP connection.
 
 ## Description
-LearningMap Roadmap Guide helps an AI assistant explore LearningMap’s authored technology curricula and curated learning-resource catalog.
+LearningMap Roadmap Guide helps an AI assistant explore LearningMap’s authored technology curricula and curated learning-resource catalog. With explicit per-key permission, it can also read the signed-in owner’s saved roadmaps and stage completion status, and update stage status when asked.
 
 Connect the LearningMap remote MCP server, then ask your agent to compare a field and experience level, outline stages in order, or find references for a topic. The skill teaches the agent to use the catalog tools, preserve resource links, distinguish authored data from its own suggestions, and explain what the data can and cannot verify.
 
 **Requires a separate connection:** configure LearningMap MCP at https://learning-map-provider-bice.vercel.app/mcp with a user-created bearer key in your client’s private credential settings. The owner creates a key after signing in with a verified email at LearningMap → Settings → Agent access. The skill never asks for that key in chat.
 
-**Read-only by design:** it can read supported fields, curriculum previews, and curated resource references. It cannot read personal saved paths, notes, progress, or account details, and cannot create or save a personalized path.
+**Owner-controlled access:** catalog access is required. Reading personal roadmaps and writing stage status are separate optional permissions, off by default and limited to the verified owner of the key. The agent never reads or changes notes, budgets, purchases, account details, or calendars. It cannot create a new path. Ask the owner before updating progress and never infer completion.
 
 **No live pricing claims:** access labels, regional offers, discounts, certificates, taxes, and billing terms must be confirmed with the provider. A listed-as-free catalog label is not a live price guarantee.
 
@@ -26,7 +26,7 @@ Use a real request in a connected client: “I’m new to backend development. S
 Requires an AI agent that supports SKILL.md and remote MCP over Streamable HTTP with a custom Authorization header. Server: https://learning-map-provider-bice.vercel.app/mcp. Keep the user-created bearer key in private client settings. A verified LearningMap account is required to create a key. OAuth-only clients are not supported.
 
 ## Suggested price
-Free for the first listing. This is a compact read-only connector guide, and free distribution lowers setup friction.
+Free for the first listing. The portable guide explains authenticated catalog use and optional, owner-scoped roadmap permissions.
 
 ## Categories (maximum 3)
 1. Education & Learning
@@ -46,14 +46,14 @@ LearningMap, learning path, technology curriculum, backend roadmap, frontend roa
 
 ## Permissions
 - Network: LearningMap host learning-map-provider-bice.vercel.app over HTTPS via configured MCP server.
-- Services: authenticated LearningMap catalog, read-only.
+- Services: authenticated LearningMap catalog; optional owner-scoped roadmap and progress access per key.
 - Files: reads the skill and its reference text only; no local user files are needed.
 - Tools: invokes the MCP tools described in this package when available.
 - Credentials: user-created agent key is entered in private client MCP settings. Never request or expose it in chat.
-- No shell commands, local writes, purchases, messaging, calendar mutation, account access, personal path access, or note access.
+- No shell commands, local writes, purchases, messaging, calendar mutation, broad account access, or note access.
 
 ## Known limitations
-- The MCP interface is read-only and does not generate or save personalized paths.
+- Catalog and roadmap-reading tools are read-only. An owner can separately allow explicit stage-status updates. The MCP interface does not generate or save a new personalized path.
 - It does not expose personal account data, progress, notes, calendar, or purchases.
 - It does not fetch live provider prices, discounts, link availability, certificates, or regional terms.
 - Each client must separately support/install the skill and configure remote MCP with a bearer header. Installing the skill alone does not configure the server.
@@ -64,11 +64,11 @@ LearningMap, learning path, technology curriculum, backend roadmap, frontend roa
 
 **Does it automatically connect ChatGPT, Claude, Grok, Dots, and other agents?** No. Each agent must support the skill format and separately configure LearningMap remote MCP. Compatibility should be checked in each product.
 
-**Can it save my personal LearningMap roadmap?** No. It reads catalog and curriculum previews only. Use the LearningMap website to generate and save a personal path.
+**Can I use this skill to track my personal learning progress or save my history?** Yes, after signing in with a verified email and creating an agent key with personal-roadmap access. The assistant can list your saved roadmaps and read stage status. If you separately enable progress updates, it can change a stage status when you explicitly ask. It cannot read notes or generate a new path through the skill.
 
 **Are prices and free labels live?** No. Check the provider page for current availability, price, currency, discounts, tax, and billing interval.
 
 **What if my key is lost or exposed?** Revoke it immediately under LearningMap → Settings → Agent access, then create a replacement. Do not post the key in chat or reports.
 
 ## Demo recording checklist
-The submission form recommends a real request and full result. Configure a test agent and key first; record a live tool call and returned curriculum/resource result. Keep the bearer key out of view. Clearly show read-only and no-live-price limitations. The demo must use actual MCP results, not this script as a claimed completed run.
+The submission form recommends a real request and full result. Configure a test agent and key first; record live catalog tools and, if demonstrating personal tools, enable only the test account's required scopes and show the owner-scoped roadmap/status response. Keep the bearer key out of view. Clearly show that personal access is opt-in, stage updates require explicit user instruction, and prices are not live. The demo must use actual MCP results, not this script as a claimed completed run.

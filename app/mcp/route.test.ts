@@ -1,10 +1,13 @@
 vi.mock("server-only",()=>({}));
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-vi.mock("@/lib/agents/keys", () => ({authenticateAgent:vi.fn(async()=>({status:"authorized",userId:"owner"}))}));
+const authentication=vi.hoisted(()=>vi.fn());
+const agentDb=vi.hoisted(()=>({from:vi.fn(),rpc:vi.fn()}));
+vi.mock("@/lib/agents/keys", () => ({authenticateAgent:authentication}));
+vi.mock("@/lib/supabase/service",()=>({createServiceClient:()=>agentDb}));
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { POST, GET, OPTIONS } from "./route";
 const url = "https://learningmap.example/mcp";
-beforeEach(() => { vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://learningmap.example"); vi.stubEnv("MCP_ALLOWED_ORIGINS", ""); });
+beforeEach(() => { vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://learningmap.example"); vi.stubEnv("MCP_ALLOWED_ORIGINS", ""); authentication.mockResolvedValue({status:"authorized",userId:"owner",scopes:["catalog:read"]});agentDb.from.mockReset();agentDb.rpc.mockReset(); });
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 function rpc(method: string, params: Record<string, unknown> = {}, headers: Record<string,string> = {}) {
   return POST(new Request(url,{method:"POST", headers:{"Content-Type":"application/json",Accept:"application/json, text/event-stream",...headers},body:JSON.stringify({jsonrpc:"2.0",id:1,method,params})}));
@@ -19,6 +22,30 @@ it("completes legacy MCP initialization and exposes only public read-only tools"
   const discovered = await body(await rpc("tools/list"));
   expect(discovered.result.tools.map((tool:{name:string}) => tool.name).sort()).toEqual(["get_curriculum_preview","list_learning_fields","search_learning_resources"]);
   for (const tool of discovered.result.tools) expect(tool.annotations.readOnlyHint).toBe(true);
+});
+it("registers personal tools only for the scopes chosen on that key",async()=>{
+ authentication.mockResolvedValue({status:"authorized",userId:"owner",scopes:["catalog:read","personal:read","progress:write"]});
+ const listed=await body(await rpc("tools/list"));
+ expect(listed.result.tools.map((tool:{name:string})=>tool.name).sort()).toEqual(["get_curriculum_preview","get_my_roadmap_progress","list_learning_fields","list_my_roadmaps","search_learning_resources","update_my_stage_progress"].sort());
+ expect(listed.result.tools.find((tool:{name:string})=>tool.name==="update_my_stage_progress").annotations.readOnlyHint).toBe(false);
+});
+it("lists only the verified key owner's saved roadmap progress",async()=>{
+ const pathId="11111111-1111-4111-8111-111111111111",stageId="22222222-2222-4222-8222-222222222222",filters:Array<[string,string,unknown]>=[];
+ authentication.mockResolvedValue({status:"authorized",userId:"owner",scopes:["catalog:read","personal:read"]});
+ agentDb.from.mockImplementation((table:string)=>{
+  const query={select:()=>query,eq:(column:string,value:unknown)=>{filters.push([table,column,value]);return query;},order:()=>query,in:(column:string,value:unknown)=>{filters.push([table,column,value]);return table==="stage_progress"?Promise.resolve({error:null,data:[{stage_id:stageId,status:"completed"}]}):query;},limit:()=>Promise.resolve({error:null,data:table==="learning_paths"?[{id:pathId,status:"active",skill_level:"beginner",created_at:"2026-01-01",fields:{name:"Backend Development"}}]:[{id:stageId,path_id:pathId}]})};
+  return query;
+ });
+ const response=await rpc("tools/call",{name:"list_my_roadmaps",arguments:{}});const data=(await body(response)).result.structuredContent;
+ expect(data.roadmaps[0]).toMatchObject({id:pathId,field:"Backend Development",completedStages:1,stageCount:1});
+ expect(filters).toContainEqual(["learning_paths","user_id","owner"]);expect(filters).toContainEqual(["stage_progress","user_id","owner"]);
+});
+it("writes stage status only through the owner-validated RPC",async()=>{
+ const pathId="11111111-1111-4111-8111-111111111111",stageId="22222222-2222-4222-8222-222222222222";
+ authentication.mockResolvedValue({status:"authorized",userId:"verified-owner",scopes:["catalog:read","personal:read","progress:write"]});
+ agentDb.rpc.mockResolvedValue({data:"2026-10-31T00:00:00Z",error:null});
+ await rpc("tools/call",{name:"update_my_stage_progress",arguments:{pathId,stageId,status:"completed"}});
+ expect(agentDb.rpc).toHaveBeenCalledWith("update_agent_stage_progress",{p_user:"verified-owner",p_path:pathId,p_stage:stageId,p_status:"completed"});
 });
 it("serves all eighteen curricula without any upstream request", async () => {
   const network = vi.fn(() => { throw new Error("Unexpected network access"); }); vi.stubGlobal("fetch",network);

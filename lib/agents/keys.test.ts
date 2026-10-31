@@ -4,7 +4,7 @@ vi.mock("@/lib/supabase/service",()=>({createServiceClient:db.create}));
 import { generateAgentKey, hashAgentKey, authenticateAgent, readAgentKey } from "./keys";
 const token="lm_agent_"+"A".repeat(43);
 const request=(authorization="Bearer "+token)=>new Request("https://learningmap.example/mcp",{headers:{authorization}});
-const valid={user_id:"owner",scope:"catalog:read",expires_at:"2099-01-01T00:00:00Z",revoked_at:null};
+const valid={user_id:"owner",scope:"catalog:read",personal_read:false,progress_write:false,expires_at:"2099-01-01T00:00:00Z",revoked_at:null};
 beforeEach(()=>{
  vi.clearAllMocks();db.eq.mockReturnValue({maybeSingle:db.one});db.select.mockReturnValue({eq:db.eq});
  db.create.mockReturnValue({from:()=>({select:db.select}),auth:{admin:{getUserById:db.user}}});
@@ -23,7 +23,13 @@ it.each([null,{...valid,revoked_at:"2026-01-01"},{...valid,expires_at:"2020-01-0
  db.one.mockResolvedValue({data,error:null});expect(await authenticateAgent(request())).toEqual({status:"unauthorized"});expect(db.user).not.toHaveBeenCalled();
 });
 it("validates the account and never passes the raw key to Supabase",async()=>{
- expect(await authenticateAgent(request())).toEqual({status:"authorized",userId:"owner"});expect(db.eq).toHaveBeenCalledWith("token_hash",hashAgentKey(token));expect(db.user).toHaveBeenCalledWith("owner");
+ expect(await authenticateAgent(request())).toEqual({status:"authorized",userId:"owner",scopes:["catalog:read"]});expect(db.eq).toHaveBeenCalledWith("token_hash",hashAgentKey(token));expect(db.user).toHaveBeenCalledWith("owner");
+});
+it("accepts valid opt-in personal scopes and rejects incomplete or unknown scope sets",async()=>{
+ db.one.mockResolvedValue({data:{...valid,personal_read:true,progress_write:true},error:null});
+ expect(await authenticateAgent(request())).toMatchObject({status:"authorized",userId:"owner",scopes:["catalog:read","personal:read","progress:write"]});
+ db.one.mockResolvedValue({data:{...valid,progress_write:true},error:null});expect(await authenticateAgent(request())).toEqual({status:"unauthorized"});
+ db.one.mockResolvedValue({data:{...valid,scope:"admin:all"},error:null});expect(await authenticateAgent(request())).toEqual({status:"unauthorized"});
 });
 it.each([{id:"owner",email_confirmed_at:null},{id:"owner",email_confirmed_at:"yes",is_anonymous:true},{id:"owner",email_confirmed_at:"yes",banned_until:"2099-01-01"}])("rejects unverified, anonymous or blocked accounts",async user=>{
  db.user.mockResolvedValue({data:{user},error:null});expect(await authenticateAgent(request())).toEqual({status:"unauthorized"});

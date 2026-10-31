@@ -4,6 +4,7 @@ select set_config('test.agent_owner',gen_random_uuid()::text,true), set_config('
 insert into auth.users(id) values(current_setting('test.agent_owner')::uuid),(current_setting('test.agent_other')::uuid);
 set local role service_role;
 select public.create_agent_access_key(current_setting('test.agent_owner')::uuid,'Owner fixture',repeat('a',64));
+select public.create_scoped_agent_access_key(current_setting('test.agent_other')::uuid,'Personal fixture',repeat('f',64),true,true);
 select public.create_agent_access_key(current_setting('test.agent_other')::uuid,'Other fixture',repeat('b',64));
 reset role;
 set local role authenticated;
@@ -63,8 +64,17 @@ reset role;
 do $$
 begin
  if has_table_privilege('authenticated','public.agent_access_keys','INSERT') or has_table_privilege('anon','public.agent_access_keys','SELECT') then raise exception 'Unexpected broad privileges'; end if;
- if (select prosecdef from pg_proc where oid='public.create_agent_access_key(uuid,text,text)'::regprocedure) then raise exception 'Issuance function must be SECURITY INVOKER'; end if;
+ if (select prosecdef from pg_proc where oid='public.create_agent_access_key(uuid,text,text)'::regprocedure) then raise exception 'Legacy issuance function must remain SECURITY INVOKER'; end if;
+ if (select prosecdef from pg_proc where oid='public.create_scoped_agent_access_key(uuid,text,text,boolean,boolean)'::regprocedure) then raise exception 'Scoped issuance function must be SECURITY INVOKER'; end if;
+ if not exists(select 1 from public.agent_access_keys where user_id=current_setting('test.agent_other')::uuid and label='Personal fixture' and personal_read and progress_write) then raise exception 'Personal scopes were not persisted'; end if;
+ begin
+  perform public.create_scoped_agent_access_key(current_setting('test.agent_owner')::uuid,'Invalid scope',repeat('c',64),false,true);
+  raise exception 'Progress write without personal read was accepted';
+ exception when sqlstate '22023' then null; end;
+ if (select prosecdef from pg_proc where oid='public.update_agent_stage_progress(uuid,uuid,uuid,text)'::regprocedure) is false then raise exception 'Progress RPC must be SECURITY DEFINER'; end if;
+ if has_function_privilege('authenticated','public.update_agent_stage_progress(uuid,uuid,uuid,text)','EXECUTE') or has_function_privilege('anon','public.update_agent_stage_progress(uuid,uuid,uuid,text)','EXECUTE') then raise exception 'Progress RPC has unexpected client grants'; end if;
  delete from auth.users where id=current_setting('test.agent_owner')::uuid;
+ delete from auth.users where id=current_setting('test.agent_other')::uuid;
  if exists(select 1 from public.agent_access_keys where user_id=current_setting('test.agent_owner')::uuid) then raise exception 'Deleted account retained keys'; end if;
 end;
 $$;
